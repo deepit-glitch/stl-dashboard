@@ -53,10 +53,10 @@
 <div class="shell">
   <div class="hdr">
     <div class="hdr-left">
-      <h1>Sara Textiles Ltd â Operations MIS Dashboard</h1>
-      <p>Nalagarh Plant &nbsp;Â·&nbsp; Dec 2025 â Mar 2026 Â· rolling 3-month window</p>
+      <h1>Sara Textiles Ltd — Operations MIS Dashboard</h1>
+      <p>Nalagarh Plant &nbsp;·&nbsp; Dec 2025 – Mar 2026 · rolling 3-month window</p>
     </div>
-    <span class="badge">4 months Â· updated 15 Mar 2026</span>
+    <span class="badge">4 months · updated 15 Mar 2026</span>
   </div>
 
   <div class="tabs">
@@ -72,17 +72,17 @@
       <span class="view-label">View:</span>
       <select class="msel" id="ov-view" onchange="updateOverview()" style="margin-bottom:0">
         <option value="monthly">Last 3 months comparison</option>
-        <option value="current">Current month â Mar 2026 (MTD)</option>
+        <option value="current">Current month — Mar 2026 (MTD)</option>
       </select>
     </div>
     <div id="ov-monthly">
       <div class="kg3" id="ov-kpis"></div>
-      <div class="warn" id="ov-warn">Industry benchmark: 65â70% loom efficiency &nbsp;|&nbsp; STL avg (4 months): 53.4% &nbsp;|&nbsp; Gap â â¹8â10 Cr/year</div>
+      <div class="warn" id="ov-warn">Industry benchmark: 65–70% loom efficiency &nbsp;|&nbsp; STL avg (4 months): 53.4% &nbsp;|&nbsp; Gap ≈ ₹8–10 Cr/year</div>
 
 
 
       <div class="sec">
-        <div class="sl">Daily average comparison â last 3 months (kg/day, excl. zero days)</div>
+        <div class="sl">Daily average comparison — last 3 months (kg/day, excl. zero days)</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:10px">
           <div>
             <div class="sl" style="margin-bottom:6px">Total Weaving</div>
@@ -122,7 +122,7 @@
       <div class="kg4" id="ov-cur-kpis"></div>
 
       <div class="sec">
-        <div class="sl">Daily trend â 6 parameters</div>
+        <div class="sl">Daily trend — 6 parameters</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
           <div><div class="sl" style="margin-bottom:6px">Total Weaving (kg)</div><div class="cw" style="height:150px"><canvas id="c-cur-line-wv"></canvas></div></div>
           <div><div class="sl" style="margin-bottom:6px">Yarn Dyeing (kg)</div><div class="cw" style="height:150px"><canvas id="c-cur-line-yarn"></canvas></div></div>
@@ -162,7 +162,7 @@
       </div>
     </div>
     <div class="sec">
-      <div class="sl">Dobby vs Jacquard efficiency â all months</div>
+      <div class="sl">Dobby vs Jacquard efficiency — all months</div>
       <div class="lr">
         <span class="li"><span class="ls" style="background:#EF9F27"></span>Dobby Inst.</span>
         <span class="li"><span class="ls" style="background:#378ADD"></span>Jacquard Inst.</span>
@@ -206,45 +206,45 @@
     <div class="kg3" id="co-kpis"></div>
     <div class="row2">
       <div class="sec">
-        <div class="sl">Raw material â yarn (â¹ Lakhs/day)</div>
-        <div class="lr"><span class="li"><span class="ls" style="background:#EF9F27"></span>â¹ Lakhs</span></div>
+        <div class="sl">Raw material — yarn (₹ Lakhs/day)</div>
+        <div class="lr"><span class="li"><span class="ls" style="background:#EF9F27"></span>₹ Lakhs</span></div>
         <div class="cw" style="height:210px"><canvas id="c-co-raw"></canvas></div>
       </div>
       <div class="sec">
-        <div class="sl">Dyes cost per kg dyed (â¹/kg)</div>
-        <div class="lr"><span class="li"><span class="ls" style="background:#D85A30"></span>â¹/kg</span></div>
+        <div class="sl">Dyes cost per kg dyed (₹/kg)</div>
+        <div class="lr"><span class="li"><span class="ls" style="background:#D85A30"></span>₹/kg</span></div>
         <div class="cw" style="height:210px"><canvas id="c-co-dyes"></canvas></div>
       </div>
     </div>
     <div class="row2">
       <div class="sec">
-        <div class="sl">Electricity cost per kg total production (â¹/kg)</div>
-        <div class="lr"><span class="li"><span class="ls" style="background:#378ADD"></span>â¹/kg</span></div>
+        <div class="sl">Electricity cost per kg total production (₹/kg)</div>
+        <div class="lr"><span class="li"><span class="ls" style="background:#378ADD"></span>₹/kg</span></div>
         <div class="cw" style="height:210px"><canvas id="c-co-elec"></canvas></div>
       </div>
       <div class="sec">
-        <div class="sl">Husk / Petcoke cost per kg dyeing (â¹/kg)</div>
-        <div class="lr"><span class="li"><span class="ls" style="background:#7F77DD"></span>â¹/kg</span></div>
+        <div class="sl">Husk / Petcoke cost per kg dyeing (₹/kg)</div>
+        <div class="lr"><span class="li"><span class="ls" style="background:#7F77DD"></span>₹/kg</span></div>
         <div class="cw" style="height:210px"><canvas id="c-co-petcoke"></canvas></div>
       </div>
     </div>
   </div>
 
-  <div class="updated">Last updated: 15 Mar 2026 &nbsp;Â·&nbsp; Sara Textiles Ltd, Nalagarh</div>
+  <div class="updated">Last updated: 15 Mar 2026 &nbsp;·&nbsp; Sara Textiles Ltd, Nalagarh</div>
 </div>
 
 <script>
-// ââ DATA ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-// ââ ROLLING WINDOW CONFIG ââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── DATA ──────────────────────────────────────────────────────────────────
+// ── ROLLING WINDOW CONFIG ────────────────────────────────────────────────────
 // To update: change CURRENT_MONTH to the new month key, set CURRENT_DAYS to
 // days elapsed, and ensure MONTHS always = [3 months ago, 2 months ago,
 // last full month, current month]. Drop oldest, add new at end each month.
 const MONTHS         = ['Dec-25','Jan-26','Feb-26','Mar-26'];
 const CURRENT_MONTH  = 'Mar-26';   // always MONTHS[3]
-const LAST_MONTH     = 'Feb-26';   // always MONTHS[2] â last full month for KPIs
+const LAST_MONTH     = 'Feb-26';   // always MONTHS[2] — last full month for KPIs
 const CURRENT_DAYS   = 15;         // days elapsed in current month
 const LAST_UPDATED   = '15 Mar 2026';
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
 
 const MONTHLY = {
   weaving:    [315026, 254569, 303612, 136756],
@@ -333,7 +333,7 @@ const CONSUMPTION_PARAMS = {
   }
 };
 
-// Daily data â weaving
+// Daily data — weaving
 const DAILY = {
   'Dec-25':{
     dates:["01","02","03","04","05","06","07","08","09","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31"],
@@ -369,11 +369,11 @@ const DAILY = {
   }
 };
 
-// Daily cost data (â¹ Lakhs per day)
+// Daily cost data (₹ Lakhs per day)
 
 
 
-// Daily Dye House data â "Today" column from Production Summary in each daily MIS file
+// Daily Dye House data — "Today" column from Production Summary in each daily MIS file
 const DAILY_DH = {
   'Dec-25':{
     dates:["14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31"],
@@ -401,7 +401,7 @@ const DAILY_DH = {
   }
 };
 
-// ââ UTILITIES âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── UTILITIES ─────────────────────────────────────────────────────────────
 const CHARTS = {};
 function dc(id){if(CHARTS[id]){CHARTS[id].destroy();delete CHARTS[id];}}
 function fmt(n){return Math.round(n).toLocaleString('en-IN');}
@@ -410,7 +410,7 @@ const gc='rgba(255,255,255,0.06)', tc='#7c8299';
 const base={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:tc,font:{size:11}}},y:{grid:{color:gc},ticks:{color:tc,font:{size:11}}}}};
 function getIdx(m){return MONTHS.indexOf(m||'Mar-26');}
 
-// Daily Dobby/Jacquard/Weaving production â sourced from the "Today" column
+// Daily Dobby/Jacquard/Weaving production — sourced from the "Today" column
 // (column 1) of the Production Summary table in each individual daily MIS file.
 // Dec files start from 14th (no files exist for 1-13 Dec in OneDrive).
 // Jan missing days: 21, 22, 27 (no files in OneDrive for those dates).
@@ -446,7 +446,7 @@ function getDailyDobbyJaq(m){
   return { weaving: dj.weaving, dobby: dj.dobby, jacquard: dj.jacquard, dates: dj.dates };
 }
 
-// ââ TAB SWITCHING âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── TAB SWITCHING ─────────────────────────────────────────────────────────
 function showTab(t){
   document.querySelectorAll('.tc').forEach(e=>e.classList.remove('act'));
   document.querySelectorAll('.tab').forEach(e=>e.classList.remove('act'));
@@ -458,7 +458,7 @@ function showTab(t){
   if(t==='co'&&!CHARTS['c-co-raw'])initCosts();
 }
 
-// ââ OVERVIEW ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── OVERVIEW ──────────────────────────────────────────────────────────────
 function updateOverview(){
   const v=document.getElementById('ov-view').value;
   document.getElementById('ov-monthly').style.display=v==='monthly'?'':'none';
@@ -466,7 +466,7 @@ function updateOverview(){
   if(v==='current'&&!CHARTS['c-cur-line-wv'])initCurrentMonth();
 }
 function buildOvKPIs(){
-  // Monthly comparison KPIs â show last full month (Feb-26, index 2)
+  // Monthly comparison KPIs — show last full month (Feb-26, index 2)
   const li = MONTHS.length - 2; // last full month index
   const ci = MONTHS.length - 1; // current month index
   const lm = MONTHS[li];
@@ -479,54 +479,54 @@ function buildOvKPIs(){
 
   document.getElementById('ov-kpis').innerHTML = `
     <div class="kc">
-      <div class="kl">Weaving â ${lm}</div>
+      <div class="kl">Weaving — ${lm}</div>
       <div class="kv">${fmt(MONTHLY.weaving[li])}</div>
-      <div class="ks">kg &nbsp;<span class="${MONTHLY.weaving[li]>MONTHLY.weaving[li-1]?'ku':'kd'}">${MONTHLY.weaving[li]>MONTHLY.weaving[li-1]?'â²':'â¼'} vs ${fmtT(MONTHLY.weaving[li-1])} ${MONTHS[li-1]}</span></div>
+      <div class="ks">kg &nbsp;<span class="${MONTHLY.weaving[li]>MONTHLY.weaving[li-1]?'ku':'kd'}">${MONTHLY.weaving[li]>MONTHLY.weaving[li-1]?'▲':'▼'} vs ${fmtT(MONTHLY.weaving[li-1])} ${MONTHS[li-1]}</span></div>
     </div>
     <div class="kc">
-      <div class="kl">Dispatch â ${lm}</div>
+      <div class="kl">Dispatch — ${lm}</div>
       <div class="kv">${fmt(MONTHLY.dispatch[li])}</div>
-      <div class="ks">kg &nbsp;<span class="${MONTHLY.dispatch[li]>MONTHLY.dispatch[li-1]?'ku':'kd'}">${MONTHLY.dispatch[li]>MONTHLY.dispatch[li-1]?'â²':'â¼'} vs ${fmtT(MONTHLY.dispatch[li-1])} ${MONTHS[li-1]}</span></div>
+      <div class="ks">kg &nbsp;<span class="${MONTHLY.dispatch[li]>MONTHLY.dispatch[li-1]?'ku':'kd'}">${MONTHLY.dispatch[li]>MONTHLY.dispatch[li-1]?'▲':'▼'} vs ${fmtT(MONTHLY.dispatch[li-1])} ${MONTHS[li-1]}</span></div>
     </div>
     <div class="kc">
-      <div class="kl">Loom Efficiency â ${lm}</div>
+      <div class="kl">Loom Efficiency — ${lm}</div>
       <div class="kv kd">${MONTHLY.loom_eff[li].toFixed(2)}%</div>
-      <div class="ks">Benchmark 65% &nbsp;<span class="kd">â¼ ${(65-MONTHLY.loom_eff[li]).toFixed(1)}pp gap</span></div>
+      <div class="ks">Benchmark 65% &nbsp;<span class="kd">▼ ${(65-MONTHLY.loom_eff[li]).toFixed(1)}pp gap</span></div>
     </div>`;
 
   // Update warn bar with dynamic avg
   const avg = (MONTHLY.loom_eff.slice(0,-1).reduce((a,b)=>a+b,0) / (MONTHLY.loom_eff.length-1)).toFixed(1);
   const el = document.getElementById('ov-warn');
-  if (el) el.innerHTML = `Industry benchmark: 65â70% loom efficiency &nbsp;|&nbsp; STL avg (${MONTHS.length-1} full months): ${avg}% &nbsp;|&nbsp; Gap â â¹8â10 Cr/year`;
+  if (el) el.innerHTML = `Industry benchmark: 65–70% loom efficiency &nbsp;|&nbsp; STL avg (${MONTHS.length-1} full months): ${avg}% &nbsp;|&nbsp; Gap ≈ ₹8–10 Cr/year`;
 
   // Partial month label
   const partialEl = document.getElementById('ov-partial');
   if (partialEl) {
     const monthNames = {'Dec-25':'December 2025','Jan-26':'January 2026','Feb-26':'February 2026','Mar-26':'March 2026','Apr-26':'April 2026','May-26':'May 2026','Jun-26':'June 2026'};
-    partialEl.innerHTML = `${monthNames[cm] || cm} â ${CURRENT_DAYS} days MTD (data as of ${LAST_UPDATED})`;
+    partialEl.innerHTML = `${monthNames[cm] || cm} — ${CURRENT_DAYS} days MTD (data as of ${LAST_UPDATED})`;
   }
 
   // Current month MTD KPIs
   document.getElementById('ov-cur-kpis').innerHTML = `
     <div class="kc">
-      <div class="kl">Weaving MTD â ${cm}</div>
+      <div class="kl">Weaving MTD — ${cm}</div>
       <div class="kv">${fmt(MONTHLY.weaving[ci])}</div>
-      <div class="ks">kg Â· ${days} days Â· avg ${fmt(Math.round(MONTHLY.weaving[ci]/days))}/day</div>
+      <div class="ks">kg · ${days} days · avg ${fmt(Math.round(MONTHLY.weaving[ci]/days))}/day</div>
     </div>
     <div class="kc">
-      <div class="kl">Dispatch MTD â ${cm}</div>
+      <div class="kl">Dispatch MTD — ${cm}</div>
       <div class="kv">${fmt(MONTHLY.dispatch[ci])}</div>
-      <div class="ks">kg Â· avg ${fmt(Math.round(MONTHLY.dispatch[ci]/days))}/day</div>
+      <div class="ks">kg · avg ${fmt(Math.round(MONTHLY.dispatch[ci]/days))}/day</div>
     </div>
     <div class="kc">
-      <div class="kl">Loom Efficiency â ${cm}</div>
+      <div class="kl">Loom Efficiency — ${cm}</div>
       <div class="kv kd">${MONTHLY.loom_eff[ci].toFixed(2)}%</div>
-      <div class="ks">Dobby ${MONTHLY.dobby_inst[ci].toFixed(1)}% Â· Jaq ${MONTHLY.jaq_inst[ci].toFixed(1)}%</div>
+      <div class="ks">Dobby ${MONTHLY.dobby_inst[ci].toFixed(1)}% · Jaq ${MONTHLY.jaq_inst[ci].toFixed(1)}%</div>
     </div>
     <div class="kc">
-      <div class="kl">Yarn Dyeing MTD â ${cm}</div>
+      <div class="kl">Yarn Dyeing MTD — ${cm}</div>
       <div class="kv">${fmt(MONTHLY.yarn_dye[ci])}</div>
-      <div class="ks">kg Â· avg ${fmt(Math.round(MONTHLY.yarn_dye[ci]/days))}/day</div>
+      <div class="ks">kg · avg ${fmt(Math.round(MONTHLY.yarn_dye[ci]/days))}/day</div>
     </div>`;
 }
 
@@ -559,14 +559,14 @@ function initCurrentMonth(){
   });
 }
 
-// ââ WEAVING âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── WEAVING ───────────────────────────────────────────────────────────────
 function buildWvKPIs(m){
   const i=getIdx(m);
   const days=MONTHLY.days[i];
   document.getElementById('wv-kpis').innerHTML=`
-    <div class="kc"><div class="kl">Weaving total</div><div class="kv">${fmt(MONTHLY.weaving[i])}</div><div class="ks">kg Â· ${days} days Â· avg ${fmt(Math.round(MONTHLY.weaving[i]/days))}/day</div></div>
-    <div class="kc"><div class="kl">Dobby Inst. Eff.</div><div class="kv kd">${MONTHLY.dobby_inst[i].toFixed(2)}%</div><div class="ks">Benchmark 65% &nbsp;<span class="kd">â¼ ${(65-MONTHLY.dobby_inst[i]).toFixed(1)}pp</span></div></div>
-    <div class="kc"><div class="kl">Jacquard Inst. Eff.</div><div class="kv kd">${MONTHLY.jaq_inst[i].toFixed(2)}%</div><div class="ks">Benchmark 65% &nbsp;<span class="kd">â¼ ${(65-MONTHLY.jaq_inst[i]).toFixed(1)}pp</span></div></div>`;
+    <div class="kc"><div class="kl">Weaving total</div><div class="kv">${fmt(MONTHLY.weaving[i])}</div><div class="ks">kg · ${days} days · avg ${fmt(Math.round(MONTHLY.weaving[i]/days))}/day</div></div>
+    <div class="kc"><div class="kl">Dobby Inst. Eff.</div><div class="kv kd">${MONTHLY.dobby_inst[i].toFixed(2)}%</div><div class="ks">Benchmark 65% &nbsp;<span class="kd">▼ ${(65-MONTHLY.dobby_inst[i]).toFixed(1)}pp</span></div></div>
+    <div class="kc"><div class="kl">Jacquard Inst. Eff.</div><div class="kv kd">${MONTHLY.jaq_inst[i].toFixed(2)}%</div><div class="ks">Benchmark 65% &nbsp;<span class="kd">▼ ${(65-MONTHLY.jaq_inst[i]).toFixed(1)}pp</span></div></div>`;
 }
 
 function renderWeavingCharts(m){
@@ -591,15 +591,15 @@ function updateWeaving(){
   renderWeavingCharts(m);
 }
 
-// ââ DYE HOUSE âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── DYE HOUSE ─────────────────────────────────────────────────────────────
 function buildDHKPIs(m){
   const i=getIdx(m);
   const days=MONTHLY.days[i];
   document.getElementById('dh-kpis').innerHTML=`
-    <div class="kc"><div class="kl">Yarn dyeing total</div><div class="kv">${fmt(MONTHLY.yarn_dye[i])}</div><div class="ks">kg Â· avg ${fmt(Math.round(MONTHLY.yarn_dye[i]/days))}/day</div></div>
-    <div class="kc"><div class="kl">Fabric dyeing total</div><div class="kv">${MONTHLY.fab_dye[i]>0?fmt(MONTHLY.fab_dye[i]):'â'}</div><div class="ks">${MONTHLY.fab_dye[i]>0?'kg Â· avg '+fmt(Math.round(MONTHLY.fab_dye[i]/days))+'/day':'No fabric dyeing this month'}</div></div>
-    <div class="kc"><div class="kl">Finishing packed</div><div class="kv">${fmt(MONTHLY.finishing[i])}</div><div class="ks">kg Â· avg ${fmt(Math.round(MONTHLY.finishing[i]/days))}/day</div></div>
-    <div class="kc"><div class="kl">Total dispatch</div><div class="kv">${fmt(MONTHLY.dispatch[i])}</div><div class="ks">kg Â· avg ${fmt(Math.round(MONTHLY.dispatch[i]/days))}/day</div></div>`;
+    <div class="kc"><div class="kl">Yarn dyeing total</div><div class="kv">${fmt(MONTHLY.yarn_dye[i])}</div><div class="ks">kg · avg ${fmt(Math.round(MONTHLY.yarn_dye[i]/days))}/day</div></div>
+    <div class="kc"><div class="kl">Fabric dyeing total</div><div class="kv">${MONTHLY.fab_dye[i]>0?fmt(MONTHLY.fab_dye[i]):'—'}</div><div class="ks">${MONTHLY.fab_dye[i]>0?'kg · avg '+fmt(Math.round(MONTHLY.fab_dye[i]/days))+'/day':'No fabric dyeing this month'}</div></div>
+    <div class="kc"><div class="kl">Finishing packed</div><div class="kv">${fmt(MONTHLY.finishing[i])}</div><div class="ks">kg · avg ${fmt(Math.round(MONTHLY.finishing[i]/days))}/day</div></div>
+    <div class="kc"><div class="kl">Total dispatch</div><div class="kv">${fmt(MONTHLY.dispatch[i])}</div><div class="ks">kg · avg ${fmt(Math.round(MONTHLY.dispatch[i]/days))}/day</div></div>`;
 }
 function renderDHCharts(m){
   const d=DAILY_DH[m];
@@ -612,7 +612,7 @@ function initDH(){buildDHKPIs(CURRENT_MONTH);renderDHCharts(CURRENT_MONTH);}
 function updateDH(){const m=document.getElementById('dh-month').value;buildDHKPIs(m);renderDHCharts(m);}
 
 
-// ââ COSTS âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── COSTS ─────────────────────────────────────────────────────────────────
 function buildCoKPIs(m){
   const i=getIdx(m);
   const cp=CONSUMPTION_PARAMS[m];
@@ -623,14 +623,14 @@ function buildCoKPIs(m){
   const avgDyes=dActive.length?dActive.reduce((a,b)=>a+b,0)/dActive.length:0;
   const avgElec=eActive.length?eActive.reduce((a,b)=>a+b,0)/eActive.length:0;
   document.getElementById('co-kpis').innerHTML=`
-    <div class="kc"><div class="kl">Raw Material â total</div><div class="kv">â¹${totalRaw.toFixed(1)} L</div><div class="ks">avg â¹${(totalRaw/days).toFixed(1)}L/day Â· ${days} days</div></div>
-    <div class="kc"><div class="kl">Dyes â avg cost/kg</div><div class="kv">â¹${avgDyes.toFixed(2)}</div><div class="ks">per kg dyed (excl. zero days)</div></div>
-    <div class="kc"><div class="kl">Electricity â avg cost/kg</div><div class="kv">â¹${avgElec.toFixed(2)}</div><div class="ks">per kg total production (excl. zero days)</div></div>`;
+    <div class="kc"><div class="kl">Raw Material — total</div><div class="kv">₹${totalRaw.toFixed(1)} L</div><div class="ks">avg ₹${(totalRaw/days).toFixed(1)}L/day · ${days} days</div></div>
+    <div class="kc"><div class="kl">Dyes — avg cost/kg</div><div class="kv">₹${avgDyes.toFixed(2)}</div><div class="ks">per kg dyed (excl. zero days)</div></div>
+    <div class="kc"><div class="kl">Electricity — avg cost/kg</div><div class="kv">₹${avgElec.toFixed(2)}</div><div class="ks">per kg total production (excl. zero days)</div></div>`;
 }
 
 function lineOpts(unit){
   return {...base,
-    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' â¹'+ctx.raw+' '+unit}}},
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' ₹'+ctx.raw+' '+unit}}},
     scales:{x:{grid:{display:false},ticks:{color:tc,maxTicksLimit:16}},y:{grid:{color:gc},ticks:{color:tc},beginAtZero:true}},
     elements:{line:{tension:0.3},point:{radius:3,hoverRadius:5}}
   };
