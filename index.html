@@ -64,6 +64,7 @@
     <button class="tab" onclick="showTab('wv')">Weaving</button>
     <button class="tab" onclick="showTab('dh')">Dye House & Dispatch</button>
     <button class="tab" onclick="showTab('co')">Costs</button>
+    <button class="tab" onclick="showTab('ds')">Daily Summary</button>
   </div>
 
   <!-- OVERVIEW -->
@@ -228,6 +229,14 @@
         <div class="cw" style="height:210px"><canvas id="c-co-petcoke"></canvas></div>
       </div>
     </div>
+  </div>
+
+  <!-- DAILY SUMMARY -->
+  <div id="tab-ds" class="tc">
+    <div id="ds-date-header" style="font-size:13px;color:var(--muted);margin-bottom:16px"></div>
+    <div id="ds-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px"></div>
+    <div id="ds-eff-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px"></div>
+    <div id="ds-notes" style="font-size:12px;color:var(--muted);padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;line-height:1.8"></div>
   </div>
 
   <div class="updated">Last updated: 16 Mar 2026 &nbsp;·&nbsp; Sara Textiles Ltd, Nalagarh</div>
@@ -452,10 +461,90 @@ function showTab(t){
   document.querySelectorAll('.tab').forEach(e=>e.classList.remove('act'));
   document.getElementById('tab-'+t).classList.add('act');
   document.querySelectorAll('.tab').forEach(e=>{if(e.getAttribute('onclick').includes("'"+t+"'"))e.classList.add('act');});
-  if(t==='ov'&&!CHARTS['c-avg-wv'])initOverview();
+  if(t==='ov'&&!CHARTS['c-avg-wv'])// ── DAILY SUMMARY ──────────────────────────────────────────────────────────
+function initDailySummary(){
+  const cm = CURRENT_MONTH;
+  const ov = DAILY_OV[cm];
+  const dj = DAILY_DJ[cm];
+  const days = ov.dates.length;
+  const lastDay = ov.dates[days-1];
+
+  // Helper: MTD avg (excl zero days)
+  const avg = arr => { const a=arr.filter(v=>v>0); return a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):0; };
+  const avgF = arr => { const a=arr.filter(v=>v>0); return a.length?parseFloat((a.reduce((x,y)=>x+y,0)/a.length).toFixed(2)):0; };
+
+  // Production metrics — last day vs MTD avg
+  const prodMetrics = [
+    { label:'Total Weaving',   today: ov.weaving[days-1],  mtdAvg: avg(ov.weaving),  unit:'kg', higherBetter:true },
+    { label:'Yarn Dyeing',     today: ov.yarn[days-1],     mtdAvg: avg(ov.yarn),     unit:'kg', higherBetter:true },
+    { label:'Fab+Wash',        today: ov.fabwash[days-1],  mtdAvg: avg(ov.fabwash),  unit:'kg', higherBetter:true },
+    { label:'Finishing Packing', today: ov.fin[days-1],    mtdAvg: avg(ov.fin),      unit:'kg', higherBetter:true },
+    { label:'Stitching',       today: ov.stitch[days-1],   mtdAvg: avg(ov.stitch),   unit:'kg', higherBetter:true },
+    { label:'Dispatch',        today: ov.dispatch[days-1], mtdAvg: avg(ov.dispatch), unit:'kg', higherBetter:true },
+  ];
+
+  const effMetrics = [
+    { label:'Loom Efficiency', today: MONTHLY.loom_eff[MONTHS.indexOf(cm)],    mtdAvg: 65,   unit:'%', higherBetter:true, benchmark:true },
+    { label:'Dobby Inst. Eff', today: MONTHLY.dobby_inst[MONTHS.indexOf(cm)],  mtdAvg: 65,   unit:'%', higherBetter:true, benchmark:true },
+    { label:'Jacquard Inst. Eff', today: MONTHLY.jaq_inst[MONTHS.indexOf(cm)], mtdAvg: 65,   unit:'%', higherBetter:true, benchmark:true },
+  ];
+
+  function devClass(dev, higherBetter){
+    const d = higherBetter ? dev : -dev;
+    if (d >= 5) return 'color:#1D9E75';
+    if (d >= -10) return 'color:#EF9F27';
+    return 'color:#E24B4A';
+  }
+  function devIcon(dev, higherBetter){
+    const d = higherBetter ? dev : -dev;
+    if (d >= 5) return '▲';
+    if (d >= -10) return '●';
+    return '▼';
+  }
+
+  function makeCard(m, isBenchmark){
+    const dev = m.mtdAvg > 0 ? ((m.today - m.mtdAvg) / m.mtdAvg * 100) : 0;
+    const devStr = (dev >= 0 ? '+' : '') + dev.toFixed(1) + '%';
+    const cls = devClass(dev, m.higherBetter);
+    const icon = devIcon(dev, m.higherBetter);
+    const label2 = isBenchmark ? 'vs 65% benchmark' : `MTD avg: ${fmt(m.mtdAvg)} ${m.unit}`;
+    return `<div class="kc">
+      <div class="kl">${m.label}</div>
+      <div class="kv" style="${cls}">${m.unit==='%'?m.today.toFixed(2)+'%':fmt(m.today)+' kg'}</div>
+      <div class="ks">${label2} &nbsp;<span style="${cls};font-weight:600">${icon} ${devStr}</span></div>
+    </div>`;
+  }
+
+  document.getElementById('ds-date-header').innerHTML =
+    `<strong>Last recorded day: ${lastDay} ${cm}</strong> &nbsp;·&nbsp; MTD: ${days} days &nbsp;·&nbsp; Data as of ${LAST_UPDATED}`;
+
+  document.getElementById('ds-grid').innerHTML = prodMetrics.map(m=>makeCard(m,false)).join('');
+  document.getElementById('ds-eff-grid').innerHTML = effMetrics.map(m=>makeCard(m,true)).join('');
+
+  // Auto-generate notes for significant deviations
+  const alerts = [];
+  prodMetrics.forEach(m => {
+    if (m.mtdAvg === 0) return;
+    const dev = (m.today - m.mtdAvg) / m.mtdAvg * 100;
+    if (dev < -20) alerts.push(`🔴 <strong>${m.label}</strong>: ${fmt(m.today)} kg — ${Math.abs(dev.toFixed(1))}% below MTD avg (${fmt(m.mtdAvg)} kg)`);
+    else if (dev < -10) alerts.push(`🟡 <strong>${m.label}</strong>: ${fmt(m.today)} kg — ${Math.abs(dev.toFixed(1))}% below MTD avg (${fmt(m.mtdAvg)} kg)`);
+    else if (dev > 20) alerts.push(`🟢 <strong>${m.label}</strong>: ${fmt(m.today)} kg — ${dev.toFixed(1)}% above MTD avg (${fmt(m.mtdAvg)} kg)`);
+  });
+  effMetrics.forEach(m => {
+    const dev = m.today - 65;
+    if (dev < -5) alerts.push(`🔴 <strong>${m.label}</strong>: ${m.today.toFixed(2)}% — ${Math.abs(dev.toFixed(1))}pp below 65% benchmark`);
+  });
+  const notesEl = document.getElementById('ds-notes');
+  notesEl.innerHTML = alerts.length
+    ? `<strong>Deviations flagged:</strong><br>${alerts.join('<br>')}`
+    : `<span style="color:var(--green)">✓ No major deviations from MTD averages on the last recorded day.</span>`;
+}
+
+initOverview();
   if(t==='wv'&&!CHARTS['c-daily-wv'])initWeaving();
   if(t==='dh'&&!CHARTS['c-daily-dh'])initDH();
   if(t==='co'&&!CHARTS['c-co-raw'])initCosts();
+  if(t==='ds')initDailySummary();
 }
 
 // ── OVERVIEW ──────────────────────────────────────────────────────────────
