@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>STL Operations MIS Dashboard</title>
-<!-- build:1773739703468 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -234,10 +233,12 @@
 
   <!-- DAILY SUMMARY -->
   <div id="tab-ds" class="tc">
-    <div id="ds-date-header" style="font-size:13px;color:var(--muted);margin-bottom:16px"></div>
-    <div id="ds-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px"></div>
-    <div id="ds-eff-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px"></div>
-    <div id="ds-notes" style="font-size:12px;color:var(--muted);padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;line-height:1.8"></div>
+    <div id="ds-header" style="font-size:13px;color:var(--muted);margin-bottom:20px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px"></div>
+    <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px">Production — Last day vs MTD daily average</div>
+    <div id="ds-prod" class="kg3" style="margin-bottom:24px"></div>
+    <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px">Loom Efficiency — MTD vs 65% benchmark</div>
+    <div id="ds-eff" class="kg3" style="margin-bottom:24px"></div>
+    <div id="ds-alerts" style="font-size:12px;color:var(--muted);padding:12px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;line-height:2"></div>
   </div>
 
   <div class="updated">Last updated: 16 Mar 2026 &nbsp;·&nbsp; Sara Textiles Ltd, Nalagarh</div>
@@ -335,11 +336,11 @@ const CONSUMPTION_PARAMS = {
     petcoke_pkg:[20.68,23.15,23.69,14.84,15.57,65.33,11.29,21.21,27.95,16.66,15.36,20.54,18.88,21.51,18.57,18.03,21.6,16.42,17.57,16.88,24.11,19.49,17.47,0,62.03,86.38,10.73,0]
   },
   'Mar-26':{
-    dates:["01","02","03","04","05","06","07","08","09","10","11","12","13","14","15","16"],
-    raw:[93.2,406.3,34.3,0,292.2,160,218.2,104.9,134.2,37.1,399.4,98.2,196.6,148.3,534,0],
-    dyes_pkg:[0,10.6,19.49,0,0.29,11.12,36.33,98.34,24.58,22.15,21.25,18.14,9578.12,0,7.83,0],
-    elec_pkg:[34.89,21.49,133.24,0,9.72,27.6,30.69,26.3,26.43,32.57,28.93,28.81,31.81,25.51,31.85,0],
-    petcoke_pkg:[0,19.86,27.6,0,41.34,14.42,24.3,882.59,29.83,39.03,0,17.19,63371.89,0,11.16,0]
+    dates:["01","02","03","04","05","06","07"],
+    raw:[93.2,406.3,34.3,0,292.2,160,218.2],
+    dyes_pkg:[0,10.6,19.49,0,0.29,11.12,36.33],
+    elec_pkg:[34.89,21.49,133.24,0,9.72,27.6,0],
+    petcoke_pkg:[0,19.86,27.6,0,41.34,14.42,0]
   }
 };
 
@@ -462,86 +463,7 @@ function showTab(t){
   document.querySelectorAll('.tab').forEach(e=>e.classList.remove('act'));
   document.getElementById('tab-'+t).classList.add('act');
   document.querySelectorAll('.tab').forEach(e=>{if(e.getAttribute('onclick').includes("'"+t+"'"))e.classList.add('act');});
-  if(t==='ov'&&!CHARTS['c-avg-wv'])// ── DAILY SUMMARY ──────────────────────────────────────────────────────────
-function initDailySummary(){
-  const cm = CURRENT_MONTH;
-  const ov = DAILY_OV[cm];
-  const dj = DAILY_DJ[cm];
-  const days = ov.dates.length;
-  const lastDay = ov.dates[days-1];
-
-  // Helper: MTD avg (excl zero days)
-  const avg = arr => { const a=arr.filter(v=>v>0); return a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):0; };
-  const avgF = arr => { const a=arr.filter(v=>v>0); return a.length?parseFloat((a.reduce((x,y)=>x+y,0)/a.length).toFixed(2)):0; };
-
-  // Production metrics — last day vs MTD avg
-  const prodMetrics = [
-    { label:'Total Weaving',   today: ov.weaving[days-1],  mtdAvg: avg(ov.weaving),  unit:'kg', higherBetter:true },
-    { label:'Yarn Dyeing',     today: ov.yarn[days-1],     mtdAvg: avg(ov.yarn),     unit:'kg', higherBetter:true },
-    { label:'Fab+Wash',        today: ov.fabwash[days-1],  mtdAvg: avg(ov.fabwash),  unit:'kg', higherBetter:true },
-    { label:'Finishing Packing', today: ov.fin[days-1],    mtdAvg: avg(ov.fin),      unit:'kg', higherBetter:true },
-    { label:'Stitching',       today: ov.stitch[days-1],   mtdAvg: avg(ov.stitch),   unit:'kg', higherBetter:true },
-    { label:'Dispatch',        today: ov.dispatch[days-1], mtdAvg: avg(ov.dispatch), unit:'kg', higherBetter:true },
-  ];
-
-  const effMetrics = [
-    { label:'Loom Efficiency', today: MONTHLY.loom_eff[MONTHS.indexOf(cm)],    mtdAvg: 65,   unit:'%', higherBetter:true, benchmark:true },
-    { label:'Dobby Inst. Eff', today: MONTHLY.dobby_inst[MONTHS.indexOf(cm)],  mtdAvg: 65,   unit:'%', higherBetter:true, benchmark:true },
-    { label:'Jacquard Inst. Eff', today: MONTHLY.jaq_inst[MONTHS.indexOf(cm)], mtdAvg: 65,   unit:'%', higherBetter:true, benchmark:true },
-  ];
-
-  function devClass(dev, higherBetter){
-    const d = higherBetter ? dev : -dev;
-    if (d >= 5) return 'color:#1D9E75';
-    if (d >= -10) return 'color:#EF9F27';
-    return 'color:#E24B4A';
-  }
-  function devIcon(dev, higherBetter){
-    const d = higherBetter ? dev : -dev;
-    if (d >= 5) return '▲';
-    if (d >= -10) return '●';
-    return '▼';
-  }
-
-  function makeCard(m, isBenchmark){
-    const dev = m.mtdAvg > 0 ? ((m.today - m.mtdAvg) / m.mtdAvg * 100) : 0;
-    const devStr = (dev >= 0 ? '+' : '') + dev.toFixed(1) + '%';
-    const cls = devClass(dev, m.higherBetter);
-    const icon = devIcon(dev, m.higherBetter);
-    const label2 = isBenchmark ? 'vs 65% benchmark' : `MTD avg: ${fmt(m.mtdAvg)} ${m.unit}`;
-    return `<div class="kc">
-      <div class="kl">${m.label}</div>
-      <div class="kv" style="${cls}">${m.unit==='%'?m.today.toFixed(2)+'%':fmt(m.today)+' kg'}</div>
-      <div class="ks">${label2} &nbsp;<span style="${cls};font-weight:600">${icon} ${devStr}</span></div>
-    </div>`;
-  }
-
-  document.getElementById('ds-date-header').innerHTML =
-    `<strong>Last recorded day: ${lastDay} ${cm}</strong> &nbsp;·&nbsp; MTD: ${days} days &nbsp;·&nbsp; Data as of ${LAST_UPDATED}`;
-
-  document.getElementById('ds-grid').innerHTML = prodMetrics.map(m=>makeCard(m,false)).join('');
-  document.getElementById('ds-eff-grid').innerHTML = effMetrics.map(m=>makeCard(m,true)).join('');
-
-  // Auto-generate notes for significant deviations
-  const alerts = [];
-  prodMetrics.forEach(m => {
-    if (m.mtdAvg === 0) return;
-    const dev = (m.today - m.mtdAvg) / m.mtdAvg * 100;
-    if (dev < -20) alerts.push(`🔴 <strong>${m.label}</strong>: ${fmt(m.today)} kg — ${Math.abs(dev.toFixed(1))}% below MTD avg (${fmt(m.mtdAvg)} kg)`);
-    else if (dev < -10) alerts.push(`🟡 <strong>${m.label}</strong>: ${fmt(m.today)} kg — ${Math.abs(dev.toFixed(1))}% below MTD avg (${fmt(m.mtdAvg)} kg)`);
-    else if (dev > 20) alerts.push(`🟢 <strong>${m.label}</strong>: ${fmt(m.today)} kg — ${dev.toFixed(1)}% above MTD avg (${fmt(m.mtdAvg)} kg)`);
-  });
-  effMetrics.forEach(m => {
-    const dev = m.today - 65;
-    if (dev < -5) alerts.push(`🔴 <strong>${m.label}</strong>: ${m.today.toFixed(2)}% — ${Math.abs(dev.toFixed(1))}pp below 65% benchmark`);
-  });
-  const notesEl = document.getElementById('ds-notes');
-  notesEl.innerHTML = alerts.length
-    ? `<strong>Deviations flagged:</strong><br>${alerts.join('<br>')}`
-    : `<span style="color:var(--green)">✓ No major deviations from MTD averages on the last recorded day.</span>`;
-}
-
-initOverview();
+  if(t==='ov'&&!CHARTS['c-avg-wv'])initOverview();
   if(t==='wv'&&!CHARTS['c-daily-wv'])initWeaving();
   if(t==='dh'&&!CHARTS['c-daily-dh'])initDH();
   if(t==='co'&&!CHARTS['c-co-raw'])initCosts();
@@ -737,6 +659,83 @@ function renderCostCharts(m){
 
 function initCosts(){buildCoKPIs(CURRENT_MONTH);renderCostCharts(CURRENT_MONTH);}
 function updateCosts(){const m=document.getElementById('co-month').value;buildCoKPIs(m);renderCostCharts(m);}
+
+
+// -- DAILY SUMMARY ------------------------------------------------------------
+function initDailySummary(){
+  var cm = CURRENT_MONTH;
+  var ov = DAILY_OV[cm];
+  var mi = MONTHS.indexOf(cm);
+  var days = ov.dates.length;
+  var lastDay = ov.dates[days-1];
+
+  function avg(arr){
+    var a=arr.filter(function(v){return v>0;});
+    return a.length?Math.round(a.reduce(function(x,y){return x+y;},0)/a.length):0;
+  }
+
+  var prodRows = [
+    {label:'Total Weaving',      today:ov.weaving[days-1],  mtd:avg(ov.weaving),  unit:'kg'},
+    {label:'Yarn Dyeing',        today:ov.yarn[days-1],     mtd:avg(ov.yarn),     unit:'kg'},
+    {label:'Fab. Dyeing+Washing',today:ov.fabwash[days-1],  mtd:avg(ov.fabwash),  unit:'kg'},
+    {label:'Finishing Packing',  today:ov.fin[days-1],      mtd:avg(ov.fin),      unit:'kg'},
+    {label:'Stitching',          today:ov.stitch[days-1],   mtd:avg(ov.stitch),   unit:'kg'},
+    {label:'Dispatch',           today:ov.dispatch[days-1], mtd:avg(ov.dispatch), unit:'kg'}
+  ];
+
+  var effRows = [
+    {label:'Loom Efficiency',    today:MONTHLY.loom_eff[mi],    mtd:65, unit:'%'},
+    {label:'Dobby Inst. Eff.',   today:MONTHLY.dobby_inst[mi],  mtd:65, unit:'%'},
+    {label:'Jacquard Inst. Eff.',today:MONTHLY.jaq_inst[mi],    mtd:65, unit:'%'}
+  ];
+
+  function devColor(dev){
+    if(dev>=5)  return '#1D9E75';
+    if(dev>=-10) return '#EF9F27';
+    return '#E24B4A';
+  }
+  function devIcon(dev){ return dev>=5?'▲':dev>=-10?'●':'▼'; }
+
+  function card(m, isBenchmark){
+    var dev = m.mtd>0 ? (m.today-m.mtd)/m.mtd*100 : 0;
+    var devStr = (dev>=0?'+':'')+dev.toFixed(1)+'%';
+    var col = devColor(dev);
+    var icon = devIcon(dev);
+    var valStr = m.unit==='%' ? m.today.toFixed(2)+'%' : fmt(m.today)+' kg';
+    var sub = isBenchmark
+      ? 'vs 65% benchmark'
+      : 'MTD avg: '+fmt(m.mtd)+' kg';
+    return '<div class="kc">'
+      +'<div class="kl">'+m.label+'</div>'
+      +'<div class="kv" style="color:'+col+'">'+valStr+'</div>'
+      +'<div class="ks">'+sub+'&nbsp;<span style="color:'+col+';font-weight:600">'+icon+' '+devStr+'</span></div>'
+      +'</div>';
+  }
+
+  document.getElementById('ds-header').innerHTML =
+    '<strong>Last recorded day: '+lastDay+' '+cm+'</strong>'
+    +' &nbsp;&middot;&nbsp; MTD: '+days+' days'
+    +' &nbsp;&middot;&nbsp; Updated: '+LAST_UPDATED;
+
+  document.getElementById('ds-prod').innerHTML = prodRows.map(function(m){return card(m,false);}).join('');
+  document.getElementById('ds-eff').innerHTML  = effRows.map(function(m){return card(m,true);}).join('');
+
+  var alerts = [];
+  prodRows.forEach(function(m){
+    if(!m.mtd) return;
+    var dev=(m.today-m.mtd)/m.mtd*100;
+    if(dev<-20) alerts.push('\uD83D\uDD34 <strong>'+m.label+'</strong>: '+fmt(m.today)+' kg &mdash; '+Math.abs(dev).toFixed(1)+'% below MTD avg ('+fmt(m.mtd)+' kg)');
+    else if(dev<-10) alerts.push('\uD83D\uDFE1 <strong>'+m.label+'</strong>: '+fmt(m.today)+' kg &mdash; '+Math.abs(dev).toFixed(1)+'% below MTD avg ('+fmt(m.mtd)+' kg)');
+    else if(dev>20) alerts.push('\uD83D\uDFE2 <strong>'+m.label+'</strong>: '+fmt(m.today)+' kg &mdash; '+dev.toFixed(1)+'% above MTD avg ('+fmt(m.mtd)+' kg)');
+  });
+  effRows.forEach(function(m){
+    var dev=m.today-65;
+    if(dev<-5) alerts.push('\uD83D\uDD34 <strong>'+m.label+'</strong>: '+m.today.toFixed(2)+'% &mdash; '+Math.abs(dev).toFixed(1)+'pp below 65% benchmark');
+  });
+  document.getElementById('ds-alerts').innerHTML = alerts.length
+    ? '<strong>Deviations flagged:</strong><br>'+alerts.join('<br>')
+    : '<span style="color:#1D9E75">\u2713 No major deviations on the last recorded day.</span>';
+}
 
 initOverview();
 
