@@ -244,7 +244,7 @@
   <div class="updated"><span id="footer-date">Last updated: --</span> &nbsp;·&nbsp; Sara Textiles Ltd, Nalagarh</div>
 </div>
 
-<script src="stl_data.js?v=20260320c
+<script src="stl_data.js"></script>
 <script>
 
 function getDailyDobbyJaq(m){
@@ -534,9 +534,11 @@ function initDailySummary(){
 
 initOverview();
 
-// Update badge and footer with last updated date
-document.getElementById('hdr-badge').textContent = 'Updated: ' + LAST_UPDATED;
-document.getElementById('footer-date').textContent = 'Last updated: ' + LAST_UPDATED;
+// Set badge and footer date from data file
+var _b = document.getElementById('hdr-badge');
+var _f = document.getElementById('footer-date');
+if (_b) _b.textContent = 'Updated: ' + LAST_UPDATED;
+if (_f) _f.textContent = 'Last updated: ' + LAST_UPDATED;
 
 </script>
 </body>
