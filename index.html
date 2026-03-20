@@ -244,7 +244,7 @@
   <div class="updated"><span id="footer-date">Last updated: --</span> &nbsp;·&nbsp; Sara Textiles Ltd, Nalagarh</div>
 </div>
 
-<script src="stl_data.js?v=20260320b"></script>
+<script src="stl_data.js?v=20260320c
 <script>
 
 function getDailyDobbyJaq(m){
@@ -258,11 +258,7 @@ function showTab(t){
   document.querySelectorAll('.tab').forEach(e=>e.classList.remove('act'));
   document.getElementById('tab-'+t).classList.add('act');
   document.querySelectorAll('.tab').forEach(e=>{if(e.getAttribute('onclick').includes("'"+t+"'"))e.classList.add('act');});
-  if(t==='ov'&&!CHARTS['c-avg-wv'])// Set badge date dynamically from data file
-document.getElementById('hdr-badge').textContent = 'Updated: ' + LAST_UPDATED;
-document.getElementById('footer-date').textContent = 'Last updated: ' + LAST_UPDATED;
-
-initOverview();
+  if(t==='ov'&&!CHARTS['c-avg-wv'])initOverview();
   if(t==='wv'&&!CHARTS['c-daily-wv'])initWeaving();
   if(t==='dh'&&!CHARTS['c-daily-dh'])initDH();
   if(t==='co'&&!CHARTS['c-co-raw'])initCosts();
@@ -537,6 +533,10 @@ function initDailySummary(){
 }
 
 initOverview();
+
+// Update badge and footer with last updated date
+document.getElementById('hdr-badge').textContent = 'Updated: ' + LAST_UPDATED;
+document.getElementById('footer-date').textContent = 'Last updated: ' + LAST_UPDATED;
 
 </script>
 </body>
