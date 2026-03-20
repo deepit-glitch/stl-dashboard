@@ -207,3 +207,11 @@ const DAILY_DJ = {
     jacquard:[1445,2163,154,0,3828,2382,2453,2185,3074,1927,2011,1431,1097,1204,1062,1210,3340,2485]
   }
 };
+
+// Auto-update badge and footer with current date
+document.addEventListener("DOMContentLoaded", function() {
+  var b = document.getElementById("hdr-badge");
+  var f = document.getElementById("footer-date");
+  if (b) b.textContent = "Updated: " + LAST_UPDATED;
+  if (f) f.textContent = "Last updated: " + LAST_UPDATED;
+});
