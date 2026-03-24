@@ -470,12 +470,12 @@ function initDailySummary(){
   }
 
   var prodRows = [
-    {label:'Total Weaving',      today:ov.weaving[days-1],  mtd:avg(ov.weaving),  unit:'kg'},
-    {label:'Yarn Dyeing',        today:ov.yarn[days-1],     mtd:avg(ov.yarn),     unit:'kg'},
-    {label:'Fab. Dyeing+Washing',today:ov.fabwash[days-1],  mtd:avg(ov.fabwash),  unit:'kg'},
-    {label:'Finishing Packing',  today:ov.fin[days-1],      mtd:avg(ov.fin),      unit:'kg'},
-    {label:'Stitching',          today:ov.stitch[days-1],   mtd:avg(ov.stitch),   unit:'kg'},
-    {label:'Dispatch',           today:ov.dispatch[days-1], mtd:avg(ov.dispatch), unit:'kg'}
+    {label:'Total Weaving',      today:ov.weaving[days-1],  mtd:Math.round(MONTHLY.weaving[MONTHS.indexOf(cm)]/days),  unit:'kg'},
+    {label:'Yarn Dyeing',        today:ov.yarn[days-1],     mtd:Math.round(MONTHLY.yarn_dye[MONTHS.indexOf(cm)]/days),     unit:'kg'},
+    {label:'Fab. Dyeing+Washing',today:ov.fabwash[days-1],  mtd:Math.round(ov.fabwash.reduce(function(a,b){return a+b;},0)/days),  unit:'kg'},
+    {label:'Finishing Packing',  today:ov.fin[days-1],      mtd:Math.round(MONTHLY.finishing[MONTHS.indexOf(cm)]/days),      unit:'kg'},
+    {label:'Stitching',          today:ov.stitch[days-1],   mtd:Math.round(ov.stitch.reduce(function(a,b){return a+b;},0)/days),   unit:'kg'},
+    {label:'Dispatch',           today:ov.dispatch[days-1], mtd:Math.round(MONTHLY.dispatch[MONTHS.indexOf(cm)]/days), unit:'kg'}
   ];
 
   var effRows = [
