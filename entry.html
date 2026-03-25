@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STL Data Entry - Q1 FY 2026-27</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body,#root{height:100%;min-height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;background:#eef2f7;-webkit-font-smoothing:antialiased}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
+input[type=number]{-moz-appearance:textfield}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef} = React;
+const D = "daily";
+const M = "monthly";
+
+const MONTHS = [
+  {key:"2026-04", label:"April 2026",  short:"APR", days:30},
+  {key:"2026-05", label:"May 2026",    short:"MAY", days:31},
+  {key:"2026-06", label:"June 2026",   short:"JUN", days:30},
+];
+
+function lastDay(mk){ return (MONTHS.find(m=>m.key===mk)||MONTHS[0]).days; }
+
+const DEPTS = [
+  {id:"RSB", label:"Sr. GM (Operations)", accent:"#4f46e5", kpis:[
+    {id:"rsb_cch",   name:"CCH Efficiency",                      unit:"%",        hib:true,  freq:D, desc:"% of CCH orders produced efficiently. Min lot size 150 kg per roll. Higher is better.",                                              targets:{"2026-04":60,    "2026-05":65,    "2026-06":65}},
+    {id:"rsb_agrd",  name:"A-Grade Packing %",                   unit:"%",        hib:true,  freq:D, desc:"% of total finished goods packed as A-Grade without rework. Monitored daily across all packing lines. Higher is better.",             targets:{"2026-04":96.75, "2026-05":97,    "2026-06":97}},
+    {id:"rsb_effjq", name:"Operative Efficiency - Jacquard",     unit:"%",        hib:true,  freq:D, desc:"Jacquard loom operating efficiency vs theoretical max capacity (RPM-based). Higher is better.",                                      targets:{"2026-04":60,    "2026-05":65,    "2026-06":70}},
+    {id:"rsb_effdb", name:"Operative Efficiency - Dobby",        unit:"%",        hib:true,  freq:D, desc:"Dobby loom operating efficiency vs theoretical max capacity (RPM-based). Higher is better.",                                        targets:{"2026-04":65,    "2026-05":70,    "2026-06":70}},
+    {id:"rsb_ltsf",  name:"Fabric Dyeing - Lots/Day/Machine",    unit:"lots",     hib:true,  freq:D, desc:"Fabric dyeing lots completed per machine per day including washing. Higher is better.",                                             targets:{"2026-04":2,     "2026-05":2,     "2026-06":2}},
+    {id:"rsb_ltsy",  name:"Yarn Dyeing - Lots/Day/Machine",      unit:"lots",     hib:true,  freq:D, desc:"Yarn dyeing lots completed per machine per day. Higher is better.",                                                                 targets:{"2026-04":2,     "2026-05":2,     "2026-06":2}},
+    {id:"rsb_bpf",   name:"BPF Generation",                      unit:"Tons",     hib:false, freq:M, desc:"Total Bad Process Fabric generated across all departments. Monthly aggregate. Lower is better.",                                    targets:{"2026-04":0.75,  "2026-05":0.5,   "2026-06":0.5}},
+    {id:"rsb_wstt",  name:"Total Waste % - Till Finishing",      unit:"%",        hib:false, freq:M, desc:"Total raw material wastage % from yarn intake through to finishing stage. Monthly. Lower is better.",                               targets:{"2026-04":3.65,  "2026-05":3.6,   "2026-06":3.6}},
+    {id:"rsb_wstb",  name:"Total Wastage % - Bathrobe",          unit:"%",        hib:false, freq:M, desc:"Monthly material wastage % across bathrobe manufacturing. Lower is better.",                                                        targets:{"2026-04":10,    "2026-05":10,    "2026-06":10}},
+    {id:"rsb_wip",   name:"WIP vs Dispatch - No. of Days",       unit:"Days",     hib:false, freq:M, desc:"Total WIP inventory (RM + FG) as equivalent dispatch days. Last day of month. Lower is better.",                                   targets:{"2026-04":78,    "2026-05":76,    "2026-06":74}},
+    {id:"rsb_phpr",  name:"Per Head Output - Preparatory",       unit:"kg/person",hib:true,  freq:M, desc:"Monthly kg output per head in Preparatory/Winding, excl. maintenance. Higher is better.",                                          targets:{"2026-04":170,   "2026-05":175,   "2026-06":175}},
+    {id:"rsb_phwv",  name:"Per Head Output - Weaving",           unit:"kg/person",hib:true,  freq:M, desc:"Monthly kg output per head in Weaving, excl. maintenance. Higher is better.",                                                      targets:{"2026-04":150,   "2026-05":160,   "2026-06":170}},
+    {id:"rsb_phfd",  name:"Per Head Output - Fabric Dyeing",     unit:"kg/person",hib:true,  freq:M, desc:"Monthly kg output per head in Fabric Dyeing, excl. maintenance. Higher is better.",                                                targets:{"2026-04":210,   "2026-05":220,   "2026-06":230}},
+    {id:"rsb_phyd",  name:"Per Head Output - Yarn Dyeing",       unit:"kg/person",hib:true,  freq:M, desc:"Monthly kg output per head in Yarn Dyeing, excl. maintenance. Higher is better.",                                                  targets:{"2026-04":150,   "2026-05":160,   "2026-06":170}},
+    {id:"rsb_phcs",  name:"Per Head Output - CSP",               unit:"kg/person",hib:true,  freq:M, desc:"Monthly kg output per head in CSP (Cut, Sew & Pack), excl. maintenance. Higher is better.",                                       targets:{"2026-04":55,    "2026-05":60,    "2026-06":65}},
+    {id:"rsb_phbr",  name:"Per Head Output - Bathrobe",          unit:"kg/person",hib:true,  freq:M, desc:"Monthly kg output per head in Bathrobe manufacturing, excl. maintenance. Higher is better.",                                       targets:{"2026-04":16,    "2026-05":16,    "2026-06":18}},
+  ]},
+  {id:"Weaving", label:"Weaving", accent:"#2563eb", kpis:[
+    {id:"eff_jq",    name:"Efficiency - Jacquard Looms",         unit:"%",        hib:true,  freq:D, desc:"Jacquard loom output as % of theoretical max capacity (RPM-based). Freeze next months weaving plan by the 25th. Higher is better.",  targets:{"2026-04":60,    "2026-05":65,    "2026-06":70}},
+    {id:"eff_db",    name:"Efficiency - Dobby Looms",            unit:"%",        hib:true,  freq:D, desc:"Dobby loom output as % of theoretical max capacity. Driven by SOP adherence, preventive maintenance and eliminating bad beams.",      targets:{"2026-04":65,    "2026-05":70,    "2026-06":70}},
+    {id:"wastage",   name:"Overall Wastage",                     unit:"%",        hib:false, freq:D, desc:"Total material wastage in weaving as % of input. Includes pile & ground yarn losses. Reducing knottings is the primary lever.",       targets:{"2026-04":3.65,  "2026-05":3.6,   "2026-06":3.6}},
+    {id:"bpf",       name:"BPF Generation",                      unit:"Tons",     hib:false, freq:D, desc:"Bad Process Fabric generated in weaving (fails quality, cannot be A-Grade). Target is ZERO across all three months.",                 targets:{"2026-04":0,     "2026-05":0,     "2026-06":0}},
+    {id:"mending",   name:"Mending % (AQL Daily Report)",        unit:"%",        hib:false, freq:D, desc:"% of fabric pieces requiring mending per daily AQL inspection report. Direct indicator of weaving quality at the loom.",              targets:{"2026-04":5.5,   "2026-05":5.25,  "2026-06":5}},
+    {id:"knot_eff",  name:"Freshly Knotted Loom Efficiency",     unit:"%",        hib:true,  freq:D, desc:"Loom efficiency on the same day it is knotted and re-beamed. Measures how quickly a re-beamed loom reaches target speed.",            targets:{"2026-04":45,    "2026-05":47,    "2026-06":50}},
+    {id:"hr_cost",   name:"HR Cost / kg (Wvg + Prep)",           unit:"Rs/kg",    hib:false, freq:M, desc:"Combined monthly labour cost per kg of weaving output. Covers workers, staff, casual, contractual and overtime including Prep.",      targets:{"2026-04":16.5,  "2026-05":16,    "2026-06":15.5}},
+    {id:"nm_weft",   name:"Non-Moving Weft Stock",               unit:"Tons",     hib:false, freq:M, desc:"Net weft yarn in stock not consumed for an extended period. 1,200 kg white weft to be zeroed in April at 40 kg/day (20 kg/machine).", targets:{"2026-04":3.5,   "2026-05":2,     "2026-06":0.5}},
+    {id:"nm_grg",    name:"Non-Moving Greighe Fabric",           unit:"Tons",     hib:false, freq:M, desc:"Greighe (undyed) fabric not progressed to dyeing for an extended period. Zero generation target in piece-dyed fabric.",               targets:{"2026-04":null,  "2026-05":null,  "2026-06":null}},
+  ]},
+  {id:"Dyeing", label:"Dyeing", accent:"#0891b2", kpis:[
+    {id:"rft_fab",   name:"RFT - Fabric",                        unit:"%",        hib:true,  freq:D, desc:"Right First Time %: fabric lots achieving correct shade and quality on the first dyeing attempt without rework.",                     targets:{"2026-04":98.5,  "2026-05":98,    "2026-06":98}},
+    {id:"rft_yrn",   name:"RFT - Yarn",                          unit:"%",        hib:true,  freq:D, desc:"Right First Time %: yarn lots achieving correct shade on the first dyeing attempt. 100% drug sheet to be signed daily.",              targets:{"2026-04":99.99, "2026-05":99.99, "2026-06":99.99}},
+    {id:"dwngrade",  name:"Downgrade Due to Processing",         unit:"%",        hib:false, freq:D, desc:"% of fabric downgraded due to dyeing defects such as shade variation or width issues. Lower is better.",                             targets:{"2026-04":0.75,  "2026-05":0.7,   "2026-06":0.6}},
+    {id:"water",     name:"Water Consumption / kg",              unit:"ltr/kg",   hib:false, freq:D, desc:"Average water consumed per kg of fabric processed in fabric dyeing. Reduced by increasing lot sizes and reducing number of baths.",   targets:{"2026-04":55,    "2026-05":54,    "2026-06":53}},
+    {id:"lots_fd",   name:"Fabric Dyeing - Lots/Day/Machine",    unit:"lots",     hib:true,  freq:D, desc:"Fabric dyeing lots (incl. washing) completed per machine per day. Higher productivity = better machine utilisation.",                 targets:{"2026-04":2,     "2026-05":2,     "2026-06":2}},
+    {id:"lots_yd",   name:"Yarn Dyeing - Lots/Day/Machine",      unit:"lots",     hib:true,  freq:D, desc:"Yarn dyeing lots completed per machine per day. Ensure full labour availability at all times.",                                       targets:{"2026-04":2,     "2026-05":2,     "2026-06":2}},
+    {id:"dye_cost",  name:"Dyes + Chemical Cost",                unit:"Rs/kg",    hib:false, freq:M, desc:"Monthly total dyes and chemical cost per kg of fabric output. Compare using landed cost based on March-end prices as baseline.",      targets:{"2026-04":22,    "2026-05":22,    "2026-06":22}},
+    {id:"bpf_dye",   name:"BPF Generation - Dyeing",             unit:"kg",       hib:false, freq:M, desc:"Bad Process Fabric from dyeing defects (shade rejection, re-dyeing failures). Target zero. Daily shade check at 8 am.",              targets:{"2026-04":0,     "2026-05":0,     "2026-06":0}},
+  ]},
+  {id:"Finishing", label:"Finishing", accent:"#7c3aed", kpis:[
+    {id:"aql",       name:"Trolley AQL Failure %",               unit:"%",        hib:false, freq:D, desc:"% of trolleys failing the TQM AQL inspection. Financial penalty of Rs 50 per trolley for any failure. Lower is better.",             targets:{"2026-04":3,     "2026-05":2.5,   "2026-06":2}},
+    {id:"a_grade",   name:"A-Grade Fresh Packing %",             unit:"%",        hib:true,  freq:D, desc:"% of goods packed as A-Grade in the first pass without any rework or re-inspection. Higher is better.",                              targets:{"2026-04":96.7,  "2026-05":96.85, "2026-06":97}},
+    {id:"insp_f",    name:"Inspection Failure / Aborted",        unit:"count",    hib:false, freq:D, desc:"Number of buyer/external quality inspections that failed or were aborted. Target is zero. Lower is better.",                         targets:{"2026-04":0,     "2026-05":0,     "2026-06":0}},
+    {id:"cch_eff",   name:"CCH Efficiency",                      unit:"%",        hib:true,  freq:D, desc:"Efficiency of CCH (Cut, Carry & Hem) operations in finishing. CCH orders should not be manually cut. Higher is better.",             targets:{"2026-04":60,    "2026-05":65,    "2026-06":65}},
+    {id:"fin_cost",  name:"Finishing + IMS + Packing Cost",      unit:"Rs/kg",    hib:false, freq:M, desc:"Monthly combined cost per kg of packing output covering finishing labour, IMS (Inspection, Mending, Sorting) and packing.",          targets:{"2026-04":17.5,  "2026-05":17.25, "2026-06":17}},
+    {id:"gn_cost",   name:"Greater Noida Processing Cost",       unit:"Rs/kg",    hib:false, freq:M, desc:"Monthly per-kg processing cost at the Greater Noida facility. Requires minimum 2 tons/day of material supply to be viable.",         targets:{"2026-04":15,    "2026-05":null,  "2026-06":null}},
+    {id:"ppp",       name:"PPP - Line Tailors",                  unit:"kg/man-day",hib:true, freq:M, desc:"Monthly productivity per in-house line tailor per 12-hour shift in kg. Advance planning of materials by team leader is key.",         targets:{"2026-04":225,   "2026-05":235,   "2026-06":250}},
+  ]},
+  {id:"Prep", label:"Preparatory", accent:"#b45309", kpis:[
+    {id:"hard_wst",  name:"Hard Waste",                          unit:"%",        hib:false, freq:D, desc:"Unusable yarn waste % during preparatory/winding (chhera joints, broken ends). Chhera joint modification to continue.",               targets:{"2026-04":0.86,  "2026-05":0.85,  "2026-06":0.85}},
+    {id:"no_beam",   name:"Looms Under No Beam / Day",           unit:"count/day",hib:false, freq:D, desc:"Average number of looms idle due to absence of a ready beam on any given day. Derived from beam scheduling efficiency.",              targets:{"2026-04":3,     "2026-05":3,     "2026-06":3}},
+    {id:"pile_brk",  name:"Pile Breakage",                       unit:"brks/CMPX",hib:false, freq:D, desc:"Pile yarn breakages per CMPX during sizing/beaming. Continuous sizing chemical recipe must be kept under control.",                   targets:{"2026-04":5,     "2026-05":5,     "2026-06":5}},
+    {id:"gnd_brk",   name:"Ground Breakage",                     unit:"brks/CMPX",hib:false, freq:D, desc:"Ground yarn breakages per CMPX during sizing/beaming. Continuous sizing chemical recipe must be kept under control.",                 targets:{"2026-04":8,     "2026-05":8,     "2026-06":8}},
+    {id:"sct_beam",  name:"Sections / Beam Average",             unit:"count",    hib:false, freq:D, desc:"Average number of sections per beam for the day. Lower may indicate inefficiency in beam planning. Daily circulation by Rajkumar.",   targets:{"2026-04":15,    "2026-05":15,    "2026-06":15}},
+    {id:"pile_g",    name:"Pile Beam Length - Greighe",          unit:"Metres",   hib:true,  freq:M, desc:"Monthly average pile beam length for greighe fabric. Min 6,500 m to be given by Rajkumar. Longer beams mean fewer changeovers.",      targets:{"2026-04":6500,  "2026-05":6500,  "2026-06":6500}},
+    {id:"pile_yd",   name:"Pile Beam Length - Yarn Dyed",        unit:"Metres",   hib:true,  freq:M, desc:"Monthly average pile beam length for yarn-dyed fabric. Daily data circulation by Rajkumar. Higher is better.",                       targets:{"2026-04":1800,  "2026-05":1800,  "2026-06":1800}},
+    {id:"gnd_beam",  name:"Ground Beam Length - Greighe",        unit:"Metres",   hib:true,  freq:M, desc:"Monthly average ground beam length for greighe fabric. Higher beam length reduces changeover frequency.",                             targets:{"2026-04":1300,  "2026-05":1300,  "2026-06":1300}},
+    {id:"creel",     name:"Creel Bottom WIP - Greighe",          unit:"Tons",     hib:false, freq:M, desc:"Greighe yarn at creel bottom (winding area WIP), net of generation. Increase winding production to reduce.",                         targets:{"2026-04":4,     "2026-05":3,     "2026-06":2}},
+    {id:"rem_yrn",   name:"Remnant / Dead Yarn Stock",           unit:"Tons",     hib:false, freq:M, desc:"Non-moving remnant yarn stock. Target reduces approx 10 Tons/month. Daily consumption report circulated by Rajkumar.",                targets:{"2026-04":47.71, "2026-05":37.71, "2026-06":27.71}},
+  ]},
+  {id:"UB", label:"GM (Tech)", accent:"#dc2626", kpis:[
+    {id:"cch_prod",  name:"CCH Production",                      unit:"Tons/day", hib:true,  freq:D, desc:"Daily output of the CCH machine in tons. Improved by perfect lot-making and daily discussion with Neeraj and Manish.",                targets:{"2026-04":0.58,  "2026-05":0.60,  "2026-06":0.65}},
+    {id:"repair",    name:"Repair Percentage",                   unit:"%",        hib:false, freq:D, desc:"% of machine running time lost to repair/breakdown. Machines above 0.75% to be stopped and fixed within 2 days.",                    targets:{"2026-04":0.75,  "2026-05":0.75,  "2026-06":0.70}},
+    {id:"lots_fd2",  name:"Fabric Dyeing - Lots/Day/Machine",    unit:"lots",     hib:true,  freq:D, desc:"Fabric dyeing lots per machine per day (monitored from utility perspective for material availability). Higher is better.",             targets:{"2026-04":2,     "2026-05":2,     "2026-06":2}},
+    {id:"lots_yd2",  name:"Yarn Dyeing - Lots/Day/Machine",      unit:"lots",     hib:true,  freq:D, desc:"Yarn dyeing lots per machine per day. Ensure full labour availability at all times.",                                                 targets:{"2026-04":1.9,   "2026-05":2,     "2026-06":2}},
+    {id:"steam_c",   name:"Steam Cost / kg (to Finishing)",      unit:"Rs/kg",    hib:false, freq:M, desc:"Monthly steam cost per kg delivered to finishing. Targets: steam trap maintenance, condensate recovery, leakage elimination.",         targets:{"2026-04":24,    "2026-05":23,    "2026-06":22}},
+    {id:"pwr_c",     name:"Power Cost / kg of Dispatch",         unit:"Rs/kg",    hib:false, freq:M, desc:"Monthly electrical power cost per kg of finished goods dispatched. Air leakage report due every Friday. Weekly monitoring.",           targets:{"2026-04":26,    "2026-05":25,    "2026-06":24}},
+    {id:"ppp_ub",    name:"PPP - Line Tailors",                  unit:"kg/man-day",hib:true, freq:M, desc:"Monthly productivity per in-house line tailor per 12-hour shift in kg. Advance planning of materials by team leader.",                targets:{"2026-04":225,   "2026-05":235,   "2026-06":250}},
+    {id:"wip_ub",    name:"WIP - Tons (RM + FG)",                unit:"Tons",     hib:false, freq:M, desc:"Total work-in-progress inventory in tons (raw material + finished goods). Reported on last day of month. Reduces approx 25 Tons/month.", targets:{"2026-04":945, "2026-05":920,   "2026-06":895}},
+  ]},
+  {id:"PPC", label:"PPC", accent:"#0f766e", kpis:[
+    {id:"wip_t",     name:"WIP - Tons (RM + FG)",                unit:"Tons",     hib:false, freq:M, desc:"Total inventory in tons (RM + FG combined). Reported last day of month. Target reduces approx 25 Tons/month from March baseline.",    targets:{"2026-04":945,   "2026-05":920,   "2026-06":895}},
+    {id:"wip_days",  name:"WIP - No. of Days",                   unit:"Days",     hib:false, freq:M, desc:"Total WIP expressed as equivalent dispatch days. Lower means leaner inventory relative to dispatch volume. Last day of month.",         targets:{"2026-04":78,    "2026-05":76,    "2026-06":74}},
+    {id:"nm_br",     name:"Non-Moving - Bathrobe",               unit:"Tons",     hib:false, freq:M, desc:"Non-moving bathrobe inventory (fabric or finished goods). Inventory metric - last day of month. Lower is better.",                    targets:{"2026-04":11,    "2026-05":8,     "2026-06":5}},
+    {id:"nm_fg",     name:"Non-Moving - Finished Goods",         unit:"Tons",     hib:false, freq:M, desc:"Finished goods (towels, madeups) not dispatched and sitting idle. Inventory metric - last day of month. Lower is better.",            targets:{"2026-04":30,    "2026-05":20,    "2026-06":10}},
+    {id:"nm_gr",     name:"Non-Moving - Greigh Fabric",          unit:"Tons",     hib:false, freq:M, desc:"Greighe (undyed) fabric not progressed to dyeing for extended period. Last day of month. Lower is better.",                           targets:{"2026-04":10,    "2026-05":8,     "2026-06":6}},
+    {id:"nm_tot",    name:"Total Non-Moving Stock",              unit:"Tons",     hib:false, freq:M, desc:"Sum of all non-moving categories: Bathrobe + Finished Goods + Greighe. Auto-calculated. Last day of month.",                          targets:{"2026-04":51,    "2026-05":36,    "2026-06":21}},
+    {id:"rem_ppc",   name:"Remnant / Dead Yarn Stock",           unit:"Tons",     hib:false, freq:M, desc:"Non-moving remnant yarn stock. Reduces approx 10 Tons/month from March baseline of 57.71 Tons. Last day of month.",                   targets:{"2026-04":47.71, "2026-05":37.71, "2026-06":27.71}},
+  ]},
+  {id:"Bathrobe", label:"Bathrobe", accent:"#9f1239", kpis:[
+    {id:"wst_br",    name:"Wastage % - Bathrobe + Madeups",      unit:"%",        hib:false, freq:M, desc:"Monthly total wastage % across bathrobe and made-up garments. Includes cutting waste, jersey wastage and processing losses.",          targets:{"2026-04":10,    "2026-05":9,     "2026-06":8}},
+    {id:"wst_jsy",   name:"Wastage % - Jersey",                  unit:"%",        hib:false, freq:M, desc:"Monthly jersey fabric wastage % in bathrobe production. Pattern sizing, consumption control and width control from dyeing.",           targets:{"2026-04":null,  "2026-05":null,  "2026-06":null}},
+    {id:"nm_wip",    name:"Non-Moving WIP (Finishing Floor 1)",  unit:"Tons",     hib:false, freq:M, desc:"Net non-moving WIP on Finishing Floor 1 (bathrobe). Segregated by size, colour, GSM and quality. Reduces 1.5T Apr, 2.5T May, 3T Jun.", targets:{"2026-04":13.3, "2026-05":10.8,  "2026-06":7.8}},
+  ]},
+  {id:"Quality", label:"Quality", accent:"#059669", kpis:[
+    {id:"insp_fail", name:"Overall Inspection Failure",          unit:"count",    hib:false, freq:D, desc:"Number of buyer/external inspections that failed or were rejected. Target zero. Each failure must be investigated and closed.",         targets:{"2026-04":0,     "2026-05":0,     "2026-06":0}},
+    {id:"wrng_prod", name:"Wrong Production Before HOD Info",    unit:"kg",       hib:false, freq:D, desc:"Qty of wrong production discovered before the HOD is first informed. New KPI. Lower is better.",                                      targets:{"2026-04":300,   "2026-05":300,   "2026-06":300}},
+    {id:"cust_cmp",  name:"Customer Complaints (SMD Approved)",  unit:"count",    hib:false, freq:M, desc:"Formally logged and SMD-approved customer complaints per month. Each must be investigated and closed within the quarter.",             targets:{"2026-04":0,     "2026-05":0,     "2026-06":0}},
+    {id:"insp_scr",  name:"Inspector Feedback Score",            unit:"Score 1-5",hib:true,  freq:M, desc:"Average monthly score from the online inspector feedback form (1=poor, 5=excellent). Tracks inspection team quality.",                 targets:{"2026-04":4,     "2026-05":4.25,  "2026-06":4.5}},
+    {id:"smp_appr",  name:"Sample Approval Rate",                unit:"%",        hib:true,  freq:M, desc:"% of towel production samples approved by customer/design team on first submission. Reduces rework and sampling delays.",              targets:{"2026-04":null,  "2026-05":null,  "2026-06":98}},
+  ]},
+];
+
+const DEF_PINS = {
+  admin:"0000", RSB:"1234", Weaving:"1234", Dyeing:"1234",
+  Finishing:"1234", Prep:"1234", UB:"1234", PPC:"1234",
+  Bathrobe:"1234", Quality:"1234"
+};
+const PINS_KEY = "stl:pins:v4";
+const dk = (d,mk) => "stl:" + d + ":" + mk;
+
+function loadPins()  { try { return JSON.parse(localStorage.getItem(PINS_KEY)) || {...DEF_PINS}; } catch(e) { return {...DEF_PINS}; } }
+function savePins(p) { try { localStorage.setItem(PINS_KEY, JSON.stringify(p)); return true; } catch(e) { return false; } }
+function loadData(d,mk)       { try { return JSON.parse(localStorage.getItem(dk(d,mk))) || {}; } catch(e) { return {}; } }
+function saveData(d,mk,data)  { try { localStorage.setItem(dk(d,mk), JSON.stringify(data)); return true; } catch(e) { return false; } }
+
+function getIST() {
+  const n = new Date(new Date().toLocaleString("en-US", {timeZone:"Asia/Kolkata"}));
+  return {y:n.getFullYear(), m:n.getMonth()+1, d:n.getDate()};
+}
+function getWorkingDate() {
+  const ist = getIST();
+  const mk = ist.y + "-" + String(ist.m).padStart(2,"0");
+  if (MONTHS.find(mo => mo.key === mk)) return {...ist, mk, isTesting:false};
+  return {y:2026, m:4, d:30, mk:"2026-04", isTesting:true};
+}
+function isLastDayOfMonth(y,m,d) { return new Date(y,m,0).getDate() === d; }
+
+const MN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function fmtDate(y,m,d) { return d + " " + MN[m-1] + " " + y; }
+
+function getStatus(val, t, hib) {
+  if (val === "" || val == null || t == null) return "n";
+  const v = +val, tgt = +t;
+  if (tgt === 0) return !hib ? (v === 0 ? "g" : "b") : "n";
+  const r = v / tgt;
+  return hib ? (r >= 0.97 ? "g" : r >= 0.9 ? "w" : "b")
+             : (r <= 1.03 ? "g" : r <= 1.1 ? "w" : "b");
+}
+const SC  = {g:"#16a34a", w:"#ca8a04", b:"#dc2626", n:"#94a3b8"};
+const SBG = {g:"#f0fdf4", w:"#fefce8", b:"#fef2f2", n:"#f8fafc"};
+const SLB = {g:"On Target", w:"Close", b:"Off Target", n:"-"};
+
+// -- PIN PAD -----------------------------------------------------
+function PinPad({value, onChange, onSubmit, accent}) {
+  const KEYS = [1,2,3,4,5,6,7,8,9,"CLR",0,"OK"];
+  function press(k) {
+    if (k === "OK")  { if (value.length === 4) onSubmit(); return; }
+    if (k === "CLR") { onChange(""); return; }
+    if (value.length < 4) onChange(value + String(k));
+  }
+  return (
+    <div style={{userSelect:"none"}}>
+      <div style={{display:"flex", justifyContent:"center", gap:16, marginBottom:24}}>
+        {[0,1,2,3].map(i => (
+          <div key={i} style={{width:13, height:13, borderRadius:"50%",
+            background: i < value.length ? (accent||"#6366f1") : "#e2e8f0",
+            transition:"background 0.15s",
+            boxShadow: i < value.length ? ("0 0 8px " + (accent||"#6366f1") + "66") : "none"}}/>
+        ))}
+      </div>
+      <div style={{display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:9, maxWidth:220, margin:"0 auto"}}>
+        {KEYS.map((k,i) => {
+          const isOK = k==="OK", isCLR = k==="CLR", dis = isOK && value.length !== 4;
+          return (
+            <button key={i} onClick={() => press(k)} disabled={dis} style={{
+              padding:"17px 0", borderRadius:13, fontWeight:700, fontSize:18, fontFamily:"monospace",
+              border: isOK ? ("2px solid " + (dis ? "#e2e8f0" : (accent||"#6366f1"))) : "1.5px solid #f1f5f9",
+              background: isOK ? (dis ? "#f8fafc" : (accent||"#6366f1")) : isCLR ? "#fef2f2" : "#fff",
+              color: isOK ? (dis ? "#cbd5e1" : "#fff") : isCLR ? "#ef4444" : "#1e293b",
+              cursor: dis ? "not-allowed" : "pointer",
+              boxShadow:"0 1px 4px rgba(0,0,0,0.08)"
+            }}>{k}</button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// -- LOGIN --------------------------------------------------------
+function LoginScreen({pins, onLogin}) {
+  const [sel, setSel] = useState(null);
+  const [pin, setPin] = useState("");
+  const [err, setErr] = useState("");
+  const allOpts = [...DEPTS, {id:"admin", label:"Admin", accent:"#4f46e5"}];
+  const selD = sel ? allOpts.find(d => d.id === sel) : null;
+
+  function go() {
+    if (pin === String(pins[sel])) { onLogin(sel); }
+    else { setErr("Incorrect PIN - please try again."); setPin(""); }
+  }
+
+  return (
+    <div style={{minHeight:"100vh", background:"linear-gradient(150deg,#0f172a 0%,#1e293b 100%)", display:"flex", alignItems:"center", justifyContent:"center", padding:20}}>
+      <div style={{width:"100%", maxWidth:460}}>
+        <div style={{textAlign:"center", marginBottom:28}}>
+          <div style={{display:"inline-flex", alignItems:"center", gap:12, marginBottom:10}}>
+            <div style={{width:44, height:44, borderRadius:13, background:"linear-gradient(135deg,#6366f1,#4338ca)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"monospace", fontWeight:900, fontSize:20, color:"#fff", boxShadow:"0 4px 16px rgba(99,102,241,0.45)"}}>S</div>
+            <div style={{fontFamily:"monospace", fontSize:26, fontWeight:900, color:"#f1f5f9", letterSpacing:5}}>STL</div>
+          </div>
+          <div style={{fontSize:12, color:"#64748b", fontWeight:600, letterSpacing:2}}>PERFORMANCE TRACKER</div>
+          <div style={{fontSize:11, color:"#374151", marginTop:4}}>Data Entry Portal - Q1 FY 2026-27</div>
+        </div>
+
+        <div style={{background:"#fff", borderRadius:22, padding:"24px 22px", boxShadow:"0 28px 70px rgba(0,0,0,0.4)"}}>
+          <div style={{fontSize:10, fontWeight:700, color:"#94a3b8", letterSpacing:2, marginBottom:12}}>SELECT DEPARTMENT</div>
+          <div style={{display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:7, marginBottom:20}}>
+            {allOpts.map(d => (
+              <button key={d.id} onClick={() => { setSel(d.id); setPin(""); setErr(""); }} style={{
+                padding:"10px 8px", borderRadius:11, cursor:"pointer", fontWeight:700, fontSize:11, textAlign:"center",
+                border: "2px solid " + (sel === d.id ? d.accent : "#f1f5f9"),
+                background: sel === d.id ? d.accent + "12" : "#f8fafc",
+                color: sel === d.id ? d.accent : "#64748b",
+                transition:"all 0.15s"
+              }}>{d.label}</button>
+            ))}
+          </div>
+
+          {sel && (
+            <div style={{borderTop:"1px solid #f1f5f9", paddingTop:22}}>
+              <div style={{fontSize:10, fontWeight:700, color:"#94a3b8", letterSpacing:2, marginBottom:20, textAlign:"center"}}>
+                {selD.label.toUpperCase()} - ENTER 4-DIGIT PIN
+              </div>
+              <PinPad value={pin} onChange={v => { setPin(v); setErr(""); }} onSubmit={go} accent={selD.accent}/>
+              {err && <div style={{marginTop:16, padding:"10px 14px", background:"#fef2f2", border:"1px solid #fecaca", borderRadius:9, fontSize:12, color:"#dc2626", textAlign:"center", fontWeight:600}}>{err}</div>}
+            </div>
+          )}
+        </div>
+        <div style={{textAlign:"center", marginTop:18, fontSize:11, color:"#374151"}}>Sara Textiles Limited - Nalagarh, HP</div>
+      </div>
+    </div>
+  );
+}
+
+// -- KPI ROW ------------------------------------------------------
+function KpiRow({kpi, mkey, value, onChange, locked, accent}) {
+  const t   = kpi.targets[mkey];
+  const val = value == null ? "" : value;
+  const st  = getStatus(val, t, kpi.hib);
+  const fld = val !== "";
+
+  return (
+    <div style={{
+      borderRadius:12,
+      border: "1.5px solid " + (locked ? "#f1f5f9" : fld ? SC[st] + "55" : "#e8edf2"),
+      background: locked ? "#f9fafb" : fld ? SBG[st] : "#fff",
+      transition:"all 0.18s", overflow:"hidden"
+    }}>
+      <div style={{display:"flex", alignItems:"center", gap:10, padding:"12px 14px 6px"}}>
+        <div style={{width:3, height:40, borderRadius:2, flexShrink:0,
+          background: locked ? "#e2e8f0" : fld ? SC[st] : accent,
+          transition:"background 0.2s"}}/>
+        <div style={{flex:1, minWidth:0}}>
+          <div style={{fontSize:13, fontWeight:700, color: locked ? "#94a3b8" : "#1e293b",
+            whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis"}}>{kpi.name}</div>
+          <div style={{display:"flex", alignItems:"center", gap:6, marginTop:3, flexWrap:"wrap"}}>
+            <span style={{fontSize:10, fontWeight:700, fontFamily:"monospace",
+              color:"#fff", background: locked ? "#94a3b8" : accent,
+              padding:"1px 7px", borderRadius:4}}>{kpi.unit}</span>
+            <span style={{fontSize:10, fontWeight:600,
+              color: kpi.hib ? "#16a34a" : "#f97316"}}>
+              {kpi.hib ? "Higher is better" : "Lower is better"}
+            </span>
+            {t != null && (
+              <span style={{fontSize:10, color:"#94a3b8"}}>
+                Target: <span style={{fontFamily:"monospace", fontWeight:700, color:"#475569"}}>{t}</span>
+              </span>
+            )}
+          </div>
+        </div>
+        <div style={{display:"flex", alignItems:"center", gap:8, flexShrink:0}}>
+          {fld && !locked && (
+            <span style={{fontSize:9, fontFamily:"monospace", fontWeight:700,
+              color:SC[st], background:SBG[st], border:"1px solid " + SC[st] + "44",
+              padding:"3px 8px", borderRadius:5, whiteSpace:"nowrap"}}>{SLB[st]}</span>
+          )}
+          {locked && (
+            <span style={{fontSize:9, fontFamily:"monospace", fontWeight:700,
+              color:"#ea580c", background:"#fff7ed", border:"1px solid #fed7aa",
+              padding:"3px 8px", borderRadius:5, whiteSpace:"nowrap"}}>Last day only</span>
+          )}
+          <input
+            type="number" step="any" value={val} placeholder="-"
+            disabled={locked}
+            onChange={e => !locked && onChange(kpi.id, e.target.value)}
+            style={{
+              width:96, padding:"9px 10px", borderRadius:8,
+              fontFamily:"monospace", fontSize:15, fontWeight:800, textAlign:"right",
+              border: "2px solid " + (locked ? "#e2e8f0" : fld ? SC[st] : "#e2e8f0"),
+              outline:"none",
+              color: locked ? "#cbd5e1" : fld ? SC[st] : "#94a3b8",
+              background: locked ? "#f8fafc" : "#fff",
+              transition:"all 0.18s", cursor: locked ? "not-allowed" : "text"
+            }}/>
+        </div>
+      </div>
+      <div style={{padding:"0 14px 10px 29px"}}>
+        <p style={{fontSize:11, color:"#94a3b8", lineHeight:1.5, fontStyle:"italic"}}>{kpi.desc}</p>
+      </div>
+    </div>
+  );
+}
+
+// -- KPI FORM -----------------------------------------------------
+function KpiForm({dept, inputs, onChange, mkey, isAdmin, onSave, saving, flash, lockedMonthly}) {
+  const dailyKpis   = dept.kpis.filter(k => k.freq === D);
+  const monthlyKpis = dept.kpis.filter(k => k.freq === M);
+  const canFillMonthly = !lockedMonthly || isAdmin;
+
+  const totalFillable = dailyKpis.length + (canFillMonthly ? monthlyKpis.length : 0);
+  const totalFilled = dept.kpis.filter(k => {
+    if (k.freq === M && !canFillMonthly) return false;
+    return inputs[k.id] !== undefined && inputs[k.id] !== "";
+  }).length;
+  const onTgt = dept.kpis.filter(k => getStatus(inputs[k.id], k.targets[mkey], k.hib) === "g").length;
+  const pct = totalFillable > 0 ? Math.round(totalFilled / totalFillable * 100) : 0;
+
+  function SectionDivider({label, color, bg, border}) {
+    return (
+      <div style={{display:"flex", alignItems:"center", gap:8, margin:"4px 0 8px"}}>
+        <div style={{height:1, flex:1, background:"#f1f5f9"}}/>
+        <span style={{fontSize:9, fontWeight:800, letterSpacing:2, textTransform:"uppercase",
+          color, background:bg, border:"1px solid " + border,
+          borderRadius:4, padding:"2px 10px", whiteSpace:"nowrap"}}>{label}</span>
+        <div style={{height:1, flex:1, background:"#f1f5f9"}}/>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{background:"#fff", borderRadius:14, padding:18, border:"1px solid #e2e8f0", boxShadow:"0 1px 5px rgba(0,0,0,0.05)"}}>
+      <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16, gap:10, flexWrap:"wrap"}}>
+        <div style={{flex:1, minWidth:180}}>
+          <div style={{display:"flex", alignItems:"center", gap:10, marginBottom:5}}>
+            <div style={{flex:1, height:5, background:"#f1f5f9", borderRadius:3, overflow:"hidden"}}>
+              <div style={{height:"100%", borderRadius:3, background:dept.accent, width:pct + "%", transition:"width 0.4s ease"}}/>
+            </div>
+            <span style={{fontSize:11, fontFamily:"monospace", fontWeight:700, color:dept.accent, minWidth:32}}>{pct}%</span>
+          </div>
+          <div style={{fontSize:11, color:"#94a3b8"}}>
+            <span style={{fontWeight:700, color:"#475569"}}>{totalFilled}</span>/{totalFillable} KPIs filled
+            {totalFilled > 0 && <span style={{marginLeft:8, color:SC.g, fontWeight:700}}>- {onTgt} on target</span>}
+          </div>
+        </div>
+        <button onClick={onSave} disabled={saving} style={{
+          padding:"10px 28px", borderRadius:9, border:"none", cursor:"pointer",
+          fontWeight:700, fontSize:13, minWidth:136,
+          background: flash === "ok" ? SC.g : flash === "err" ? SC.b : dept.accent,
+          color:"#fff", transition:"background 0.25s",
+          boxShadow:"0 2px 10px " + dept.accent + "44"
+        }}>
+          {saving ? "Saving..." : flash === "ok" ? "Saved!" : flash === "err" ? "Error" : "Save Entry"}
+        </button>
+      </div>
+
+      {dailyKpis.length > 0 && (
+        <>
+          <SectionDivider label="DAILY ENTRY - enter every working day" color="#16a34a" bg="#f0fdf4" border="#bbf7d0"/>
+          <div style={{display:"flex", flexDirection:"column", gap:8, marginBottom:14}}>
+            {dailyKpis.map(kpi => (
+              <KpiRow key={kpi.id} kpi={kpi} mkey={mkey} value={inputs[kpi.id]} onChange={onChange} locked={false} accent={dept.accent}/>
+            ))}
+          </div>
+        </>
+      )}
+
+      {monthlyKpis.length > 0 && (
+        <>
+          <SectionDivider
+            label={canFillMonthly ? "MONTHLY ENTRY - last day of month" : "MONTHLY ENTRY - locked (due last day of month)"}
+            color="#ea580c" bg="#fff7ed" border="#fed7aa"/>
+          <div style={{display:"flex", flexDirection:"column", gap:8}}>
+            {monthlyKpis.map(kpi => (
+              <KpiRow key={kpi.id} kpi={kpi} mkey={mkey} value={inputs[kpi.id]} onChange={onChange} locked={!canFillMonthly} accent={dept.accent}/>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// -- CALENDAR -----------------------------------------------------
+function DayPicker({month, selDay, entries, onSelect, accent, todayDay}) {
+  const [y,m] = month.key.split("-").map(Number);
+  const offset = new Date(y, m-1, 1).getDay();
+  const days = Array.from({length:month.days}, (_,i) => i+1);
+  const hasSaved = d => entries[d] && Object.values(entries[d]).some(v => v !== "");
+  const ld = lastDay(month.key);
+
+  return (
+    <div style={{background:"#fff", borderRadius:12, padding:14, border:"1px solid #e2e8f0", boxShadow:"0 1px 4px rgba(0,0,0,0.05)"}}>
+      <div style={{fontSize:9, fontWeight:700, color:"#94a3b8", letterSpacing:2, marginBottom:10, fontFamily:"monospace"}}>{month.label.toUpperCase()}</div>
+      <div style={{display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3, marginBottom:8}}>
+        {["S","M","T","W","T","F","S"].map((d,i) => <div key={i} style={{fontSize:9, textAlign:"center", color:"#cbd5e1", fontWeight:700, paddingBottom:4}}>{d}</div>)}
+        {Array.from({length:offset}).map((_,i) => <div key={"o"+i}/>)}
+        {days.map(day => {
+          const saved = hasSaved(day), act = day === selDay;
+          const isToday = day === todayDay, isLast = day === ld;
+          return (
+            <button key={day} onClick={() => onSelect(day)}
+              title={isLast ? "Last day - monthly KPIs due" : undefined}
+              style={{
+                width:"100%", aspectRatio:"1", borderRadius:6,
+                fontFamily:"monospace", fontSize:10,
+                fontWeight: act ? 700 : 500,
+                background: act ? accent : saved ? "#dcfce7" : "transparent",
+                color: act ? "#fff" : saved ? "#15803d" : "#475569",
+                border: isToday && !act ? ("2px solid " + accent) : isLast && !act ? "2px dashed #ea580c" : "none",
+                cursor:"pointer", transition:"all 0.12s"
+              }}>{day}</button>
+          );
+        })}
+      </div>
+      <div style={{display:"flex", gap:8, paddingTop:8, borderTop:"1px solid #f8fafc", flexWrap:"wrap"}}>
+        {[[accent,"Selected"],["#dcfce7","Saved"]].map(([bg,lbl]) => (
+          <div key={lbl} style={{display:"flex", alignItems:"center", gap:5, fontSize:9, color:"#94a3b8"}}>
+            <div style={{width:8, height:8, borderRadius:3, background:bg}}/>{lbl}
+          </div>
+        ))}
+        <div style={{display:"flex", alignItems:"center", gap:5, fontSize:9, color:"#94a3b8"}}>
+          <div style={{width:8, height:8, borderRadius:3, border:"2px solid " + accent, background:"transparent"}}/>Today
+        </div>
+        <div style={{display:"flex", alignItems:"center", gap:5, fontSize:9, color:"#ea580c"}}>
+          <div style={{width:8, height:8, borderRadius:3, border:"2px dashed #ea580c", background:"transparent"}}/>Monthly due
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// -- NORMAL USER ENTRY SCREEN -------------------------------------
+function EntryScreen({dept, onLogout}) {
+  const wd = getWorkingDate();
+  const month = MONTHS.find(m => m.key === wd.mk) || MONTHS[0];
+  const isLast = isLastDayOfMonth(wd.y, wd.m, wd.d);
+  const [entries, setEntries] = useState({});
+  const [inputs,  setInputs]  = useState({});
+  const [saving,  setSaving]  = useState(false);
+  const [flash,   setFlash]   = useState(null);
+
+  useEffect(() => {
+    const data = loadData(dept.id, month.key);
+    setEntries(data);
+    setInputs(data[wd.d] || {});
+  }, [dept.id, month.key]);
+
+  function handleChange(id, val) { setInputs(p => ({...p, [id]:val})); }
+  function handleSave() {
+    setSaving(true);
+    const upd = {...entries, [wd.d]: {...inputs}};
+    const ok = saveData(dept.id, month.key, upd);
+    setEntries(upd); setSaving(false);
+    setFlash(ok ? "ok" : "err");
+    setTimeout(() => setFlash(null), 2200);
+  }
+
+  const dc = dept.kpis.filter(k => k.freq === D).length;
+  const mc = dept.kpis.filter(k => k.freq === M).length;
+  const fd = dept.kpis.filter(k => k.freq === D && inputs[k.id] !== undefined && inputs[k.id] !== "").length;
+  const fm = dept.kpis.filter(k => k.freq === M && inputs[k.id] !== undefined && inputs[k.id] !== "").length;
+  const tf = dc + (isLast ? mc : 0);
+  const fi = fd + (isLast ? fm : 0);
+  const pct = tf > 0 ? Math.round(fi / tf * 100) : 0;
+
+  return (
+    <div style={{minHeight:"100vh", background:"#eef2f7"}}>
+      <div style={{background:"#0f172a", padding:"0 18px", height:56, display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"3px solid " + dept.accent}}>
+        <div style={{display:"flex", alignItems:"center", gap:10}}>
+          <div style={{width:30, height:30, borderRadius:8, background:dept.accent+"1a", display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid " + dept.accent+"44"}}>
+            <span style={{fontFamily:"monospace", fontSize:12, fontWeight:800, color:dept.accent}}>S</span>
+          </div>
+          <div style={{fontFamily:"monospace", fontSize:12, fontWeight:700, color:dept.accent, letterSpacing:2}}>STL</div>
+          <div style={{width:1, height:16, background:"#334155"}}/>
+          <div style={{fontSize:13, fontWeight:600, color:"#e2e8f0"}}>{dept.label}</div>
+        </div>
+        <div style={{display:"flex", alignItems:"center", gap:10}}>
+          {wd.isTesting && <div style={{padding:"3px 10px", background:"#713f12", borderRadius:5, fontSize:10, fontWeight:700, color:"#fef08a", letterSpacing:1}}>TEST MODE</div>}
+          <button onClick={onLogout} style={{padding:"5px 14px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#94a3b8", cursor:"pointer", fontSize:12, fontWeight:600}}>Logout</button>
+        </div>
+      </div>
+
+      <div style={{maxWidth:760, margin:"0 auto", padding:"18px 16px"}}>
+        <div style={{background:"#fff", borderRadius:13, padding:"16px 18px", marginBottom:14, border:"1px solid #e2e8f0", boxShadow:"0 1px 5px rgba(0,0,0,0.05)", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:12}}>
+          <div>
+            <div style={{fontSize:9, fontWeight:700, color:"#94a3b8", letterSpacing:2, marginBottom:5}}>ENTRY DATE - LOCKED TO TODAY</div>
+            <div style={{fontSize:22, fontWeight:800, color:"#0f172a", fontFamily:"monospace"}}>{fmtDate(wd.y, wd.m, wd.d)}</div>
+            <div style={{display:"flex", gap:8, marginTop:8, flexWrap:"wrap"}}>
+              <span style={{fontSize:11, padding:"3px 10px", borderRadius:5, background:"#f0fdf4", border:"1px solid #bbf7d0", color:"#16a34a", fontWeight:700}}>{dc} Daily KPIs</span>
+              <span style={{fontSize:11, padding:"3px 10px", borderRadius:5,
+                background: isLast ? "#fff7ed" : "#f8fafc",
+                border: "1px solid " + (isLast ? "#fed7aa" : "#e2e8f0"),
+                color: isLast ? "#ea580c" : "#94a3b8", fontWeight:700}}>
+                {mc} Monthly KPIs - {isLast ? "DUE TODAY" : "Due last day of month"}
+              </span>
+            </div>
+          </div>
+          <div style={{textAlign:"center"}}>
+            <svg width="56" height="56" viewBox="0 0 56 56">
+              <circle cx="28" cy="28" r="23" fill="none" stroke="#f1f5f9" strokeWidth="5"/>
+              <circle cx="28" cy="28" r="23" fill="none" stroke={dept.accent} strokeWidth="5"
+                strokeDasharray={String(2*Math.PI*23)}
+                strokeDashoffset={String(2*Math.PI*23*(1-pct/100))}
+                strokeLinecap="round" transform="rotate(-90 28 28)"
+                style={{transition:"stroke-dashoffset 0.5s"}}/>
+              <text x="28" y="33" textAnchor="middle" fontSize="12" fontWeight="700" fill={dept.accent} fontFamily="monospace">{pct}%</text>
+            </svg>
+            <div style={{fontSize:9, color:"#94a3b8", marginTop:2, fontFamily:"monospace"}}>{fi}/{tf}</div>
+          </div>
+        </div>
+
+        <div style={{display:"flex", gap:7, marginBottom:14, flexWrap:"wrap"}}>
+          {MONTHS.map(mm => (
+            <div key={mm.key} style={{
+              padding:"4px 14px", borderRadius:6,
+              fontFamily:"monospace", fontSize:11, fontWeight:700,
+              background: mm.key === month.key ? "#0f172a" : "transparent",
+              color: mm.key === month.key ? "#fff" : "#94a3b8",
+              border: "1.5px solid " + (mm.key === month.key ? "#0f172a" : "#e2e8f0"),
+              opacity: mm.key === month.key ? 1 : 0.4
+            }}>{mm.short}</div>
+          ))}
+        </div>
+
+        <KpiForm dept={dept} inputs={inputs} onChange={handleChange} mkey={month.key}
+          isAdmin={false} onSave={handleSave} saving={saving} flash={flash} lockedMonthly={!isLast}/>
+      </div>
+    </div>
+  );
+}
+
+// -- PIN MANAGEMENT ------------------------------------------------
+function PinManagement({pins, onSavePins, onBack}) {
+  const allKeys = [...DEPTS.map(d => ({id:d.id, label:d.label, accent:d.accent})), {id:"admin", label:"Admin", accent:"#4f46e5"}];
+  const [local,   setLocal]   = useState({...pins});
+  const [editing, setEditing] = useState(null);
+  const [newPin,  setNewPin]  = useState("");
+  const [showPin, setShowPin] = useState({});
+  const [flash,   setFlash]   = useState(null);
+  const inputRef = useRef(null);
+
+  function startEdit(id) { setEditing(id); setNewPin(""); setTimeout(() => inputRef.current && inputRef.current.focus(), 50); }
+  function confirmEdit() {
+    if (newPin.length !== 4) return;
+    const upd = {...local, [editing]:newPin};
+    setLocal(upd); setEditing(null); setNewPin("");
+    const ok = onSavePins(upd);
+    setFlash(ok ? "ok" : "err");
+    setTimeout(() => setFlash(null), 2500);
+  }
+
+  return (
+    <div>
+      <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18}}>
+        <div>
+          <div style={{fontSize:17, fontWeight:700, color:"#0f172a"}}>PIN Management</div>
+          <div style={{fontSize:12, color:"#94a3b8", marginTop:2}}>Update department and admin PINs</div>
+        </div>
+        <button onClick={onBack} style={{padding:"7px 16px", borderRadius:8, border:"1.5px solid #e2e8f0", background:"#fff", color:"#64748b", cursor:"pointer", fontSize:12, fontWeight:600}}>Back</button>
+      </div>
+
+      {flash && (
+        <div style={{padding:"9px 14px", borderRadius:8, marginBottom:14, fontSize:12, fontWeight:700,
+          background: flash === "ok" ? "#f0fdf4" : "#fef2f2",
+          color: flash === "ok" ? SC.g : SC.b,
+          border: "1px solid " + (flash === "ok" ? "#bbf7d0" : "#fecaca")}}>
+          {flash === "ok" ? "PIN updated successfully" : "Save failed - please try again"}
+        </div>
+      )}
+
+      <div style={{display:"flex", flexDirection:"column", gap:8}}>
+        {allKeys.map(dep => {
+          const isEd = editing === dep.id, shown = showPin[dep.id];
+          return (
+            <div key={dep.id} style={{background:"#fff", borderRadius:12, padding:"14px 16px",
+              border: "1.5px solid " + (isEd ? dep.accent : "#e2e8f0"),
+              transition:"border-color 0.2s", boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+              <div style={{display:"flex", alignItems:"center", gap:12, flexWrap:"wrap"}}>
+                <div style={{width:10, height:10, borderRadius:"50%", background:dep.accent, flexShrink:0}}/>
+                <div style={{flex:1, minWidth:100}}>
+                  <div style={{fontSize:13, fontWeight:700, color:"#0f172a"}}>{dep.label}</div>
+                  {!isEd && (
+                    <div style={{fontSize:11, color:"#94a3b8", marginTop:2, fontFamily:"monospace", display:"flex", alignItems:"center", gap:6}}>
+                      PIN: {shown ? local[dep.id] : "...."}
+                      <button onClick={() => setShowPin(p => ({...p, [dep.id]:!p[dep.id]}))}
+                        style={{background:"none", border:"none", cursor:"pointer", color:dep.accent, fontSize:10, fontWeight:700, padding:0}}>
+                        {shown ? "hide" : "show"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {!isEd ? (
+                  <button onClick={() => startEdit(dep.id)} style={{padding:"6px 16px", borderRadius:7, border:"1.5px solid " + dep.accent, background:"transparent", color:dep.accent, cursor:"pointer", fontSize:12, fontWeight:700, flexShrink:0}}>Change PIN</button>
+                ) : (
+                  <div style={{display:"flex", alignItems:"center", gap:8, flexWrap:"wrap"}}>
+                    <input ref={inputRef} type="text" maxLength={4} value={newPin}
+                      onChange={e => setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))}
+                      onKeyDown={e => e.key === "Enter" && confirmEdit()}
+                      placeholder="0000"
+                      style={{width:100, padding:"7px 12px", borderRadius:7, fontFamily:"monospace", fontSize:18, fontWeight:700, textAlign:"center", letterSpacing:10, border:"2px solid " + dep.accent, outline:"none", color:"#0f172a"}}/>
+                    <button onClick={confirmEdit} disabled={newPin.length !== 4}
+                      style={{padding:"7px 16px", borderRadius:7, border:"none", cursor:"pointer", fontWeight:700, fontSize:12,
+                        background: newPin.length === 4 ? dep.accent : "#f1f5f9",
+                        color: newPin.length === 4 ? "#fff" : "#cbd5e1"}}>Save</button>
+                    <button onClick={() => { setEditing(null); setNewPin(""); }}
+                      style={{padding:"7px 12px", borderRadius:7, border:"1.5px solid #e2e8f0", background:"#fff", color:"#64748b", cursor:"pointer", fontSize:12}}>Cancel</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{marginTop:14, padding:"11px 14px", background:"#f8fafc", borderRadius:9, border:"1px solid #e2e8f0", fontSize:11, color:"#94a3b8", lineHeight:1.7}}>
+        Default PINs: departments = <span style={{fontFamily:"monospace", fontWeight:700, color:"#475569"}}>1234</span> - admin = <span style={{fontFamily:"monospace", fontWeight:700, color:"#475569"}}>0000</span>. Change all before going live.
+      </div>
+    </div>
+  );
+}
+
+// -- ADMIN SCREEN --------------------------------------------------
+function AdminScreen({pins, onUpdatePins, onLogout}) {
+  const wd = getWorkingDate();
+  const defM = MONTHS.find(m => m.key === wd.mk) || MONTHS[0];
+  const [view,     setView]     = useState("entry");
+  const [selDept,  setSelDept]  = useState(DEPTS[0]);
+  const [selMonth, setSelMonth] = useState(defM);
+  const [selDay,   setSelDay]   = useState(wd.d);
+  const [entries,  setEntries]  = useState({});
+  const [inputs,   setInputs]   = useState({});
+  const [saving,   setSaving]   = useState(false);
+  const [flash,    setFlash]    = useState(null);
+
+  const isToday = selMonth.key === wd.mk && selDay === wd.d;
+  const isPast  = !isToday;
+
+  useEffect(() => {
+    const data = loadData(selDept.id, selMonth.key);
+    setEntries(data); setInputs(data[selDay] || {});
+  }, [selDept, selMonth]);
+
+  useEffect(() => { setInputs(entries[selDay] || {}); }, [selDay]);
+
+  function handleChange(id, val) { setInputs(p => ({...p, [id]:val})); }
+  function handleSave() {
+    setSaving(true);
+    const upd = {...entries, [selDay]: {...inputs}};
+    const ok = saveData(selDept.id, selMonth.key, upd);
+    setEntries(upd); setSaving(false);
+    setFlash(ok ? "ok" : "err");
+    setTimeout(() => setFlash(null), 2200);
+  }
+
+  const [my, mm] = selMonth.key.split("-").map(Number);
+
+  return (
+    <div style={{minHeight:"100vh", background:"#eef2f7"}}>
+      <div style={{background:"#0f172a", padding:"0 18px", height:56, display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"3px solid #4f46e5"}}>
+        <div style={{display:"flex", alignItems:"center", gap:10}}>
+          <div style={{width:30, height:30, borderRadius:8, background:"#4f46e51a", display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid #4f46e544"}}>
+            <span style={{fontFamily:"monospace", fontSize:12, fontWeight:800, color:"#818cf8"}}>S</span>
+          </div>
+          <div style={{fontFamily:"monospace", fontSize:12, fontWeight:700, color:"#818cf8", letterSpacing:2}}>STL</div>
+          <div style={{width:1, height:16, background:"#334155"}}/>
+          <div style={{fontSize:13, fontWeight:600, color:"#e2e8f0"}}>Admin</div>
+          <div style={{padding:"2px 8px", background:"#312e81", borderRadius:4, fontSize:10, fontWeight:700, color:"#a5b4fc", letterSpacing:1}}>FULL ACCESS</div>
+        </div>
+        <div style={{display:"flex", gap:8}}>
+          {wd.isTesting && <div style={{padding:"3px 10px", background:"#713f12", borderRadius:5, fontSize:10, fontWeight:700, color:"#fef08a", letterSpacing:1}}>TEST MODE</div>}
+          <button onClick={() => setView(v => v === "pins" ? "entry" : "pins")}
+            style={{padding:"5px 14px", borderRadius:6, border:"1px solid #334155", fontSize:12, fontWeight:600, cursor:"pointer",
+              background: view === "pins" ? "#4f46e5" : "transparent",
+              color: view === "pins" ? "#fff" : "#94a3b8"}}>
+            {view === "pins" ? "Entry" : "Manage PINs"}
+          </button>
+          <button onClick={onLogout} style={{padding:"5px 14px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#94a3b8", cursor:"pointer", fontSize:12, fontWeight:600}}>Logout</button>
+        </div>
+      </div>
+
+      <div style={{maxWidth:1080, margin:"0 auto", padding:"18px 16px"}}>
+        {view === "pins" ? (
+          <PinManagement pins={pins} onSavePins={onUpdatePins} onBack={() => setView("entry")}/>
+        ) : (
+          <>
+            <div style={{background:"#fff", borderRadius:12, padding:"11px 16px", marginBottom:14, border:"1px solid #e2e8f0", boxShadow:"0 1px 4px rgba(0,0,0,0.05)"}}>
+              <div style={{display:"flex", alignItems:"center", gap:7, flexWrap:"wrap"}}>
+                <span style={{fontSize:9, fontWeight:700, color:"#94a3b8", letterSpacing:1.5, marginRight:2}}>DEPT</span>
+                {DEPTS.map(d => (
+                  <button key={d.id} onClick={() => setSelDept(d)} style={{
+                    padding:"4px 13px", borderRadius:20, cursor:"pointer", fontWeight:600, fontSize:11,
+                    border: "2px solid " + (d.id === selDept.id ? d.accent : "#f1f5f9"),
+                    background: d.id === selDept.id ? d.accent : "#f8fafc",
+                    color: d.id === selDept.id ? "#fff" : "#64748b",
+                    transition:"all 0.15s"
+                  }}>{d.label}</button>
+                ))}
+                <div style={{marginLeft:"auto", display:"flex", gap:6}}>
+                  {MONTHS.map(m => (
+                    <button key={m.key} onClick={() => { setSelMonth(m); setSelDay(m.key === wd.mk ? wd.d : 1); }} style={{
+                      padding:"4px 14px", borderRadius:6, cursor:"pointer", fontWeight:700, fontSize:11, fontFamily:"monospace",
+                      border: "2px solid " + (m.key === selMonth.key ? "#0f172a" : "#f1f5f9"),
+                      background: m.key === selMonth.key ? "#0f172a" : "#f8fafc",
+                      color: m.key === selMonth.key ? "#fff" : "#64748b",
+                      transition:"all 0.15s"
+                    }}>{m.short}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={{display:"flex", gap:14, alignItems:"flex-start", flexWrap:"wrap"}}>
+              <div style={{width:236, flexShrink:0, display:"flex", flexDirection:"column", gap:10}}>
+                <DayPicker month={selMonth} selDay={selDay} entries={entries}
+                  onSelect={setSelDay} accent={selDept.accent}
+                  todayDay={selMonth.key === wd.mk ? wd.d : null}/>
+                <div style={{background:"#fff", borderRadius:10, padding:"12px 14px", border:"1px solid #e2e8f0", boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+                  <div style={{fontSize:9, fontWeight:700, color:"#94a3b8", letterSpacing:2}}>SELECTED DATE</div>
+                  <div style={{fontSize:17, fontWeight:800, color:"#0f172a", marginTop:5, fontFamily:"monospace"}}>{fmtDate(my,mm,selDay)}</div>
+                  <div style={{marginTop:5, fontSize:11, fontWeight:700, color: isPast ? "#ea580c" : "#16a34a"}}>
+                    {isPast ? "Editing past data" : "Today's entry"}
+                  </div>
+                  {selDay === lastDay(selMonth.key) && (
+                    <div style={{marginTop:4, fontSize:11, color:"#ea580c", fontWeight:600}}>Last day - monthly KPIs active</div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{flex:1, minWidth:300}}>
+                <div style={{marginBottom:10, display:"flex", alignItems:"center", gap:8, flexWrap:"wrap"}}>
+                  <span style={{fontSize:15, fontWeight:700, color:selDept.accent}}>{selDept.label}</span>
+                  <span style={{fontSize:12, color:"#94a3b8", fontFamily:"monospace"}}>{fmtDate(my,mm,selDay)}</span>
+                  {isPast && <span style={{fontSize:11, padding:"2px 9px", borderRadius:4, background:"#fff7ed", border:"1px solid #fed7aa", color:"#ea580c", fontWeight:700}}>Editing past data</span>}
+                </div>
+                <KpiForm dept={selDept} inputs={inputs} onChange={handleChange}
+                  mkey={selMonth.key} isAdmin={true}
+                  onSave={handleSave} saving={saving} flash={flash}
+                  lockedMonthly={false}/>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// -- ROOT ----------------------------------------------------------
+function App() {
+  const [screen, setScreen] = useState("login");
+  const [role,   setRole]   = useState(null);
+  const [pins,   setPins]   = useState(() => loadPins());
+
+  function login(r)     { setRole(r); setScreen(r === "admin" ? "admin" : "entry"); }
+  function logout()     { setRole(null); setScreen("login"); }
+  function updatePins(np) { const ok = savePins(np); if (ok) setPins(np); return ok; }
+
+  if (screen === "login") return <LoginScreen pins={pins} onLogin={login}/>;
+  if (screen === "entry") return <EntryScreen dept={DEPTS.find(d => d.id === role)} onLogout={logout}/>;
+  if (screen === "admin") return <AdminScreen pins={pins} onUpdatePins={updatePins} onLogout={logout}/>;
+  return null;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

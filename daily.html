@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STL Daily Dashboard - Q1 FY 2026-27</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body,#root{height:100%;min-height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;background:#f0f4f8;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+@media print{.no-print{display:none!important}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// Wait for all scripts to load before running
+window.addEventListener('load', function() {
+  try {
+    if (typeof React === 'undefined' || typeof ReactDOM === 'undefined') {
+      document.getElementById('root').innerHTML = '<div style="padding:40px;font-family:monospace;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;margin:40px">ERROR: React failed to load from CDN. Check your internet connection and reload.</div>';
+      return;
+    }
+
+
+var useState = React.useState;
+var useEffect = React.useEffect;
+var CE = React.createElement;
+
+
+var D = "daily", M = "monthly";
+var MONTHS = [
+  {key:"2026-04", label:"April 2026",  short:"APR", days:30},
+  {key:"2026-05", label:"May 2026",    short:"MAY", days:31},
+  {key:"2026-06", label:"June 2026",   short:"JUN", days:30},
+];
+function lastDay(mk){ return (MONTHS.find(function(m){return m.key===mk;})||MONTHS[0]).days; }
+var DEPTS = [
+  {id:"RSB",      label:"Sr. GM (Operations)", accent:"#4f46e5", kpis:[
+    {id:"rsb_cch",   name:"CCH Efficiency",                   unit:"%",         hib:true,  freq:"daily", targets:{"2026-04":60,    "2026-05":65,    "2026-06":65}},
+    {id:"rsb_agrd",  name:"A-Grade Packing %",                unit:"%",         hib:true,  freq:"daily", targets:{"2026-04":96.75, "2026-05":97,    "2026-06":97}},
+    {id:"rsb_effjq", name:"Efficiency - Jacquard",            unit:"%",         hib:true,  freq:"daily", targets:{"2026-04":60,    "2026-05":65,    "2026-06":70}},
+    {id:"rsb_effdb", name:"Efficiency - Dobby",               unit:"%",         hib:true,  freq:"daily", targets:{"2026-04":65,    "2026-05":70,    "2026-06":70}},
+    {id:"rsb_ltsf",  name:"Fabric Dyeing Lots/Day/Machine",   unit:"lots",      hib:true,  freq:"daily", targets:{"2026-04":2,     "2026-05":2,     "2026-06":2}},
+    {id:"rsb_ltsy",  name:"Yarn Dyeing Lots/Day/Machine",     unit:"lots",      hib:true,  freq:"daily", targets:{"2026-04":2,     "2026-05":2,     "2026-06":2}},
+    {id:"rsb_bpf",   name:"BPF Generation",                   unit:"Tons",      hib:false, freq:"monthly", targets:{"2026-04":0.75,"2026-05":0.5,  "2026-06":0.5}},
+    {id:"rsb_wstt",  name:"Total Waste % - Till Finishing",   unit:"%",         hib:false, freq:"monthly", targets:{"2026-04":3.65,"2026-05":3.6,  "2026-06":3.6}},
+    {id:"rsb_wip",   name:"WIP vs Dispatch - No. of Days",    unit:"Days",      hib:false, freq:"monthly", targets:{"2026-04":78,  "2026-05":76,   "2026-06":74}},
+    {id:"rsb_phwv",  name:"Per Head Output - Weaving",        unit:"kg/person", hib:true,  freq:"monthly", targets:{"2026-04":150, "2026-05":160,  "2026-06":170}},
+    {id:"rsb_phfd",  name:"Per Head Output - Fabric Dyeing",  unit:"kg/person", hib:true,  freq:"monthly", targets:{"2026-04":210, "2026-05":220,  "2026-06":230}},
+  ]},
+  {id:"Weaving",  label:"Weaving",             accent:"#2563eb", kpis:[
+    {id:"eff_jq",    name:"Efficiency - Jacquard",            unit:"%",         hib:true,  freq:"daily",   targets:{"2026-04":60,   "2026-05":65,   "2026-06":70}},
+    {id:"eff_db",    name:"Efficiency - Dobby",               unit:"%",         hib:true,  freq:"daily",   targets:{"2026-04":65,   "2026-05":70,   "2026-06":70}},
+    {id:"wastage",   name:"Overall Wastage",                  unit:"%",         hib:false, freq:"daily",   targets:{"2026-04":3.65, "2026-05":3.6,  "2026-06":3.6}},
+    {id:"bpf",       name:"BPF Generation",                   unit:"Tons",      hib:false, freq:"daily",   targets:{"2026-04":0,    "2026-05":0,    "2026-06":0}},
+    {id:"mending",   name:"Mending % (AQL)",                  unit:"%",         hib:false, freq:"daily",   targets:{"2026-04":5.5,  "2026-05":5.25, "2026-06":5}},
+    {id:"knot_eff",  name:"Freshly Knotted Loom Efficiency",  unit:"%",         hib:true,  freq:"daily",   targets:{"2026-04":45,   "2026-05":47,   "2026-06":50}},
+    {id:"hr_cost",   name:"HR Cost / kg (Wvg+Prep)",          unit:"Rs/kg",     hib:false, freq:"monthly", targets:{"2026-04":16.5, "2026-05":16,   "2026-06":15.5}},
+    {id:"nm_weft",   name:"Non-Moving Weft Stock",            unit:"Tons",      hib:false, freq:"monthly", targets:{"2026-04":3.5,  "2026-05":2,    "2026-06":0.5}},
+  ]},
+  {id:"Dyeing",   label:"Dyeing",              accent:"#0891b2", kpis:[
+    {id:"rft_fab",   name:"RFT - Fabric",                     unit:"%",         hib:true,  freq:"daily",   targets:{"2026-04":98.5, "2026-05":98,   "2026-06":98}},
+    {id:"rft_yrn",   name:"RFT - Yarn",                       unit:"%",         hib:true,  freq:"daily",   targets:{"2026-04":99.99,"2026-05":99.99,"2026-06":99.99}},
+    {id:"dwngrade",  name:"Downgrade Due to Processing",      unit:"%",         hib:false, freq:"daily",   targets:{"2026-04":0.75, "2026-05":0.7,  "2026-06":0.6}},
+    {id:"water",     name:"Water Consumption / kg",           unit:"ltr/kg",    hib:false, freq:"daily",   targets:{"2026-04":55,   "2026-05":54,   "2026-06":53}},
+    {id:"lots_fd",   name:"Fabric Dyeing - Lots/Day/Machine", unit:"lots",      hib:true,  freq:"daily",   targets:{"2026-04":2,    "2026-05":2,    "2026-06":2}},
+    {id:"lots_yd",   name:"Yarn Dyeing - Lots/Day/Machine",   unit:"lots",      hib:true,  freq:"daily",   targets:{"2026-04":2,    "2026-05":2,    "2026-06":2}},
+    {id:"dye_cost",  name:"Dyes + Chemical Cost",             unit:"Rs/kg",     hib:false, freq:"monthly", targets:{"2026-04":22,   "2026-05":22,   "2026-06":22}},
+    {id:"bpf_dye",   name:"BPF Generation - Dyeing",          unit:"kg",        hib:false, freq:"monthly", targets:{"2026-04":0,    "2026-05":0,    "2026-06":0}},
+  ]},
+  {id:"Finishing",label:"Finishing",           accent:"#7c3aed", kpis:[
+    {id:"aql",       name:"Trolley AQL Failure %",            unit:"%",         hib:false, freq:"daily",   targets:{"2026-04":3,    "2026-05":2.5,  "2026-06":2}},
+    {id:"a_grade",   name:"A-Grade Fresh Packing %",          unit:"%",         hib:true,  freq:"daily",   targets:{"2026-04":96.7, "2026-05":96.85,"2026-06":97}},
+    {id:"insp_f",    name:"Inspection Failure / Aborted",     unit:"count",     hib:false, freq:"daily",   targets:{"2026-04":0,    "2026-05":0,    "2026-06":0}},
+    {id:"cch_eff",   name:"CCH Efficiency",                   unit:"%",         hib:true,  freq:"daily",   targets:{"2026-04":60,   "2026-05":65,   "2026-06":65}},
+    {id:"fin_cost",  name:"Finishing + IMS + Packing Cost",   unit:"Rs/kg",     hib:false, freq:"monthly", targets:{"2026-04":17.5, "2026-05":17.25,"2026-06":17}},
+    {id:"ppp",       name:"PPP - Line Tailors",               unit:"kg/man-day",hib:true,  freq:"monthly", targets:{"2026-04":225,  "2026-05":235,  "2026-06":250}},
+  ]},
+  {id:"Prep",     label:"Preparatory",         accent:"#b45309", kpis:[
+    {id:"hard_wst",  name:"Hard Waste",                       unit:"%",         hib:false, freq:"daily",   targets:{"2026-04":0.86, "2026-05":0.85, "2026-06":0.85}},
+    {id:"no_beam",   name:"Looms Under No Beam / Day",        unit:"count/day", hib:false, freq:"daily",   targets:{"2026-04":3,    "2026-05":3,    "2026-06":3}},
+    {id:"pile_brk",  name:"Pile Breakage",                    unit:"brks/CMPX", hib:false, freq:"daily",   targets:{"2026-04":5,    "2026-05":5,    "2026-06":5}},
+    {id:"gnd_brk",   name:"Ground Breakage",                  unit:"brks/CMPX", hib:false, freq:"daily",   targets:{"2026-04":8,    "2026-05":8,    "2026-06":8}},
+    {id:"pile_g",    name:"Pile Beam Length - Greighe",       unit:"Metres",    hib:true,  freq:"monthly", targets:{"2026-04":6500, "2026-05":6500, "2026-06":6500}},
+    {id:"creel",     name:"Creel Bottom WIP - Greighe",       unit:"Tons",      hib:false, freq:"monthly", targets:{"2026-04":4,    "2026-05":3,    "2026-06":2}},
+    {id:"rem_yrn",   name:"Remnant / Dead Yarn Stock",        unit:"Tons",      hib:false, freq:"monthly", targets:{"2026-04":47.71,"2026-05":37.71,"2026-06":27.71}},
+  ]},
+  {id:"UB",       label:"GM (Tech)",           accent:"#dc2626", kpis:[
+    {id:"cch_prod",  name:"CCH Production",                   unit:"Tons/day",  hib:true,  freq:"daily",   targets:{"2026-04":0.58, "2026-05":0.60, "2026-06":0.65}},
+    {id:"repair",    name:"Repair Percentage",                unit:"%",         hib:false, freq:"daily",   targets:{"2026-04":0.75, "2026-05":0.75, "2026-06":0.70}},
+    {id:"lots_fd2",  name:"Fabric Dyeing - Lots/Day/Machine", unit:"lots",      hib:true,  freq:"daily",   targets:{"2026-04":2,    "2026-05":2,    "2026-06":2}},
+    {id:"lots_yd2",  name:"Yarn Dyeing - Lots/Day/Machine",   unit:"lots",      hib:true,  freq:"daily",   targets:{"2026-04":1.9,  "2026-05":2,    "2026-06":2}},
+    {id:"steam_c",   name:"Steam Cost / kg",                  unit:"Rs/kg",     hib:false, freq:"monthly", targets:{"2026-04":24,   "2026-05":23,   "2026-06":22}},
+    {id:"pwr_c",     name:"Power Cost / kg of Dispatch",      unit:"Rs/kg",     hib:false, freq:"monthly", targets:{"2026-04":26,   "2026-05":25,   "2026-06":24}},
+    {id:"wip_ub",    name:"WIP - Tons (RM + FG)",             unit:"Tons",      hib:false, freq:"monthly", targets:{"2026-04":945,  "2026-05":920,  "2026-06":895}},
+  ]},
+  {id:"PPC",      label:"PPC",                 accent:"#0f766e", kpis:[
+    {id:"wip_days",  name:"WIP - No. of Days",                unit:"Days",      hib:false, freq:"monthly", targets:{"2026-04":78,   "2026-05":76,   "2026-06":74}},
+    {id:"nm_br",     name:"Non-Moving - Bathrobe",            unit:"Tons",      hib:false, freq:"monthly", targets:{"2026-04":11,   "2026-05":8,    "2026-06":5}},
+    {id:"nm_fg",     name:"Non-Moving - Finished Goods",      unit:"Tons",      hib:false, freq:"monthly", targets:{"2026-04":30,   "2026-05":20,   "2026-06":10}},
+    {id:"nm_gr",     name:"Non-Moving - Greigh Fabric",       unit:"Tons",      hib:false, freq:"monthly", targets:{"2026-04":10,   "2026-05":8,    "2026-06":6}},
+    {id:"nm_tot",    name:"Total Non-Moving Stock",           unit:"Tons",      hib:false, freq:"monthly", targets:{"2026-04":51,   "2026-05":36,   "2026-06":21}},
+    {id:"rem_ppc",   name:"Remnant / Dead Yarn Stock",        unit:"Tons",      hib:false, freq:"monthly", targets:{"2026-04":47.71,"2026-05":37.71,"2026-06":27.71}},
+  ]},
+  {id:"Bathrobe", label:"Bathrobe",            accent:"#9f1239", kpis:[
+    {id:"wst_br",    name:"Wastage % - Bathrobe + Madeups",   unit:"%",         hib:false, freq:"monthly", targets:{"2026-04":10,   "2026-05":9,    "2026-06":8}},
+    {id:"nm_wip",    name:"Non-Moving WIP (Floor 1)",         unit:"Tons",      hib:false, freq:"monthly", targets:{"2026-04":13.3, "2026-05":10.8, "2026-06":7.8}},
+  ]},
+  {id:"Quality",  label:"Quality",             accent:"#059669", kpis:[
+    {id:"insp_fail", name:"Overall Inspection Failure",       unit:"count",     hib:false, freq:"daily",   targets:{"2026-04":0,    "2026-05":0,    "2026-06":0}},
+    {id:"wrng_prod", name:"Wrong Production Before HOD Info", unit:"kg",        hib:false, freq:"daily",   targets:{"2026-04":300,  "2026-05":300,  "2026-06":300}},
+    {id:"cust_cmp",  name:"Customer Complaints",              unit:"count",     hib:false, freq:"monthly", targets:{"2026-04":0,    "2026-05":0,    "2026-06":0}},
+    {id:"insp_scr",  name:"Inspector Feedback Score",         unit:"Score 1-5", hib:true,  freq:"monthly", targets:{"2026-04":4,    "2026-05":4.25, "2026-06":4.5}},
+  ]},
+];
+
+var SC  = {g:"#16a34a", w:"#ca8a04", b:"#dc2626", n:"#94a3b8"};
+var SBG = {g:"#f0fdf4", w:"#fefce8", b:"#fef2f2", n:"#f8fafc"};
+var SLB = {g:"On Target", w:"Close", b:"Off Target", n:"-"};
+
+function loadData(deptId, mk) {
+  try { return JSON.parse(localStorage.getItem("stl:" + deptId + ":" + mk)) || {}; }
+  catch(e) { return {}; }
+}
+
+function getStatus(val, t, hib) {
+  if (val === "" || val == null || t == null) return "n";
+  var v = +val, tgt = +t;
+  if (tgt === 0) return !hib ? (v === 0 ? "g" : "b") : "n";
+  var r = v / tgt;
+  return hib ? (r >= 0.97 ? "g" : r >= 0.9 ? "w" : "b")
+             : (r <= 1.03 ? "g" : r <= 1.1 ? "w" : "b");
+}
+
+function getIST() {
+  var n = new Date(new Date().toLocaleString("en-US", {timeZone:"Asia/Kolkata"}));
+  return {y:n.getFullYear(), m:n.getMonth()+1, d:n.getDate()};
+}
+function getWorkingDate() {
+  var ist = getIST();
+  var mk = ist.y + "-" + String(ist.m).padStart(2,"0");
+  if (MONTHS.find(function(mo){return mo.key===mk;})) return Object.assign({},ist,{mk:mk,isTesting:false});
+  return {y:2026,m:4,d:30,mk:"2026-04",isTesting:true};
+}
+var MN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function fmtDate(y,m,d) { return d + " " + MN[m-1] + " " + y; }
+function fmt2(n) {
+  if (n == null) return "-";
+  var v = +n;
+  if (isNaN(v)) return String(n);
+  return Number.isInteger(v) ? String(v) : parseFloat(v.toFixed(3)).toString();
+}
+
+function getMonthValue(kpi, mk, entries) {
+  var month = MONTHS.find(function(m){return m.key===mk;}) || MONTHS[0];
+  if (kpi.freq === "monthly") {
+    var ld = month.days;
+    var v = entries[ld] ? entries[ld][kpi.id] : undefined;
+    return (v !== undefined && v !== "") ? +v : null;
+  }
+  var vals = [];
+  for (var d=1; d<=month.days; d++) {
+    var vd = entries[d] ? entries[d][kpi.id] : undefined;
+    if (vd !== undefined && vd !== "") vals.push(+vd);
+  }
+  return vals.length ? vals.reduce(function(a,b){return a+b;},0)/vals.length : null;
+}
+
+
+// SVG Sparkline component
+function Sparkline(props) {
+  var dayData = props.dayData;
+  var target  = props.target;
+  var color   = props.color;
+  var H = 90, W = 320, pad = 6;
+
+  var validVals = dayData.filter(function(d){return d.val!==null;}).map(function(d){return d.val;});
+  if (validVals.length === 0) {
+    return CE("div",{style:{height:H,display:"flex",alignItems:"center",justifyContent:"center"}},
+      CE("span",{style:{fontSize:11,color:"#cbd5e1",fontStyle:"italic"}},"No data yet - enter values in the Data Entry app")
+    );
+  }
+
+  var allV = target!=null ? validVals.concat([+target]) : validVals;
+  var minV = Math.min.apply(null,allV), maxV = Math.max.apply(null,allV);
+  var rng  = maxV - minV || 1;
+  var N    = dayData.length;
+
+  function xp(day) { return pad + (day-1)/(N-1||1)*(W-pad*2); }
+  function yp(v)   { return H - pad - (v-minV)/rng*(H-pad*2); }
+
+  // Build segments of non-null consecutive points
+  var segs = [], cur = [];
+  dayData.forEach(function(d) {
+    if (d.val !== null) { cur.push([xp(d.day),yp(d.val)]); }
+    else { if(cur.length){segs.push(cur);cur=[];} }
+  });
+  if(cur.length) segs.push(cur);
+
+  var children = [];
+
+  // Gradient def
+  children.push(CE("defs",{key:"defs"},
+    CE("linearGradient",{id:"grad_"+props.uid,x1:"0",y1:"0",x2:"0",y2:"1"},
+      CE("stop",{offset:"5%",  stopColor:color,stopOpacity:"0.18"}),
+      CE("stop",{offset:"95%", stopColor:color,stopOpacity:"0"})
+    )
+  ));
+
+  // Target line
+  if (target != null) {
+    var ty = yp(+target).toFixed(1);
+    children.push(CE("line",{key:"tgt",x1:pad,y1:ty,x2:W-pad,y2:ty,
+      stroke:"#94a3b8",strokeDasharray:"4 3",strokeWidth:1.5}));
+    children.push(CE("text",{key:"tgtlbl",x:W-pad+2,y:ty,fontSize:8,fill:"#94a3b8",dominantBaseline:"middle"},
+      String(target)));
+  }
+
+  // Area + line for each segment
+  segs.forEach(function(pts,si) {
+    if (pts.length < 2) return;
+    var ptsStr = pts.map(function(p){return p[0].toFixed(1)+","+p[1].toFixed(1);}).join(" ");
+    var areaPath = "M "+pts[0][0].toFixed(1)+","+H+" L "+ptsStr+" L "+pts[pts.length-1][0].toFixed(1)+","+H+" Z";
+    children.push(CE("path",{key:"area"+si,d:areaPath,fill:"url(#grad_"+props.uid+")",stroke:"none"}));
+    children.push(CE("polyline",{key:"line"+si,points:ptsStr,fill:"none",stroke:color,strokeWidth:2,strokeLinecap:"round",strokeLinejoin:"round"}));
+  });
+
+  // Dots for all valid points
+  dayData.forEach(function(d,i) {
+    if (d.val===null) return;
+    children.push(CE("circle",{key:"dot"+i,cx:xp(d.day).toFixed(1),cy:yp(d.val).toFixed(1),r:3,fill:color,stroke:"#fff",strokeWidth:1.5}));
+  });
+
+  return CE("svg",{width:"100%",height:H,viewBox:"0 0 "+W+" "+H,style:{overflow:"visible"}},children);
+}
+
+function DailyCard(props) {
+  var kpi=props.kpi, mkey=props.mkey, entries=props.entries, dept=props.dept;
+  var month = MONTHS.find(function(m){return m.key===mkey;})||MONTHS[0];
+  var target = kpi.targets[mkey];
+
+  var dayData = [];
+  for(var d=1;d<=month.days;d++){
+    var v=entries[d]?entries[d][kpi.id]:undefined;
+    dayData.push({day:d,val:(v!==undefined&&v!=="")?+v:null});
+  }
+  var validVals=dayData.filter(function(d){return d.val!==null;}).map(function(d){return d.val;});
+  var latest=null;
+  for(var i=dayData.length-1;i>=0;i--){if(dayData[i].val!==null){latest=dayData[i].val;break;}}
+  var avg=validVals.length?validVals.reduce(function(a,b){return a+b;},0)/validVals.length:null;
+  var st=getStatus(latest,target,kpi.hib);
+
+  return CE("div",{style:{background:"#fff",borderRadius:14,padding:"16px 16px 12px",
+    border:"1.5px solid "+(latest!==null?SC[st]+"44":"#e2e8f0"),
+    boxShadow:"0 1px 6px rgba(0,0,0,0.06)"}},
+    CE("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}},
+      CE("div",{style:{flex:1,paddingRight:8}},
+        CE("div",{style:{fontSize:12,fontWeight:700,color:"#1e293b",lineHeight:1.3}},kpi.name),
+        CE("div",{style:{display:"flex",gap:5,marginTop:4,alignItems:"center",flexWrap:"wrap"}},
+          CE("span",{style:{fontSize:9,fontWeight:700,fontFamily:"monospace",color:"#fff",background:dept.accent,padding:"1px 6px",borderRadius:3}},kpi.unit),
+          CE("span",{style:{fontSize:9,color:kpi.hib?"#16a34a":"#f97316",fontWeight:600}},kpi.hib?"Higher is better":"Lower is better"),
+          validVals.length>0&&CE("span",{style:{fontSize:9,color:"#94a3b8"}},validVals.length+" entries")
+        )
+      ),
+      CE("div",{style:{textAlign:"right",flexShrink:0}},
+        CE("div",{style:{display:"flex",alignItems:"center",gap:5,justifyContent:"flex-end"}},
+          CE("div",{style:{width:8,height:8,borderRadius:"50%",background:latest!==null?SC[st]:"#e2e8f0",boxShadow:latest!==null?"0 0 6px "+SC[st]:"none"}}),
+          CE("span",{style:{fontSize:22,fontWeight:900,color:latest!==null?SC[st]:"#e2e8f0",fontFamily:"monospace"}},latest!==null?fmt2(latest):"-")
+        ),
+        target!=null&&CE("div",{style:{fontSize:9,color:"#94a3b8",marginTop:1,fontFamily:"monospace"}},"Target: "+target),
+        avg!==null&&CE("div",{style:{fontSize:9,color:"#64748b",fontFamily:"monospace"}},"Avg: "+fmt2(avg)),
+        latest!==null&&CE("div",{style:{fontSize:9,fontWeight:700,color:SC[st],marginTop:1}},SLB[st])
+      )
+    ),
+    CE(Sparkline,{dayData:dayData,target:target,color:latest!==null?SC[st]:"#e2e8f0",uid:kpi.id})
+  );
+}
+
+function MonthlyCard(props) {
+  var kpi=props.kpi, mkey=props.mkey, entries=props.entries, dept=props.dept;
+  var month=MONTHS.find(function(m){return m.key===mkey;})||MONTHS[0];
+  var target=kpi.targets[mkey];
+  var raw=entries[month.days]?entries[month.days][kpi.id]:undefined;
+  var val=(raw!==undefined&&raw!=="")?+raw:null;
+  var st=getStatus(val,target,kpi.hib);
+  var pct=(val!==null&&target!=null&&+target!==0)?Math.min(100,kpi.hib?val/target*100:target/val*100):0;
+
+  return CE("div",{style:{background:"#fff",borderRadius:14,padding:16,
+    border:"1.5px solid "+(val!==null?SC[st]+"44":"#e2e8f0"),
+    boxShadow:"0 1px 6px rgba(0,0,0,0.06)"}},
+    CE("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}},
+      CE("div",{style:{flex:1,paddingRight:8}},
+        CE("div",{style:{fontSize:12,fontWeight:700,color:"#1e293b",lineHeight:1.3}},kpi.name),
+        CE("div",{style:{display:"flex",gap:5,marginTop:4,flexWrap:"wrap",alignItems:"center"}},
+          CE("span",{style:{fontSize:9,fontWeight:700,fontFamily:"monospace",color:"#fff",background:dept.accent,padding:"1px 6px",borderRadius:3}},kpi.unit),
+          CE("span",{style:{fontSize:9,fontWeight:700,color:"#ea580c",background:"#fff7ed",padding:"1px 6px",borderRadius:3,border:"1px solid #fed7aa"}},"Monthly"),
+          CE("span",{style:{fontSize:9,color:kpi.hib?"#16a34a":"#f97316",fontWeight:600}},kpi.hib?"Higher":"Lower")
+        )
+      ),
+      CE("div",{style:{textAlign:"right"}},
+        CE("div",{style:{fontSize:22,fontWeight:900,color:val!==null?SC[st]:"#e2e8f0",fontFamily:"monospace"}},val!==null?fmt2(val):"-"),
+        target!=null&&CE("div",{style:{fontSize:9,color:"#94a3b8",fontFamily:"monospace"}},"Target: "+target)
+      )
+    ),
+    val!==null&&target!=null&&CE("div",null,
+      CE("div",{style:{height:4,background:"#f1f5f9",borderRadius:2,overflow:"hidden",marginBottom:3}},
+        CE("div",{style:{height:"100%",borderRadius:2,background:SC[st],width:pct+"%",transition:"width 0.5s"}})
+      ),
+      CE("div",{style:{fontSize:9,color:SC[st],fontWeight:700}},SLB[st]+" - "+fmt2(pct)+"% of target")
+    ),
+    val===null&&CE("div",{style:{fontSize:10,color:"#cbd5e1",fontStyle:"italic",marginTop:4}},"Entered on last day of month")
+  );
+}
+
+function SummaryStrip(props) {
+  var sts=props.sts;
+  var cnt=function(s){return sts.filter(function(x){return x===s;}).length;};
+  return CE("div",{style:{display:"flex",gap:8,flexWrap:"wrap"}},
+    [["g","On Target"],["w","Close"],["b","Off Target"],["n","No Data"]].map(function(pair){
+      var s=pair[0],lbl=pair[1];
+      return CE("div",{key:s,style:{display:"flex",alignItems:"center",gap:6,padding:"5px 12px",
+        background:SBG[s],border:"1.5px solid "+SC[s]+"44",borderRadius:8}},
+        CE("span",{style:{fontSize:17,fontWeight:900,color:SC[s],fontFamily:"monospace"}},cnt(s)),
+        CE("div",null,
+          CE("div",{style:{fontSize:8,fontWeight:700,color:SC[s],letterSpacing:1,textTransform:"uppercase"}},lbl),
+          CE("div",{style:{fontSize:9,color:"#64748b"}},"KPIs")
+        )
+      );
+    })
+  );
+}
+
+function App() {
+  var wd=getWorkingDate();
+  var sdi=useState("Weaving"), selDeptId=sdi[0], setSelDeptId=sdi[1];
+  var smk=useState(wd.mk),     selMkey=smk[0],   setSelMkey=smk[1];
+  var se=useState({}),         entries=se[0],    setEntries=se[1];
+  var st=useState(0),          tick=st[0],       setTick=st[1];
+
+  var dept  = DEPTS.find(function(d){return d.id===selDeptId;})||DEPTS[0];
+  var month = MONTHS.find(function(m){return m.key===selMkey;})||MONTHS[0];
+
+  useEffect(function(){setEntries(loadData(selDeptId,selMkey));},[selDeptId,selMkey,tick]);
+  useEffect(function(){
+    var t=setInterval(function(){setTick(function(n){return n+1;});},60000);
+    return function(){clearInterval(t);};
+  },[]);
+
+  var dailyKpis   = dept.kpis.filter(function(k){return k.freq==="daily";});
+  var monthlyKpis = dept.kpis.filter(function(k){return k.freq==="monthly";});
+
+  var allSts=dept.kpis.map(function(kpi){
+    if(kpi.freq==="monthly"){var v=entries[month.days]?entries[month.days][kpi.id]:undefined;return getStatus(v!==undefined&&v!==""?+v:null,kpi.targets[selMkey],kpi.hib);}
+    var lv=null;for(var d=month.days;d>=1;d--){var vd=entries[d]?entries[d][kpi.id]:undefined;if(vd!==undefined&&vd!==""){lv=+vd;break;}}
+    return getStatus(lv,kpi.targets[selMkey],kpi.hib);
+  });
+
+  return CE("div",{style:{minHeight:"100vh",background:"#f0f4f8"}},
+    // Header
+    CE("div",{style:{background:"#0f172a",padding:"0 20px",height:56,display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"3px solid "+dept.accent}},
+      CE("div",{style:{display:"flex",alignItems:"center",gap:10}},
+        CE("div",{style:{width:30,height:30,borderRadius:8,background:dept.accent+"1a",display:"flex",alignItems:"center",justifyContent:"center",border:"1px solid "+dept.accent+"44"}},
+          CE("span",{style:{fontFamily:"monospace",fontSize:12,fontWeight:800,color:dept.accent}},"S")
+        ),
+        CE("div",{style:{fontFamily:"monospace",fontSize:12,fontWeight:700,color:dept.accent,letterSpacing:2}},"STL"),
+        CE("div",{style:{width:1,height:16,background:"#334155"}}),
+        CE("div",{style:{fontSize:13,fontWeight:600,color:"#e2e8f0"}},"Daily Dashboard"),
+        wd.isTesting&&CE("div",{style:{padding:"2px 8px",background:"#713f12",borderRadius:4,fontSize:9,fontWeight:700,color:"#fef08a",letterSpacing:1}},"TEST MODE")
+      ),
+      CE("div",{style:{display:"flex",alignItems:"center",gap:8}},
+        CE("div",{style:{fontSize:11,color:"#64748b",fontFamily:"monospace"}},fmtDate(wd.y,wd.m,wd.d)),
+        CE("button",{onClick:function(){setTick(function(n){return n+1;});},style:{padding:"4px 12px",borderRadius:6,border:"1px solid #334155",background:"transparent",color:"#94a3b8",cursor:"pointer",fontSize:11,fontWeight:600}},"Refresh")
+      )
+    ),
+    // Filter bar
+    CE("div",{style:{background:"#fff",borderBottom:"1px solid #e2e8f0",padding:"9px 20px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}},
+      CE("span",{style:{fontSize:9,fontWeight:700,color:"#94a3b8",letterSpacing:1.5,marginRight:2}},"DEPT"),
+      DEPTS.map(function(d){return CE("button",{key:d.id,onClick:function(){setSelDeptId(d.id);},style:{padding:"4px 13px",borderRadius:20,cursor:"pointer",fontWeight:600,fontSize:11,border:"2px solid "+(d.id===selDeptId?d.accent:"#f1f5f9"),background:d.id===selDeptId?d.accent:"#f8fafc",color:d.id===selDeptId?"#fff":"#64748b",transition:"all 0.15s"}},d.label);}),
+      CE("div",{style:{marginLeft:"auto",display:"flex",gap:6}},
+        MONTHS.map(function(m){return CE("button",{key:m.key,onClick:function(){setSelMkey(m.key);},style:{padding:"4px 14px",borderRadius:6,cursor:"pointer",fontWeight:700,fontSize:11,fontFamily:"monospace",border:"2px solid "+(m.key===selMkey?"#0f172a":"#f1f5f9"),background:m.key===selMkey?"#0f172a":"#f8fafc",color:m.key===selMkey?"#fff":"#64748b",transition:"all 0.15s"}},m.short);})
+      )
+    ),
+    // Content
+    CE("div",{style:{maxWidth:1280,margin:"0 auto",padding:"18px 20px"}},
+      CE("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:10}},
+        CE(SummaryStrip,{sts:allSts}),
+        CE("div",{style:{fontSize:11,color:"#94a3b8"}},CE("span",{style:{fontWeight:700,color:dept.accent}},dept.label)," - "+month.label+" - auto-refreshes every 60s")
+      ),
+      dailyKpis.length>0&&CE("div",null,
+        CE("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:10}},
+          CE("div",{style:{height:1,flex:1,background:"#e2e8f0"}}),
+          CE("span",{style:{fontSize:9,fontWeight:800,letterSpacing:2,color:"#16a34a",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:4,padding:"2px 10px"}},"DAILY KPIs - trend by day"),
+          CE("div",{style:{height:1,flex:1,background:"#e2e8f0"}})
+        ),
+        CE("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:12,marginBottom:20}},
+          dailyKpis.map(function(kpi){return CE(DailyCard,{key:kpi.id,kpi:kpi,mkey:selMkey,entries:entries,dept:dept});})
+        )
+      ),
+      monthlyKpis.length>0&&CE("div",null,
+        CE("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:10}},
+          CE("div",{style:{height:1,flex:1,background:"#e2e8f0"}}),
+          CE("span",{style:{fontSize:9,fontWeight:800,letterSpacing:2,color:"#ea580c",background:"#fff7ed",border:"1px solid #fed7aa",borderRadius:4,padding:"2px 10px"}},"MONTHLY KPIs - last day of month"),
+          CE("div",{style:{height:1,flex:1,background:"#e2e8f0"}})
+        ),
+        CE("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}},
+          monthlyKpis.map(function(kpi){return CE(MonthlyCard,{key:kpi.id,kpi:kpi,mkey:selMkey,entries:entries,dept:dept});})
+        )
+      )
+    )
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(CE(App,null));
+
+
+  } catch(err) {
+    document.getElementById('root').innerHTML = '<div style="padding:40px;font-family:monospace;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;margin:40px"><strong>JavaScript Error:</strong><br><br>' + err.message + '<br><br><pre>' + (err.stack||'') + '</pre></div>';
+    console.error('Dashboard error:', err);
+  }
+});
+</script>
+</body>
+</html>
