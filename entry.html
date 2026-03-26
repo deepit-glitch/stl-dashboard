@@ -771,12 +771,44 @@ function AdminScreen({pins, onUpdatePins, onLogout}) {
 
 // -- ROOT ----------------------------------------------------------
 function App() {
-  const [screen, setScreen] = useState("login");
-  const [role,   setRole]   = useState(null);
+  // Check if user arrived via OTP login — if so, skip PIN screen entirely
+  const otpRole = localStorage.getItem("stl_role");
+  const otpDept = localStorage.getItem("stl_dept");
+  const otpName = localStorage.getItem("stl_name");
+  const otpToken = localStorage.getItem("stl_token");
+
+  // Determine initial screen: if valid OTP session exists, go straight to entry/admin
+  function getInitialScreen() {
+    if (otpToken && otpRole) {
+      if (otpRole === "admin") return "admin";
+      return "entry";
+    }
+    return "login";
+  }
+
+  function getInitialRole() {
+    if (otpToken && otpRole) {
+      // Map OTP role to dept id
+      const ROLE_DEPT_MAP = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality",rsb:"RSB"};
+      // dept stored directly, or derive from role
+      if (otpDept && otpDept !== "") return otpDept;
+      return ROLE_DEPT_MAP[otpRole] || otpRole;
+    }
+    return null;
+  }
+
+  const [screen, setScreen] = useState(getInitialScreen);
+  const [role,   setRole]   = useState(getInitialRole);
   const [pins,   setPins]   = useState(() => loadPins());
 
   function login(r)     { setRole(r); setScreen(r === "admin" ? "admin" : "entry"); }
-  function logout()     { setRole(null); setScreen("login"); }
+  function logout()     {
+    // Clear OTP session too
+    ["stl_token","stl_role","stl_name","stl_dept"].forEach(k => localStorage.removeItem(k));
+    setRole(null);
+    setScreen("login");
+    window.location.href = "login.html";
+  }
   function updatePins(np) { const ok = savePins(np); if (ok) setPins(np); return ok; }
 
   if (screen === "login") return <LoginScreen pins={pins} onLogin={login}/>;
