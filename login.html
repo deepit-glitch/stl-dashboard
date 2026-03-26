@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STL Dashboards - Login</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;background:linear-gradient(150deg,#0f172a 0%,#1e293b 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:#fff;border-radius:22px;padding:36px 32px;width:100%;max-width:400px;box-shadow:0 28px 70px rgba(0,0,0,0.45)}
+.brand{text-align:center;margin-bottom:28px}
+.logo{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#6366f1,#4338ca);display:inline-flex;align-items:center;justify-content:center;font-family:monospace;font-weight:900;font-size:22px;color:#fff;box-shadow:0 4px 16px rgba(99,102,241,0.4);margin-bottom:12px}
+h1{font-family:monospace;font-size:26px;font-weight:900;color:#0f172a;letter-spacing:4px}
+.sub{font-size:11px;color:#64748b;margin-top:4px;letter-spacing:1px}
+.step{display:none}
+.step.active{display:block}
+label{display:block;font-size:11px;font-weight:700;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:7px}
+input[type=tel],input[type=text]{width:100%;padding:13px 16px;border:2px solid #e2e8f0;border-radius:10px;font-size:16px;font-family:monospace;font-weight:600;outline:none;transition:border-color 0.2s;color:#0f172a}
+input:focus{border-color:#6366f1}
+.btn{width:100%;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;background:#6366f1;color:#fff;margin-top:16px;transition:background 0.2s}
+.btn:hover{background:#4f46e5}
+.btn:disabled{background:#e2e8f0;color:#94a3b8;cursor:not-allowed}
+.err{margin-top:12px;padding:11px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#dc2626;font-weight:600;display:none}
+.err.show{display:block}
+.hint{font-size:11px;color:#94a3b8;margin-top:8px;text-align:center}
+.otp-box{display:flex;gap:8px;justify-content:center;margin:4px 0}
+.otp-box input{width:46px;height:54px;text-align:center;font-size:22px;font-weight:800;border:2px solid #e2e8f0;border-radius:10px;outline:none;font-family:monospace;padding:0}
+.otp-box input:focus{border-color:#6366f1}
+.resend{font-size:11px;color:#6366f1;cursor:pointer;background:none;border:none;padding:0;margin-top:4px;font-weight:700}
+.resend:disabled{color:#94a3b8;cursor:not-allowed}
+.loader{display:inline-block;width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="brand">
+    <div class="logo">S</div>
+    <h1>STL</h1>
+    <div class="sub">DASHBOARDS &nbsp;&bull;&nbsp; SARA TEXTILES LIMITED</div>
+  </div>
+
+  <!-- Step 1: Mobile number -->
+  <div class="step active" id="step1">
+    <label>Your Mobile Number</label>
+    <input type="tel" id="mobile" maxlength="10" placeholder="10-digit mobile number" autocomplete="tel">
+    <button class="btn" id="sendBtn" onclick="sendOTP()">Send OTP</button>
+    <div class="err" id="err1"></div>
+    <div class="hint">Enter the mobile number registered with STL Dashboards</div>
+  </div>
+
+  <!-- Step 2: OTP entry -->
+  <div class="step" id="step2">
+    <label>Enter 6-Digit OTP</label>
+    <div class="hint" style="margin-bottom:12px;text-align:left">Sent to +91 <span id="dispMobile"></span></div>
+    <div class="otp-box">
+      <input type="text" maxlength="1" id="o0" oninput="otpInput(0)" onkeydown="otpKey(event,0)">
+      <input type="text" maxlength="1" id="o1" oninput="otpInput(1)" onkeydown="otpKey(event,1)">
+      <input type="text" maxlength="1" id="o2" oninput="otpInput(2)" onkeydown="otpKey(event,2)">
+      <input type="text" maxlength="1" id="o3" oninput="otpInput(3)" onkeydown="otpKey(event,3)">
+      <input type="text" maxlength="1" id="o4" oninput="otpInput(4)" onkeydown="otpKey(event,4)">
+      <input type="text" maxlength="1" id="o5" oninput="otpInput(5)" onkeydown="otpKey(event,5)">
+    </div>
+    <button class="btn" id="verifyBtn" onclick="verifyOTP()" disabled>Verify OTP</button>
+    <div style="text-align:center;margin-top:10px">
+      <button class="resend" id="resendBtn" onclick="resendOTP()" disabled>Resend OTP (<span id="timer">30</span>s)</button>
+    </div>
+    <div class="err" id="err2"></div>
+    <div class="hint" style="margin-top:8px"><span onclick="goBack()" style="color:#6366f1;cursor:pointer;font-weight:700">Change number</span></div>
+  </div>
+</div>
+
+<script>
+const WORKER = "https://square-flower-57b5.deepit.workers.dev";
+let mobile = "", timerInterval;
+
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add("show");
+}
+function clearErr(id) { document.getElementById(id).classList.remove("show"); }
+
+async function sendOTP() {
+  clearErr("err1");
+  mobile = document.getElementById("mobile").value.replace(/\D/g,"");
+  if (!/^[6-9]\d{9}$/.test(mobile)) { showErr("err1","Enter a valid 10-digit Indian mobile number."); return; }
+  const btn = document.getElementById("sendBtn");
+  btn.innerHTML = '<span class="loader"></span>Sending...';
+  btn.disabled = true;
+  try {
+    const resp = await fetch(WORKER + "/auth/send-otp", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({mobile})
+    });
+    const data = await resp.json();
+    if (!data.ok) { showErr("err1", data.error || "Failed to send OTP"); btn.innerHTML="Send OTP"; btn.disabled=false; return; }
+    document.getElementById("dispMobile").textContent = mobile;
+    document.getElementById("step1").classList.remove("active");
+    document.getElementById("step2").classList.add("active");
+    document.getElementById("o0").focus();
+    startTimer();
+  } catch(e) { showErr("err1","Network error - please try again."); btn.innerHTML="Send OTP"; btn.disabled=false; }
+}
+
+function otpInput(i) {
+  const v = document.getElementById("o"+i).value.replace(/\D/g,"");
+  document.getElementById("o"+i).value = v;
+  if (v && i < 5) document.getElementById("o"+(i+1)).focus();
+  checkOTPFilled();
+}
+
+function otpKey(e, i) {
+  if (e.key === "Backspace" && !document.getElementById("o"+i).value && i > 0) {
+    document.getElementById("o"+(i-1)).focus();
+  }
+}
+
+function checkOTPFilled() {
+  const otp = Array.from({length:6},(_,i)=>document.getElementById("o"+i).value).join("");
+  document.getElementById("verifyBtn").disabled = otp.length !== 6;
+  if (otp.length === 6) verifyOTP();
+}
+
+async function verifyOTP() {
+  clearErr("err2");
+  const otp = Array.from({length:6},(_,i)=>document.getElementById("o"+i).value).join("");
+  if (otp.length !== 6) return;
+  const btn = document.getElementById("verifyBtn");
+  btn.innerHTML = '<span class="loader"></span>Verifying...';
+  btn.disabled = true;
+  try {
+    const resp = await fetch(WORKER + "/auth/verify-otp", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({mobile, otp})
+    });
+    const data = await resp.json();
+    if (!data.ok) {
+      showErr("err2", data.error || "Incorrect OTP");
+      btn.innerHTML="Verify OTP"; btn.disabled=false;
+      Array.from({length:6},(_,i)=>{document.getElementById("o"+i).value="";});
+      document.getElementById("o0").focus();
+      return;
+    }
+    localStorage.setItem("stl_token", data.token);
+    localStorage.setItem("stl_role", data.role);
+    localStorage.setItem("stl_name", data.name);
+    localStorage.setItem("stl_dept", data.dept || "");
+    clearInterval(timerInterval);
+    // Redirect based on role
+    if (data.role === "admin") { window.location.href = "admin.html"; }
+    else if (data.role === "management") { window.location.href = "daily.html"; }
+    else { window.location.href = "entry.html"; }
+  } catch(e) { showErr("err2","Network error - please try again."); btn.innerHTML="Verify OTP"; btn.disabled=false; }
+}
+
+function startTimer() {
+  let t = 30;
+  const el = document.getElementById("timer");
+  const btn = document.getElementById("resendBtn");
+  btn.disabled = true;
+  el.textContent = t;
+  timerInterval = setInterval(() => {
+    t--;
+    el.textContent = t;
+    if (t <= 0) {
+      clearInterval(timerInterval);
+      btn.disabled = false;
+      btn.textContent = "Resend OTP";
+    }
+  }, 1000);
+}
+
+async function resendOTP() {
+  clearErr("err2");
+  document.getElementById("resendBtn").disabled = true;
+  try {
+    const resp = await fetch(WORKER + "/auth/send-otp", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({mobile})
+    });
+    const data = await resp.json();
+    if (data.ok) { startTimer(); }
+    else { showErr("err2", data.error || "Failed to resend"); document.getElementById("resendBtn").disabled=false; }
+  } catch(e) { showErr("err2","Network error"); document.getElementById("resendBtn").disabled=false; }
+}
+
+function goBack() {
+  clearInterval(timerInterval);
+  document.getElementById("step2").classList.remove("active");
+  document.getElementById("step1").classList.add("active");
+  document.getElementById("sendBtn").innerHTML = "Send OTP";
+  document.getElementById("sendBtn").disabled = false;
+  clearErr("err2");
+}
+
+// If already logged in, redirect
+(async function() {
+  const token = localStorage.getItem("stl_token");
+  if (token) {
+    try {
+      const resp = await fetch(WORKER + "/auth/session", { headers: {"X-Session-Token":token} });
+      if (resp.ok) {
+        const d = await resp.json();
+        if (d.ok) {
+          if (d.role === "admin") window.location.href = "admin.html";
+          else if (d.role === "management") window.location.href = "daily.html";
+          else window.location.href = "entry.html";
+        }
+      }
+    } catch(e) {}
+  }
+})();
+</script>
+</body>
+</html>

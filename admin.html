@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STL Admin Panel</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;background:#f0f4f8;min-height:100vh;-webkit-font-smoothing:antialiased}
+.header{background:#0f172a;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:3px solid #6366f1}
+.brand{display:flex;align-items:center;gap:10px;font-family:monospace;font-size:12px;font-weight:700;color:#a5b4fc;letter-spacing:2px}
+.badge{padding:2px 8px;background:#312e81;border-radius:4px;font-size:9px;font-weight:700;color:#a5b4fc;letter-spacing:1px}
+.btn-sm{padding:5px 14px;border-radius:6px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:12px;font-weight:600}
+.content{max-width:900px;margin:0 auto;padding:24px 20px}
+.section{background:#fff;border-radius:14px;padding:24px;border:1px solid #e2e8f0;box-shadow:0 1px 5px rgba(0,0,0,0.05);margin-bottom:20px}
+h2{font-size:15px;font-weight:700;color:#0f172a;margin-bottom:4px}
+.sec-sub{font-size:12px;color:#94a3b8;margin-bottom:18px}
+.form-row{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;margin-bottom:12px}
+label{display:block;font-size:10px;font-weight:700;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:5px}
+input,select{width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;color:#0f172a;background:#fff}
+input:focus,select:focus{border-color:#6366f1}
+.btn-add{padding:9px 20px;border:none;border-radius:8px;background:#6366f1;color:#fff;cursor:pointer;font-size:13px;font-weight:700;white-space:nowrap}
+.btn-add:hover{background:#4f46e5}
+table{width:100%;border-collapse:collapse}
+th{font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:1.5px;text-transform:uppercase;padding:8px 12px;text-align:left;border-bottom:1px solid #f1f5f9}
+td{padding:11px 12px;border-bottom:1px solid #f8fafc;font-size:13px;color:#1e293b}
+tr:last-child td{border-bottom:none}
+.role-pill{display:inline-block;padding:2px 9px;border-radius:4px;font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase}
+.r-admin{background:#ede9fe;color:#5b21b6}
+.r-management{background:#dbeafe;color:#1d4ed8}
+.r-dept{background:#f0fdf4;color:#15803d}
+.btn-del{padding:4px 12px;border:1.5px solid #fecaca;border-radius:6px;background:transparent;color:#dc2626;cursor:pointer;font-size:11px;font-weight:700}
+.btn-del:hover{background:#fef2f2}
+.flash{padding:10px 14px;border-radius:8px;font-size:12px;font-weight:700;margin-bottom:14px;display:none}
+.flash.ok{display:block;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0}
+.flash.err{display:block;background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:20px}
+.stat{background:#fff;border-radius:10px;padding:14px 16px;border:1px solid #e2e8f0;text-align:center}
+.stat-n{font-size:24px;font-weight:900;color:#6366f1;font-family:monospace}
+.stat-l{font-size:10px;color:#94a3b8;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-top:3px}
+.loading{color:#94a3b8;font-style:italic;font-size:13px;padding:12px}
+.nav-links{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.nav-link{padding:6px 16px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#475569;text-decoration:none;font-size:12px;font-weight:700}
+.nav-link:hover{border-color:#6366f1;color:#6366f1}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="brand">
+    <span>STL</span>
+    <span style="width:1px;height:16px;background:#334155"></span>
+    <span>Admin Panel</span>
+    <span class="badge">FULL ACCESS</span>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span id="adminName" style="font-size:12px;color:#64748b;font-family:monospace"></span>
+    <button class="btn-sm" onclick="doLogout()">Logout</button>
+  </div>
+</div>
+
+<div class="content">
+  <div class="nav-links">
+    <a href="tracker_index.html" class="nav-link">Landing Page</a>
+    <a href="entry.html" class="nav-link">Data Entry</a>
+    <a href="daily.html" class="nav-link">Daily Dashboard</a>
+    <a href="monthly.html" class="nav-link">Monthly Dashboard</a>
+    <a href="seed.html" class="nav-link">Load Test Data</a>
+  </div>
+
+  <div id="statsRow" class="stat-grid"></div>
+  <div id="flash" class="flash"></div>
+
+  <!-- Add user -->
+  <div class="section">
+    <h2>Add Authorised User</h2>
+    <div class="sec-sub">Enter the mobile number, name and access level for the new user.</div>
+    <div class="form-row">
+      <div>
+        <label>Mobile (10 digits)</label>
+        <input type="tel" id="newMobile" maxlength="10" placeholder="9XXXXXXXXX">
+      </div>
+      <div>
+        <label>Name</label>
+        <input type="text" id="newName" placeholder="Full name">
+      </div>
+      <div>
+        <label>Role</label>
+        <select id="newRole">
+          <option value="management">Management (all dashboards)</option>
+          <option value="weaving">Weaving</option>
+          <option value="dyeing">Dyeing</option>
+          <option value="finishing">Finishing</option>
+          <option value="prep">Preparatory</option>
+          <option value="gm_tech">GM (Tech)</option>
+          <option value="ppc">PPC</option>
+          <option value="bathrobe">Bathrobe</option>
+          <option value="quality">Quality</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div>
+        <button class="btn-add" onclick="addUser()">Add User</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- User list -->
+  <div class="section">
+    <h2>Authorised Users</h2>
+    <div class="sec-sub">All mobile numbers that can log into the dashboard system.</div>
+    <div id="userTable"><div class="loading">Loading users...</div></div>
+  </div>
+</div>
+
+<script>
+const WORKER = "https://square-flower-57b5.deepit.workers.dev";
+const ROLE_DEPT = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality"};
+const ROLE_COLORS = {admin:"r-admin",management:"r-management"};
+
+function getToken() { return localStorage.getItem("stl_token"); }
+function clearSession() { ["stl_token","stl_role","stl_name","stl_dept"].forEach(k=>localStorage.removeItem(k)); }
+
+function showFlash(msg, type) {
+  const el = document.getElementById("flash");
+  el.textContent = msg;
+  el.className = "flash " + type;
+  setTimeout(() => { el.className = "flash"; }, 3000);
+}
+
+async function doLogout() {
+  const token = getToken();
+  if (token) { try { await fetch(WORKER+"/auth/logout",{method:"POST",headers:{"X-Session-Token":token}}); } catch(e){} }
+  clearSession();
+  window.location.href = "login.html";
+}
+
+function roleColor(role) {
+  return ROLE_COLORS[role] || "r-dept";
+}
+
+async function loadUsers() {
+  const token = getToken();
+  try {
+    const resp = await fetch(WORKER + "/admin/users", { headers: {"X-Session-Token": token} });
+    if (resp.status === 401) { clearSession(); window.location.href="login.html"; return; }
+    const data = await resp.json();
+    const users = data.users || [];
+
+    // Stats
+    const roles = {};
+    users.forEach(u => { roles[u.role] = (roles[u.role]||0)+1; });
+    document.getElementById("statsRow").innerHTML =
+      `<div class="stat"><div class="stat-n">${users.length}</div><div class="stat-l">Total Users</div></div>` +
+      Object.entries(roles).map(([r,n]) => `<div class="stat"><div class="stat-n">${n}</div><div class="stat-l">${r}</div></div>`).join("");
+
+    // Table
+    if (!users.length) { document.getElementById("userTable").innerHTML = '<div class="loading">No users yet. Add users above.</div>'; return; }
+    const rows = users.map(u => `
+      <tr>
+        <td style="font-family:monospace;font-weight:700">+91 ${u.mobile}</td>
+        <td>${u.name}</td>
+        <td><span class="role-pill ${roleColor(u.role)}">${u.role}</span></td>
+        <td style="color:#94a3b8;font-size:11px">${u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('en-IN') : 'Never'}</td>
+        <td>${u.mobile !== "9810494444" ? `<button class="btn-del" onclick="removeUser('${u.mobile}','${u.name}')">Remove</button>` : '<span style="font-size:11px;color:#94a3b8">Admin</span>'}</td>
+      </tr>`).join("");
+    document.getElementById("userTable").innerHTML = `
+      <table>
+        <thead><tr><th>Mobile</th><th>Name</th><th>Role</th><th>Last Login</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  } catch(e) { document.getElementById("userTable").innerHTML = '<div class="loading">Error loading users.</div>'; }
+}
+
+async function addUser() {
+  const mobile = document.getElementById("newMobile").value.replace(/\D/g,"");
+  const name   = document.getElementById("newName").value.trim();
+  const role   = document.getElementById("newRole").value;
+  if (!/^[6-9]\d{9}$/.test(mobile)) { showFlash("Enter a valid 10-digit mobile number.","err"); return; }
+  if (!name) { showFlash("Enter the person's name.","err"); return; }
+  const dept = ROLE_DEPT[role] || null;
+  const token = getToken();
+  try {
+    const resp = await fetch(WORKER+"/admin/users",{method:"POST",headers:{"Content-Type":"application/json","X-Session-Token":token},body:JSON.stringify({mobile,name,role,dept})});
+    const data = await resp.json();
+    if (data.ok) {
+      showFlash(name + " added successfully.","ok");
+      document.getElementById("newMobile").value="";
+      document.getElementById("newName").value="";
+      loadUsers();
+    } else { showFlash(data.error||"Failed to add user.","err"); }
+  } catch(e) { showFlash("Network error.","err"); }
+}
+
+async function removeUser(mobile, name) {
+  if (!confirm("Remove " + name + " (" + mobile + ") from access?")) return;
+  const token = getToken();
+  try {
+    const resp = await fetch(WORKER+"/admin/users/"+mobile,{method:"DELETE",headers:{"X-Session-Token":token}});
+    const data = await resp.json();
+    if (data.ok) { showFlash(name+" removed.","ok"); loadUsers(); }
+    else { showFlash(data.error||"Failed to remove.","err"); }
+  } catch(e) { showFlash("Network error.","err"); }
+}
+
+// Check session on load
+(async function() {
+  const token = getToken();
+  if (!token) { window.location.href="login.html"; return; }
+  try {
+    const resp = await fetch(WORKER+"/auth/session",{headers:{"X-Session-Token":token}});
+    if (!resp.ok) { clearSession(); window.location.href="login.html"; return; }
+    const d = await resp.json();
+    if (!d.ok || d.role !== "admin") { window.location.href = d.role === "management" ? "daily.html" : "entry.html"; return; }
+    document.getElementById("adminName").textContent = d.name;
+    loadUsers();
+  } catch(e) {
+    // Fail open - allow if token exists
+    document.getElementById("adminName").textContent = localStorage.getItem("stl_name")||"";
+    loadUsers();
+  }
+})();
+</script>
+</body>
+</html>

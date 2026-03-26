@@ -18,7 +18,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;background
 <div id="root"></div>
 <script>
 // Wait for all scripts to load before running
-window.addEventListener('load', function() {
+window.addEventListener('load', async function() {
+  // Session guard
+  const __token = localStorage.getItem('stl_token');
+  if (!__token) { window.location.href='login.html'; return; }
+  try {
+    const __sr = await fetch('https://square-flower-57b5.deepit.workers.dev/auth/session',{headers:{'X-Session-Token':__token}});
+    if (!__sr.ok) { localStorage.removeItem('stl_token'); window.location.href='login.html'; return; }
+    const __sd = await __sr.json();
+    if (!__sd.ok) { window.location.href='login.html'; return; }
+    window.STL_ROLE=__sd.role; window.STL_NAME=__sd.name; window.STL_DEPT=__sd.dept; window.STL_TOKEN=__token;
+  } catch(e) { window.STL_ROLE=localStorage.getItem('stl_role')||'management'; window.STL_TOKEN=__token; }
+
   try {
     if (typeof React === 'undefined' || typeof ReactDOM === 'undefined') {
       document.getElementById('root').innerHTML = '<div style="padding:40px;font-family:monospace;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;margin:40px">ERROR: React failed to load from CDN. Check your internet connection and reload.</div>';
