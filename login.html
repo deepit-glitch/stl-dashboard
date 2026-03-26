@@ -51,13 +51,15 @@ input:focus{border-color:#6366f1}
 
   <!-- Step 2: OTP entry -->
   <div class="step" id="step2">
-    <label>Enter 4-Digit OTP</label>
+    <label>Enter OTP</label>
     <div class="hint" style="margin-bottom:12px;text-align:left">Sent to +91 <span id="dispMobile"></span></div>
     <div class="otp-box">
       <input type="text" maxlength="1" id="o0" oninput="otpInput(0)" onkeydown="otpKey(event,0)">
       <input type="text" maxlength="1" id="o1" oninput="otpInput(1)" onkeydown="otpKey(event,1)">
       <input type="text" maxlength="1" id="o2" oninput="otpInput(2)" onkeydown="otpKey(event,2)">
       <input type="text" maxlength="1" id="o3" oninput="otpInput(3)" onkeydown="otpKey(event,3)">
+      <input type="text" maxlength="1" id="o4" oninput="otpInput(4)" onkeydown="otpKey(event,4)">
+      <input type="text" maxlength="1" id="o5" oninput="otpInput(5)" onkeydown="otpKey(event,5)">
     </div>
     <button class="btn" id="verifyBtn" onclick="verifyOTP()" disabled>Verify OTP</button>
     <div style="text-align:center;margin-top:10px">
@@ -104,7 +106,7 @@ async function sendOTP() {
 function otpInput(i) {
   const v = document.getElementById("o"+i).value.replace(/\D/g,"");
   document.getElementById("o"+i).value = v;
-  if (v && i < 3) document.getElementById("o"+(i+1)).focus();
+  if (v && i < 5) document.getElementById("o"+(i+1)).focus();
   checkOTPFilled();
 }
 
@@ -116,14 +118,14 @@ function otpKey(e, i) {
 
 function checkOTPFilled() {
   const otp = Array.from({length:4},(_,i)=>document.getElementById("o"+i).value).join("");
-  document.getElementById("verifyBtn").disabled = otp.length !== 4;
-  if (otp.length === 4) verifyOTP();
+  document.getElementById("verifyBtn").disabled = otp.length !== 6;
+  if (otp.length === 6) verifyOTP();
 }
 
 async function verifyOTP() {
   clearErr("err2");
   const otp = Array.from({length:4},(_,i)=>document.getElementById("o"+i).value).join("");
-  if (otp.length !== 4) return;
+  if (otp.length !== 6) return;
   const btn = document.getElementById("verifyBtn");
   btn.innerHTML = '<span class="loader"></span>Verifying...';
   btn.disabled = true;
