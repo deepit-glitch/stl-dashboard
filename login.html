@@ -117,14 +117,14 @@ function otpKey(e, i) {
 }
 
 function checkOTPFilled() {
-  const otp = Array.from({length:4},(_,i)=>document.getElementById("o"+i).value).join("");
+  const otp = Array.from({length:6},(_,i)=>document.getElementById("o"+i).value).join("");
   document.getElementById("verifyBtn").disabled = otp.length !== 6;
   if (otp.length === 6) verifyOTP();
 }
 
 async function verifyOTP() {
   clearErr("err2");
-  const otp = Array.from({length:4},(_,i)=>document.getElementById("o"+i).value).join("");
+  const otp = Array.from({length:6},(_,i)=>document.getElementById("o"+i).value).join("");
   if (otp.length !== 6) return;
   const btn = document.getElementById("verifyBtn");
   btn.innerHTML = '<span class="loader"></span>Verifying...';
