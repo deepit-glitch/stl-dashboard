@@ -647,7 +647,6 @@ function PinManagement({pins, onSavePins, onBack}) {
 function AdminScreen({pins, onUpdatePins, onLogout}) {
   const wd = getWorkingDate();
   const defM = MONTHS.find(m => m.key === wd.mk) || MONTHS[0];
-  const [view,     setView]     = useState("entry");
   const [selDept,  setSelDept]  = useState(DEPTS[0]);
   const [selMonth, setSelMonth] = useState(defM);
   const [selDay,   setSelDay]   = useState(wd.d);
@@ -692,20 +691,12 @@ function AdminScreen({pins, onUpdatePins, onLogout}) {
         </div>
         <div style={{display:"flex", gap:8}}>
           {wd.isTesting && <div style={{padding:"3px 10px", background:"#713f12", borderRadius:5, fontSize:10, fontWeight:700, color:"#fef08a", letterSpacing:1}}>TEST MODE</div>}
-          <button onClick={() => setView(v => v === "pins" ? "entry" : "pins")}
-            style={{padding:"5px 14px", borderRadius:6, border:"1px solid #334155", fontSize:12, fontWeight:600, cursor:"pointer",
-              background: view === "pins" ? "#4f46e5" : "transparent",
-              color: view === "pins" ? "#fff" : "#94a3b8"}}>
-            {view === "pins" ? "Entry" : "Manage PINs"}
-          </button>
+
           <button onClick={onLogout} style={{padding:"5px 14px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#94a3b8", cursor:"pointer", fontSize:12, fontWeight:600}}>Logout</button>
         </div>
       </div>
 
       <div style={{maxWidth:1080, margin:"0 auto", padding:"18px 16px"}}>
-        {view === "pins" ? (
-          <PinManagement pins={pins} onSavePins={onUpdatePins} onBack={() => setView("entry")}/>
-        ) : (
           <>
             <div style={{background:"#fff", borderRadius:12, padding:"11px 16px", marginBottom:14, border:"1px solid #e2e8f0", boxShadow:"0 1px 4px rgba(0,0,0,0.05)"}}>
               <div style={{display:"flex", alignItems:"center", gap:7, flexWrap:"wrap"}}>
@@ -763,7 +754,6 @@ function AdminScreen({pins, onUpdatePins, onLogout}) {
               </div>
             </div>
           </>
-        )}
       </div>
     </div>
   );
