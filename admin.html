@@ -30,6 +30,16 @@ tr:last-child td{border-bottom:none}
 .r-management{background:#dbeafe;color:#1d4ed8}
 .r-dept{background:#f0fdf4;color:#15803d}
 .btn-del{padding:4px 12px;border:1.5px solid #fecaca;border-radius:6px;background:transparent;color:#dc2626;cursor:pointer;font-size:11px;font-weight:700}
+.btn-edit{padding:4px 12px;border:1.5px solid #bfdbfe;border-radius:6px;background:transparent;color:#2563eb;cursor:pointer;font-size:11px;font-weight:700;margin-right:4px}
+.btn-edit:hover{background:#eff6ff}
+.edit-row{background:#f8fafc}
+.edit-row td{padding:10px 12px}
+.edit-inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.edit-inline input,.edit-inline select{padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;outline:none;color:#0f172a}
+.edit-inline input:focus,.edit-inline select:focus{border-color:#6366f1}
+.btn-save{padding:6px 16px;border:none;border-radius:7px;background:#6366f1;color:#fff;cursor:pointer;font-size:12px;font-weight:700}
+.btn-save:hover{background:#4f46e5}
+.btn-cancel{padding:6px 14px;border:1.5px solid #e2e8f0;border-radius:7px;background:transparent;color:#64748b;cursor:pointer;font-size:12px;font-weight:700}
 .btn-del:hover{background:#fef2f2}
 .flash{padding:10px 14px;border-radius:8px;font-size:12px;font-weight:700;margin-bottom:14px;display:none}
 .flash.ok{display:block;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0}
@@ -156,12 +166,15 @@ async function loadUsers() {
     // Table
     if (!users.length) { document.getElementById("userTable").innerHTML = '<div class="loading">No users yet. Add users above.</div>'; return; }
     const rows = users.map(u => `
-      <tr>
+      <tr id="row-${u.mobile}">
         <td style="font-family:monospace;font-weight:700">+91 ${u.mobile}</td>
-        <td>${u.name}</td>
-        <td><span class="role-pill ${roleColor(u.role)}">${u.role}</span></td>
+        <td id="name-${u.mobile}">${u.name}</td>
+        <td><span class="role-pill ${roleColor(u.role)}" id="role-${u.mobile}">${u.role}</span></td>
         <td style="color:#94a3b8;font-size:11px">${u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('en-IN') : 'Never'}</td>
-        <td>${u.mobile !== "9810494444" ? `<button class="btn-del" onclick="removeUser('${u.mobile}','${u.name}')">Remove</button>` : '<span style="font-size:11px;color:#94a3b8">Admin</span>'}</td>
+        <td>
+          <button class="btn-edit" onclick="editUser('${u.mobile}','${u.name}','${u.role}','${u.dept||''}')">Edit</button>
+          ${u.mobile !== "9810494444" ? `<button class="btn-del" onclick="removeUser('${u.mobile}','${u.name}')">Remove</button>` : '<span style="font-size:11px;color:#94a3b8">Admin</span>'}
+        </td>
       </tr>`).join("");
     document.getElementById("userTable").innerHTML = `
       <table>
@@ -189,6 +202,58 @@ async function addUser() {
       loadUsers();
     } else { showFlash(data.error||"Failed to add user.","err"); }
   } catch(e) { showFlash("Network error.","err"); }
+}
+
+function editUser(mobile, name, role, dept) {
+  // Remove any existing edit row
+  const existing = document.getElementById('edit-row');
+  if (existing) existing.remove();
+
+  const ROLE_DEPT_MAP = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality"};
+  const deptOptions = ['','Weaving','Dyeing','Finishing','Prep','UB','PPC','Bathrobe','Quality','RSB'];
+
+  const row = document.getElementById('row-' + mobile);
+  const editRow = document.createElement('tr');
+  editRow.id = 'edit-row';
+  editRow.className = 'edit-row';
+  editRow.innerHTML = `
+    <td colspan="5">
+      <div class="edit-inline">
+        <input type="text" id="edit-name" value="${name}" placeholder="Name" style="width:160px">
+        <select id="edit-role">
+          ${['management','weaving','dyeing','finishing','prep','gm_tech','ppc','bathrobe','quality','admin'].map(r =>
+            `<option value="${r}" ${r===role?'selected':''}>${r}</option>`
+          ).join('')}
+        </select>
+        <button class="btn-save" onclick="saveUser('${mobile}')">Save</button>
+        <button class="btn-cancel" onclick="document.getElementById('edit-row').remove()">Cancel</button>
+      </div>
+    </td>`;
+
+  row.insertAdjacentElement('afterend', editRow);
+  document.getElementById('edit-name').focus();
+}
+
+async function saveUser(mobile) {
+  const name  = document.getElementById('edit-name').value.trim();
+  const role  = document.getElementById('edit-role').value;
+  if (!name) { showFlash('Name cannot be empty.', 'err'); return; }
+  const ROLE_DEPT_MAP = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality"};
+  const dept = ROLE_DEPT_MAP[role] || null;
+  const token = getToken();
+  try {
+    const resp = await fetch(WORKER+'/admin/users', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Session-Token':token},
+      body:JSON.stringify({mobile, name, role, dept})
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      showFlash(name + ' updated successfully.', 'ok');
+      document.getElementById('edit-row').remove();
+      loadUsers();
+    } else { showFlash(data.error||'Failed to update.', 'err'); }
+  } catch(e) { showFlash('Network error.', 'err'); }
 }
 
 async function removeUser(mobile, name) {
