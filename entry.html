@@ -540,6 +540,22 @@ function EntryScreen({dept, onLogout}) {
                 {mc} Monthly KPIs - {isLast ? "DUE TODAY" : "Due last day of month"}
               </span>
             </div>
+            {wd.allowPrevDay && (
+              <div style={{display:"flex", gap:6, marginTop:10}}>
+                <button onClick={() => setViewingPrev(false)} style={{
+                  padding:"4px 16px", borderRadius:16, fontSize:11, fontWeight:700, cursor:"pointer",
+                  border:"2px solid " + (!viewingPrev ? dept.accent : "#e2e8f0"),
+                  background: !viewingPrev ? dept.accent : "#f8fafc",
+                  color: !viewingPrev ? "#fff" : "#64748b", transition:"all 0.15s"
+                }}>Today</button>
+                <button onClick={() => setViewingPrev(true)} style={{
+                  padding:"4px 16px", borderRadius:16, fontSize:11, fontWeight:700, cursor:"pointer",
+                  border:"2px solid " + (viewingPrev ? dept.accent : "#e2e8f0"),
+                  background: viewingPrev ? dept.accent : "#f8fafc",
+                  color: viewingPrev ? "#fff" : "#64748b", transition:"all 0.15s"
+                }}>Yesterday ({fmtDate(wd.prevInfo.y, wd.prevInfo.m, wd.prevInfo.d)})</button>
+              </div>
+            )}
           </div>
           <div style={{textAlign:"center"}}>
             <svg width="56" height="56" viewBox="0 0 56 56">
