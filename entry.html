@@ -145,8 +145,19 @@ function getIST() {
 function getWorkingDate() {
   const ist = getIST();
   const mk = ist.y + "-" + String(ist.m).padStart(2,"0");
-  if (MONTHS.find(mo => mo.key === mk)) return {...ist, mk, isTesting:false};
-  return {y:2026, m:4, d:30, mk:"2026-04", isTesting:true};
+  // Allow previous day entry if current IST time is before 12:00 noon
+  const allowPrevDay = ist.hour < 12;
+  // Calculate yesterday (handles month boundaries)
+  let prevD = ist.d - 1, prevM = ist.m, prevY = ist.y;
+  if (prevD < 1) {
+    prevM -= 1;
+    if (prevM < 1) { prevM = 12; prevY -= 1; }
+    prevD = new Date(prevY, prevM, 0).getDate(); // last day of prev month
+  }
+  const prevMk = prevY + "-" + String(prevM).padStart(2,"0");
+  const prevInfo = { d: prevD, m: prevM, y: prevY, mk: prevMk };
+  if (MONTHS.find(mo => mo.key === mk)) return {...ist, mk, isTesting:false, allowPrevDay, prevInfo};
+  return {y:2026, m:4, d:30, mk:"2026-04", isTesting:true, allowPrevDay:false, prevInfo:null};
 }
 function isLastDayOfMonth(y,m,d) { return new Date(y,m,0).getDate() === d; }
 
@@ -457,24 +468,34 @@ function DayPicker({month, selDay, entries, onSelect, accent, todayDay}) {
 // -- NORMAL USER ENTRY SCREEN -------------------------------------
 function EntryScreen({dept, onLogout}) {
   const wd = getWorkingDate();
-  const month = MONTHS.find(m => m.key === wd.mk) || MONTHS[0];
-  const isLast = isLastDayOfMonth(wd.y, wd.m, wd.d);
+  // viewingPrev: true = user switched to entering for yesterday
+  const [viewingPrev, setViewingPrev] = useState(false);
+
+  // Active day context — switches between today and yesterday
+  const activeDay  = viewingPrev ? wd.prevInfo.d  : wd.d;
+  const activeMk   = viewingPrev ? wd.prevInfo.mk : wd.mk;
+  const activeY    = viewingPrev ? wd.prevInfo.y  : wd.y;
+  const activeM    = viewingPrev ? wd.prevInfo.m  : wd.m;
+  const month      = MONTHS.find(m => m.key === activeMk) || MONTHS[0];
+  const isLast     = isLastDayOfMonth(activeY, activeM, activeDay);
+
   const [entries, setEntries] = useState({});
   const [inputs,  setInputs]  = useState({});
   const [saving,  setSaving]  = useState(false);
   const [flash,   setFlash]   = useState(null);
 
+  // Reload when switching between today/yesterday
   useEffect(() => {
-    const data = loadData(dept.id, month.key);
+    const data = loadData(dept.id, activeMk);
     setEntries(data);
-    setInputs(data[wd.d] || {});
-  }, [dept.id, month.key]);
+    setInputs(data[activeDay] || {});
+  }, [dept.id, activeMk, activeDay]);
 
   function handleChange(id, val) { setInputs(p => ({...p, [id]:val})); }
   function handleSave() {
     setSaving(true);
-    const upd = {...entries, [wd.d]: {...inputs}};
-    const ok = saveData(dept.id, month.key, upd);
+    const upd = {...entries, [activeDay]: {...inputs}};
+    const ok = saveData(dept.id, activeMk, upd);
     setEntries(upd); setSaving(false);
     setFlash(ok ? "ok" : "err");
     setTimeout(() => setFlash(null), 2200);
@@ -509,7 +530,7 @@ function EntryScreen({dept, onLogout}) {
         <div style={{background:"#fff", borderRadius:13, padding:"16px 18px", marginBottom:14, border:"1px solid #e2e8f0", boxShadow:"0 1px 5px rgba(0,0,0,0.05)", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:12}}>
           <div>
             <div style={{fontSize:9, fontWeight:700, color:"#94a3b8", letterSpacing:2, marginBottom:5}}>ENTRY DATE - LOCKED TO TODAY</div>
-            <div style={{fontSize:22, fontWeight:800, color:"#0f172a", fontFamily:"monospace"}}>{fmtDate(wd.y, wd.m, wd.d)}</div>
+            <div style={{fontSize:22, fontWeight:800, color:"#0f172a", fontFamily:"monospace"}}>{fmtDate(activeY, activeM, activeDay)}</div>
             <div style={{display:"flex", gap:8, marginTop:8, flexWrap:"wrap"}}>
               <span style={{fontSize:11, padding:"3px 10px", borderRadius:5, background:"#f0fdf4", border:"1px solid #bbf7d0", color:"#16a34a", fontWeight:700}}>{dc} Daily KPIs</span>
               <span style={{fontSize:11, padding:"3px 10px", borderRadius:5,
