@@ -770,6 +770,31 @@ function AdminScreen({pins, onUpdatePins, onLogout}) {
 }
 
 // -- ROOT ----------------------------------------------------------
+// -- OUT OF SEASON SCREEN --------------------------------------------------
+function OutOfSeasonScreen({dept, onLogout, isAdmin}) {
+  return (
+    <div style={{minHeight:"100vh", background:"#eef2f7", display:"flex", flexDirection:"column"}}>
+      <div style={{background:"#0f172a", padding:"0 18px", height:56, display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"3px solid #4f46e5"}}>
+        <div style={{fontFamily:"monospace", fontSize:12, fontWeight:700, color:"#818cf8", letterSpacing:2}}>STL DASHBOARDS</div>
+        <button onClick={onLogout} style={{padding:"5px 14px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#94a3b8", cursor:"pointer", fontSize:12, fontWeight:600}}>Logout</button>
+      </div>
+      <div style={{flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:24}}>
+        <div style={{background:"#fff", borderRadius:18, padding:"36px 32px", maxWidth:420, textAlign:"center", boxShadow:"0 4px 20px rgba(0,0,0,0.08)", border:"1px solid #e2e8f0"}}>
+          <div style={{fontSize:40, marginBottom:12}}>📅</div>
+          <div style={{fontSize:16, fontWeight:800, color:"#0f172a", marginBottom:8}}>No Entry Required Today</div>
+          <div style={{fontSize:13, color:"#64748b", lineHeight:1.6, marginBottom:20}}>
+            The Q1 FY2026-27 target period runs <strong>April – June 2026</strong>.<br/>
+            Data entry opens on <strong>2 April 2026</strong> for April 1st figures.
+          </div>
+          <div style={{fontSize:11, color:"#94a3b8", padding:"10px 16px", background:"#f8fafc", borderRadius:8, border:"1px solid #e2e8f0"}}>
+            Come back on 2 April to begin entering production data.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   // Check if user arrived via OTP login — if so, skip PIN screen entirely
   const otpRole = localStorage.getItem("stl_role");
@@ -811,9 +836,16 @@ function App() {
   }
   function updatePins(np) { const ok = savePins(np); if (ok) setPins(np); return ok; }
 
+  const wd = getWorkingDate();
   if (screen === "login") return <LoginScreen pins={pins} onLogin={login}/>;
-  if (screen === "entry") return <EntryScreen dept={DEPTS.find(d => d.id === role)} onLogout={logout}/>;
-  if (screen === "admin") return <AdminScreen pins={pins} onUpdatePins={updatePins} onLogout={logout}/>;
+  if (screen === "entry") {
+    if (wd.isTesting) return <OutOfSeasonScreen dept={DEPTS.find(d => d.id === role)} onLogout={logout}/>;
+    return <EntryScreen dept={DEPTS.find(d => d.id === role)} onLogout={logout}/>;
+  }
+  if (screen === "admin") {
+    if (wd.isTesting) return <OutOfSeasonScreen dept={DEPTS[0]} onLogout={logout} isAdmin={true}/>;
+    return <AdminScreen pins={pins} onUpdatePins={updatePins} onLogout={logout}/>;
+  }
   return null;
 }
 

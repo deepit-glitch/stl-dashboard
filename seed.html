@@ -17,6 +17,21 @@ button:hover{background:#4f46e5;}
 </style>
 </head>
 <body>
+<script>
+// Admin-only guard — redirects to login if not logged in as admin
+(async function() {
+  const token = localStorage.getItem('stl_token');
+  const role  = localStorage.getItem('stl_role');
+  if (!token || role !== 'admin') { window.location.href = 'login.html'; return; }
+  try {
+    const resp = await fetch('https://square-flower-57b5.deepit.workers.dev/auth/session', {headers:{'X-Session-Token':token}});
+    const d = await resp.json();
+    if (!d.ok || d.role !== 'admin') { window.location.href = 'login.html'; }
+  } catch(e) {
+    if (role !== 'admin') window.location.href = 'login.html';
+  }
+})();
+</script>
 <div class="card">
   <h1>STL</h1>
   <p>Click the button below to load 30 days of realistic April 2026 test data for all departments into this browser's storage.<br><br>

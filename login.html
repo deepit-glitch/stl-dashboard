@@ -45,6 +45,11 @@ input:focus{border-color:#6366f1}
     <button class="btn" id="sendBtn" onclick="sendOTP()">Send OTP</button>
     <div class="err" id="err1"></div>
     <div class="hint">Enter the mobile number registered with STL Dashboards</div>
+    <div style="text-align:center;margin-top:18px;padding-top:14px;border-top:1px solid #f1f5f9">
+      <button onclick="clearTestData()" style="background:none;border:none;font-size:11px;color:#cbd5e1;cursor:pointer;padding:0;font-family:inherit">
+        Clear test data from this device
+      </button>
+    </div>
   </div>
 
   <!-- Step 2: OTP entry -->
@@ -190,6 +195,14 @@ function goBack() {
   document.getElementById("sendBtn").innerHTML = "Send OTP";
   document.getElementById("sendBtn").disabled = false;
   clearErr("err2");
+}
+
+function clearTestData() {
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('stl:'));
+  if (keys.length === 0) { alert('No test data found on this device.'); return; }
+  if (!confirm('This will clear ' + keys.length + ' entries of test data from this device. Your real data from April onwards will not be affected. Continue?')) return;
+  keys.forEach(k => localStorage.removeItem(k));
+  alert('Done — test data cleared from this device.');
 }
 
 // If already logged in, redirect
