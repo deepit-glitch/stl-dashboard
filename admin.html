@@ -105,6 +105,7 @@ tr:last-child td{border-bottom:none}
           <option value="ppc">PPC</option>
           <option value="bathrobe">Bathrobe</option>
           <option value="quality">Quality</option>
+          <option value="rsb">Sr. GM Operations (RSB)</option>
           <option value="admin">Admin</option>
         </select>
       </div>
@@ -209,7 +210,7 @@ function editUser(mobile, name, role, dept) {
   const existing = document.getElementById('edit-row');
   if (existing) existing.remove();
 
-  const ROLE_DEPT_MAP = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality"};
+  const ROLE_DEPT_MAP = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality",rsb:"RSB"};
   const deptOptions = ['','Weaving','Dyeing','Finishing','Prep','UB','PPC','Bathrobe','Quality','RSB'];
 
   const row = document.getElementById('row-' + mobile);
@@ -221,7 +222,7 @@ function editUser(mobile, name, role, dept) {
       <div class="edit-inline">
         <input type="text" id="edit-name" value="${name}" placeholder="Name" style="width:160px">
         <select id="edit-role">
-          ${['management','weaving','dyeing','finishing','prep','gm_tech','ppc','bathrobe','quality','admin'].map(r =>
+          ${['management','weaving','dyeing','finishing','prep','gm_tech','ppc','bathrobe','quality','rsb','admin'].map(r =>
             `<option value="${r}" ${r===role?'selected':''}>${r}</option>`
           ).join('')}
         </select>
@@ -238,7 +239,7 @@ async function saveUser(mobile) {
   const name  = document.getElementById('edit-name').value.trim();
   const role  = document.getElementById('edit-role').value;
   if (!name) { showFlash('Name cannot be empty.', 'err'); return; }
-  const ROLE_DEPT_MAP = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality"};
+  const ROLE_DEPT_MAP = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality",rsb:"RSB"};
   const dept = ROLE_DEPT_MAP[role] || null;
   const token = getToken();
   try {
