@@ -155,7 +155,10 @@ function getWorkingDate() {
   const mk = y + "-" + String(m).padStart(2,"0");
   const hour = now.hour;
   if (MONTHS.find(mo => mo.key === mk)) return {y, m, d, mk, hour, isTesting:false};
-  return {y:2026, m:4, d:30, mk:"2026-04", hour, isTesting:true};
+  const mkNum = y * 100 + m, firstNum = 2026 * 100 + 4, lastNum = 2026 * 100 + 6;
+  if (mkNum < firstNum) return {y, m, d, mk, hour, isTesting:false, beforeQ1:true};
+  if (mkNum > lastNum)  return {y, m, d, mk, hour, isTesting:false, afterQ1:true};
+  return {y, m, d, mk, hour, isTesting:false};
 }
 function isLastDayOfMonth(y,m,d) { return new Date(y,m,0).getDate() === d; }
 
@@ -509,7 +512,15 @@ function EntryScreen({dept, onLogout}) {
           <div style={{fontSize:13, fontWeight:600, color:"#e2e8f0"}}>{dept.label}</div>
         </div>
         <div style={{display:"flex", alignItems:"center", gap:10}}>
-          {wd.isTesting && <div style={{padding:"3px 10px", background:"#713f12", borderRadius:5, fontSize:10, fontWeight:700, color:"#fef08a", letterSpacing:1}}>TEST MODE</div>}
+          
+          <button onClick={() => {
+              if(confirm("Clear all your saved data from this device? This cannot be undone.")) {
+                const keys = Object.keys(localStorage).filter(k => k.startsWith("stl:"));
+                keys.forEach(k => localStorage.removeItem(k));
+                alert("Data cleared. The page will now reload.");
+                window.location.reload();
+              }
+            }} style={{padding:"5px 14px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer", fontSize:12, fontWeight:600, marginRight:4}}>Clear Data</button>
           <button onClick={onLogout} style={{padding:"5px 14px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#94a3b8", cursor:"pointer", fontSize:12, fontWeight:600}}>Logout</button>
         </div>
       </div>
@@ -700,8 +711,16 @@ function AdminScreen({pins, onUpdatePins, onLogout}) {
           <div style={{padding:"2px 8px", background:"#312e81", borderRadius:4, fontSize:10, fontWeight:700, color:"#a5b4fc", letterSpacing:1}}>FULL ACCESS</div>
         </div>
         <div style={{display:"flex", gap:8}}>
-          {wd.isTesting && <div style={{padding:"3px 10px", background:"#713f12", borderRadius:5, fontSize:10, fontWeight:700, color:"#fef08a", letterSpacing:1}}>TEST MODE</div>}
+          
 
+          <button onClick={() => {
+              if(confirm("Clear all your saved data from this device? This cannot be undone.")) {
+                const keys = Object.keys(localStorage).filter(k => k.startsWith("stl:"));
+                keys.forEach(k => localStorage.removeItem(k));
+                alert("Data cleared. The page will now reload.");
+                window.location.reload();
+              }
+            }} style={{padding:"5px 14px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#64748b", cursor:"pointer", fontSize:12, fontWeight:600, marginRight:4}}>Clear Data</button>
           <button onClick={onLogout} style={{padding:"5px 14px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#94a3b8", cursor:"pointer", fontSize:12, fontWeight:600}}>Logout</button>
         </div>
       </div>
@@ -795,6 +814,21 @@ function OutOfSeasonScreen({dept, onLogout, isAdmin}) {
   );
 }
 
+function HoldingScreen({msg, sub, onLogout}) {
+  return (
+    <div style={{minHeight:"100vh", background:"#eef2f7", display:"flex", alignItems:"center", justifyContent:"center"}}>
+      <div style={{textAlign:"center", maxWidth:420, padding:"0 24px"}}>
+        <div style={{width:64, height:64, borderRadius:18, background:"#6366f1", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 20px", boxShadow:"0 4px 20px rgba(99,102,241,0.35)"}}>
+          <span style={{fontFamily:"monospace", fontSize:28, fontWeight:900, color:"#fff"}}>S</span>
+        </div>
+        <div style={{fontFamily:"monospace", fontWeight:900, fontSize:22, color:"#0f172a", marginBottom:8}}>{msg}</div>
+        <div style={{fontSize:14, color:"#64748b", lineHeight:1.6, marginBottom:28}}>{sub}</div>
+        <button onClick={onLogout} style={{padding:"10px 28px", borderRadius:8, border:"none", background:"#6366f1", color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer"}}>Logout</button>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   // Check if user arrived via OTP login — if so, skip PIN screen entirely
   const otpRole = localStorage.getItem("stl_role");
@@ -837,13 +871,16 @@ function App() {
   function updatePins(np) { const ok = savePins(np); if (ok) setPins(np); return ok; }
 
   const wd = getWorkingDate();
+  const wd0 = getWorkingDate();
   if (screen === "login") return <LoginScreen pins={pins} onLogin={login}/>;
   if (screen === "entry") {
-    if (wd.isTesting) return <OutOfSeasonScreen dept={DEPTS.find(d => d.id === role)} onLogout={logout}/>;
+    if (wd0.beforeQ1) return <HoldingScreen msg="Q1 hasn't started yet" sub="Data entry opens on 2 April 2026 — come back then to enter 1 April data." onLogout={logout}/>;
+    if (wd0.afterQ1)  return <HoldingScreen msg="Q1 has ended" sub="The Q1 tracker covered April–June 2026. Contact Deepit for the next tracker." onLogout={logout}/>;
     return <EntryScreen dept={DEPTS.find(d => d.id === role)} onLogout={logout}/>;
   }
   if (screen === "admin") {
-    if (wd.isTesting) return <OutOfSeasonScreen dept={DEPTS[0]} onLogout={logout} isAdmin={true}/>;
+    if (wd0.beforeQ1) return <HoldingScreen msg="Q1 hasn't started yet" sub="Data entry opens 2 April 2026. Seed data is still available for demos." onLogout={logout}/>;
+    if (wd0.afterQ1)  return <HoldingScreen msg="Q1 has ended" sub="The Q1 tracker covered April–June 2026." onLogout={logout}/>;
     return <AdminScreen pins={pins} onUpdatePins={updatePins} onLogout={logout}/>;
   }
   return null;
