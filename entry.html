@@ -143,6 +143,10 @@ function getIST() {
   return {y:n.getFullYear(), m:n.getMonth()+1, d:n.getDate()};
 }
 function getWorkingDate() {
+  // Demo mode: return April 15 so entry screen works during demos
+  if (localStorage.getItem("stl_demo") === "true") {
+    return {y:2026, m:4, d:15, mk:"2026-04", hour:10, isTesting:false};
+  }
   // The factory runs 24hrs — data for a working day is always entered the next morning.
   // So "working date" = yesterday (previous calendar day).
   const now = getIST();
