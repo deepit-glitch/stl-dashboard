@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STL Dashboards — Demo Login</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;background:linear-gradient(150deg,#0f172a 0%,#1e293b 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:#fff;border-radius:22px;padding:36px 32px;width:100%;max-width:400px;box-shadow:0 28px 70px rgba(0,0,0,0.45)}
+.demo-badge{background:#fef3c7;border:1.5px solid #f59e0b;border-radius:8px;padding:8px 14px;font-size:11px;font-weight:700;color:#92400e;text-align:center;margin-bottom:20px;letter-spacing:0.5px}
+.brand{text-align:center;margin-bottom:24px}
+.brand-logo-wrap{background:#0f172a;border-radius:14px;padding:14px 20px;display:inline-block;margin-bottom:12px;box-shadow:0 4px 16px rgba(0,0,0,0.2)}
+.sub{font-size:11px;color:#64748b;margin-top:4px;letter-spacing:1px}
+.step{display:none}
+.step.active{display:block}
+label{display:block;font-size:11px;font-weight:700;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:7px}
+input[type=tel]{width:100%;padding:13px 16px;border:2px solid #e2e8f0;border-radius:10px;font-size:16px;font-family:monospace;font-weight:600;outline:none;transition:border-color 0.2s;color:#0f172a}
+input:focus{border-color:#6366f1}
+.btn{width:100%;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;background:#6366f1;color:#fff;margin-top:16px;transition:background 0.2s}
+.btn:hover{background:#4f46e5}
+.err{margin-top:12px;padding:11px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#dc2626;font-weight:600;display:none}
+.err.show{display:block}
+.hint{font-size:11px;color:#94a3b8;margin-top:8px;text-align:center}
+.otp-box{display:flex;gap:8px;justify-content:center;margin:4px 0}
+.otp-box input{width:46px;height:54px;text-align:center;font-size:22px;font-weight:800;border:2px solid #e2e8f0;border-radius:10px;outline:none;font-family:monospace;padding:0}
+.otp-box input:focus{border-color:#6366f1}
+.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+.role-btn{padding:10px 8px;border:2px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#475569;font-size:12px;font-weight:700;cursor:pointer;text-align:center;transition:all 0.15s}
+.role-btn:hover,.role-btn.active{border-color:#6366f1;background:#6366f1;color:#fff}
+.resend{font-size:11px;color:#6366f1;cursor:pointer;background:none;border:none;padding:0;margin-top:4px;font-weight:700}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="demo-badge">🎓 TRAINING DEMO — Not connected to live data</div>
+  
+  <div class="brand">
+    <div class="brand-logo-wrap">
+      <img src="https://www.saratextiles.com/wp-content/uploads/2017/11/logo-Sara-white-150X50-1.png" 
+           alt="Sara Textiles Limited" style="height:50px;width:auto;display:block;">
+    </div>
+    <div class="sub">DASHBOARDS &nbsp;&bull;&nbsp; DEMO MODE</div>
+  </div>
+
+  <!-- Step 1: Mobile -->
+  <div class="step active" id="step1">
+    <label>Demo Mobile Number</label>
+    <input type="tel" id="mobile" maxlength="10" placeholder="9999999999" value="9999999999">
+    <button class="btn" onclick="sendOTP()">Send OTP</button>
+    <div class="err" id="err1"></div>
+    <div class="hint">Use mobile: <strong>9999999999</strong></div>
+  </div>
+
+  <!-- Step 2: OTP -->
+  <div class="step" id="step2">
+    <label>Enter Demo OTP</label>
+    <div class="hint" style="margin-bottom:12px;text-align:left">OTP sent to +91 <span id="dispMobile"></span></div>
+    <div class="otp-box">
+      <input type="text" maxlength="1" id="o0" oninput="otpInput(0)" onkeydown="otpKey(event,0)">
+      <input type="text" maxlength="1" id="o1" oninput="otpInput(1)" onkeydown="otpKey(event,1)">
+      <input type="text" maxlength="1" id="o2" oninput="otpInput(2)" onkeydown="otpKey(event,2)">
+      <input type="text" maxlength="1" id="o3" oninput="otpInput(3)" onkeydown="otpKey(event,3)">
+      <input type="text" maxlength="1" id="o4" oninput="otpInput(4)" onkeydown="otpKey(event,4)">
+      <input type="text" maxlength="1" id="o5" oninput="otpInput(5)" onkeydown="otpKey(event,5)">
+    </div>
+    <button class="btn" id="verifyBtn" onclick="verifyOTP()" disabled>Verify OTP</button>
+    <div style="text-align:center;margin-top:8px">
+      <button class="resend" onclick="goBack()">Change number</button>
+    </div>
+    <div class="err" id="err2"></div>
+    <div class="hint" style="margin-top:8px">Demo OTP is always: <strong>123456</strong></div>
+  </div>
+
+  <!-- Step 3: Role selection -->
+  <div class="step" id="step3">
+    <label>Select a Role to Demo</label>
+    <div class="hint" style="margin-bottom:12px;text-align:left">Choose a role to see that department's view</div>
+    <div class="role-grid">
+      <button class="role-btn active" id="role-admin"      onclick="selectRole('admin','Admin','')">Admin</button>
+      <button class="role-btn" id="role-management"  onclick="selectRole('management','Management','')">Management</button>
+      <button class="role-btn" id="role-weaving"     onclick="selectRole('weaving','Weaving HOD','Weaving')">Weaving</button>
+      <button class="role-btn" id="role-dyeing"      onclick="selectRole('dyeing','Dyeing HOD','Dyeing')">Dyeing</button>
+      <button class="role-btn" id="role-finishing"   onclick="selectRole('finishing','Finishing HOD','Finishing')">Finishing</button>
+      <button class="role-btn" id="role-prep"        onclick="selectRole('prep','Preparatory HOD','Prep')">Preparatory</button>
+      <button class="role-btn" id="role-gm_tech"     onclick="selectRole('gm_tech','GM Tech','UB')">GM (Tech)</button>
+      <button class="role-btn" id="role-ppc"         onclick="selectRole('ppc','PPC HOD','PPC')">PPC</button>
+      <button class="role-btn" id="role-bathrobe"    onclick="selectRole('bathrobe','Bathrobe HOD','Bathrobe')">Bathrobe</button>
+      <button class="role-btn" id="role-quality"     onclick="selectRole('quality','Quality HOD','Quality')">Quality</button>
+      <button class="role-btn" id="role-rsb"         onclick="selectRole('rsb','Sr. GM Ops','RSB')">Sr. GM Ops</button>
+    </div>
+    <button class="btn" style="margin-top:16px" onclick="enterDemo()">Enter Demo</button>
+    <div class="hint" style="margin-top:10px">Demo data will be pre-loaded in your browser</div>
+  </div>
+</div>
+
+<script>
+const DEMO_MOBILE = "9999999999";
+const DEMO_OTP    = "123456";
+let selectedRole = "admin", selectedName = "Admin", selectedDept = "";
+
+function showErr(id, msg) { const e=document.getElementById(id); e.textContent=msg; e.classList.add("show"); }
+function clearErr(id)     { document.getElementById(id).classList.remove("show"); }
+
+function sendOTP() {
+  clearErr("err1");
+  const mob = document.getElementById("mobile").value.replace(/\D/g,"");
+  if (mob !== DEMO_MOBILE) { showErr("err1", "Demo only works with 9999999999"); return; }
+  document.getElementById("dispMobile").textContent = mob;
+  document.getElementById("step1").classList.remove("active");
+  document.getElementById("step2").classList.add("active");
+  document.getElementById("o0").focus();
+}
+
+function otpInput(i) {
+  const v = document.getElementById("o"+i).value.replace(/\D/g,"");
+  document.getElementById("o"+i).value = v;
+  if (v && i < 5) document.getElementById("o"+(i+1)).focus();
+  const otp = Array.from({length:6},(_,j)=>document.getElementById("o"+j).value).join("");
+  document.getElementById("verifyBtn").disabled = otp.length !== 6;
+  if (otp.length === 6) verifyOTP();
+}
+
+function otpKey(e, i) {
+  if (e.key==="Backspace" && !document.getElementById("o"+i).value && i>0)
+    document.getElementById("o"+(i-1)).focus();
+}
+
+function verifyOTP() {
+  clearErr("err2");
+  const otp = Array.from({length:6},(_,i)=>document.getElementById("o"+i).value).join("");
+  if (otp !== DEMO_OTP) {
+    showErr("err2", "Incorrect OTP — demo OTP is 123456");
+    Array.from({length:6},(_,i)=>{document.getElementById("o"+i).value="";});
+    document.getElementById("verifyBtn").disabled = true;
+    document.getElementById("o0").focus();
+    return;
+  }
+  document.getElementById("step2").classList.remove("active");
+  document.getElementById("step3").classList.add("active");
+}
+
+function selectRole(role, name, dept) {
+  selectedRole = role; selectedName = name; selectedDept = dept;
+  document.querySelectorAll(".role-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("role-"+role).classList.add("active");
+}
+
+function goBack() {
+  document.getElementById("step2").classList.remove("active");
+  document.getElementById("step1").classList.add("active");
+  Array.from({length:6},(_,i)=>{document.getElementById("o"+i).value="";});
+  document.getElementById("verifyBtn").disabled = true;
+}
+
+function enterDemo() {
+  // Set demo session flags (bypasses Cloudflare worker check)
+  localStorage.setItem("stl_token", "demo");
+  localStorage.setItem("stl_role",  selectedRole);
+  localStorage.setItem("stl_name",  selectedName);
+  localStorage.setItem("stl_dept",  selectedDept);
+  localStorage.setItem("stl_demo",  "true");
+
+  // Seed demo data for all departments
+  seedDemoData();
+
+  // Redirect based on role
+  if (selectedRole === "admin")      window.location.href = "entry.html";
+  else if (selectedRole === "management") window.location.href = "daily.html";
+  else window.location.href = "entry.html";
+}
+
+function seedDemoData() {
+  const depts = ["Weaving","Dyeing","Finishing","Prep","UB","PPC","Bathrobe","Quality","RSB"];
+  const months = ["2026-04","2026-05","2026-06"];
+  
+  depts.forEach(dept => {
+    months.forEach(mk => {
+      const [y,m] = mk.split("-").map(Number);
+      const days = new Date(y,m,0).getDate();
+      const data = {};
+      // Fill ~20 days for April, ~10 for May, 0 for June (simulates mid-quarter)
+      const fillDays = mk==="2026-04" ? 20 : mk==="2026-05" ? 10 : 0;
+      for (let d = 1; d <= fillDays; d++) {
+        data[d] = generateDayData(dept, d, y, m);
+      }
+      const key = "stl:"+dept+":"+mk;
+      localStorage.setItem(key, JSON.stringify(data));
+    });
+  });
+}
+
+function generateDayData(dept, d, y, m) {
+  // Generate plausible KPI values based on dept
+  const rand = (base, variance) => +(base + (Math.random()-0.5)*2*variance).toFixed(1);
+  const pct  = (base, v) => +Math.min(100, Math.max(0, rand(base, v))).toFixed(1);
+  
+  const templates = {
+    Weaving:  {rsb_wev_eff:pct(82,5), rsb_wev_prd:rand(48,4), rsb_wev_bks:rand(2.1,0.5), rsb_wev_waste:pct(1.8,0.4)},
+    Dyeing:   {rsb_dye_eff:pct(78,6), rsb_dye_prd:rand(32,3), rsb_dye_rft:pct(88,5)},
+    Finishing:{rsb_fin_eff:pct(85,4), rsb_fin_prd:rand(40,3), rsb_fin_rft:pct(90,4)},
+    Prep:     {rsb_pre_eff:pct(80,5), rsb_pre_prd:rand(55,5)},
+    UB:       {rsb_ub_maint:pct(92,4), rsb_ub_bkdn:rand(1.5,0.5)},
+    PPC:      {rsb_ppc_del:pct(88,5), rsb_ppc_wip:rand(120,15)},
+    Bathrobe: {rsb_bat_prd:rand(800,80), rsb_bat_rft:pct(91,4)},
+    Quality:  {rsb_qua_rft:pct(89,5), rsb_qua_rej:pct(2.1,0.5)},
+    RSB:      {rsb_cch:pct(83,5), rsb_otd:pct(87,4)},
+  };
+  return templates[dept] || {};
+}
+</script>
+</body>
+</html>

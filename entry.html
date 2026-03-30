@@ -862,11 +862,11 @@ function App() {
 
   function login(r)     { setRole(r); setScreen(r === "admin" ? "admin" : "entry"); }
   function logout()     {
-    // Clear OTP session too
-    ["stl_token","stl_role","stl_name","stl_dept"].forEach(k => localStorage.removeItem(k));
+    const isDemo = localStorage.getItem("stl_demo") === "true";
+    ["stl_token","stl_role","stl_name","stl_dept","stl_demo"].forEach(k => localStorage.removeItem(k));
     setRole(null);
     setScreen("login");
-    window.location.href = "login.html";
+    window.location.href = isDemo ? "demo_login.html" : "login.html";
   }
   function updatePins(np) { const ok = savePins(np); if (ok) setPins(np); return ok; }
 
