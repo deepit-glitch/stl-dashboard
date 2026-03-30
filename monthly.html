@@ -19,6 +19,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;background
 <script>
 // Wait for all scripts to load before running
 window.addEventListener('load', async function() {
+  // Demo mode bypass — skip worker entirely
+  if (localStorage.getItem('stl_demo') === 'true' && localStorage.getItem('stl_token') === 'demo') {
+    window.STL_ROLE  = localStorage.getItem('stl_role')  || 'management';
+    window.STL_NAME  = localStorage.getItem('stl_name')  || 'Demo User';
+    window.STL_DEPT  = localStorage.getItem('stl_dept')  || '';
+    window.STL_TOKEN = 'demo';
+  } else {
   // Session guard
   const __token = localStorage.getItem('stl_token');
   if (!__token) { window.location.href='login.html'; return; }
@@ -29,6 +36,7 @@ window.addEventListener('load', async function() {
     if (!__sd.ok) { window.location.href='login.html'; return; }
     window.STL_ROLE=__sd.role; window.STL_NAME=__sd.name; window.STL_DEPT=__sd.dept; window.STL_TOKEN=__token;
   } catch(e) { window.STL_ROLE=localStorage.getItem('stl_role')||'management'; window.STL_TOKEN=__token; }
+  }
 
   try {
     if (typeof React === 'undefined' || typeof ReactDOM === 'undefined') {
