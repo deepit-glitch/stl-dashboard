@@ -171,59 +171,72 @@ function enterDemo() {
 }
 
 function seedDemoData() {
-  const depts = ["Weaving","Dyeing","Finishing","Prep","UB","PPC","Bathrobe","Quality","RSB"];
-  const months = ["2026-04","2026-05","2026-06"];
-  
-  depts.forEach(dept => {
-    months.forEach(mk => {
-      const [y,m] = mk.split("-").map(Number);
-      const days = new Date(y,m,0).getDate();
-      const data = {};
-      // Fill ~20 days for April, ~10 for May, 0 for June (simulates mid-quarter)
-      const fillDays = mk==="2026-04" ? 20 : mk==="2026-05" ? 10 : 0;
-      for (let d = 1; d <= fillDays; d++) {
-        data[d] = generateDayData(dept, d, y, m);
-      }
-      const key = "stl:"+dept+":"+mk;
-      localStorage.setItem(key, JSON.stringify(data));
-    });
-  });
-}
-
-function generateDayData(dept, d, y, m) {
   const rand = (base, v) => +(base + (Math.random()-0.5)*2*v).toFixed(1);
   const pct  = (base, v) => +Math.min(100, Math.max(0, rand(base, v))).toFixed(1);
 
-  const templates = {
-    RSB: {
-      rsb_cch:pct(83,5), rsb_agrd:pct(87,4), rsb_effjq:pct(79,6),
-      rsb_effdb:pct(81,5), rsb_ltsf:pct(88,4), rsb_ltsy:pct(90,3)
-    },
-    Weaving: {
-      eff_jq:pct(79,6), eff_db:pct(81,5), wastage:pct(1.8,0.4),
-      bpf:rand(2.2,0.5), mending:pct(92,4), knot_eff:pct(85,5)
-    },
-    Dyeing: {
-      rft_fab:pct(88,5), rft_yrn:pct(91,4), dwngrade:pct(2.1,0.6),
-      water:rand(38,4), lots_fd:rand(12,3), lots_yd:rand(8,2)
-    },
-    Finishing: {
-      aql:pct(94,3), a_grade:pct(91,4), insp_f:pct(96,3), cch_eff:pct(84,5)
-    },
-    Prep: {
-      hard_wst:pct(1.5,0.4), no_beam:rand(18,3), pile_brk:rand(3.2,0.8),
-      gnd_brk:rand(2.1,0.6), sct_beam:rand(22,4)
-    },
-    UB: {
-      cch_prod:pct(87,5), repair:rand(4,1), lots_fd2:rand(11,2), lots_yd2:rand(7,2)
-    },
-    Quality: {
-      insp_fail:pct(3.2,1), wrng_prod:rand(1.1,0.4)
-    },
-    Bathrobe: {},
-    PPC: {}
+  // Daily KPI templates (for depts with daily data)
+  const dailyTemplates = {
+    RSB:      () => ({rsb_cch:pct(83,5), rsb_agrd:pct(87,4), rsb_effjq:pct(79,6), rsb_effdb:pct(81,5), rsb_ltsf:pct(88,4), rsb_ltsy:pct(90,3)}),
+    Weaving:  () => ({eff_jq:pct(79,6), eff_db:pct(81,5), wastage:pct(1.8,0.4), bpf:rand(2.2,0.5), mending:pct(92,4), knot_eff:pct(85,5)}),
+    Dyeing:   () => ({rft_fab:pct(88,5), rft_yrn:pct(91,4), dwngrade:pct(2.1,0.6), water:rand(38,4), lots_fd:rand(12,3), lots_yd:rand(8,2)}),
+    Finishing:() => ({aql:pct(94,3), a_grade:pct(91,4), insp_f:pct(96,3), cch_eff:pct(84,5)}),
+    Prep:     () => ({hard_wst:pct(1.5,0.4), no_beam:rand(18,3), pile_brk:rand(3.2,0.8), gnd_brk:rand(2.1,0.6), sct_beam:rand(22,4)}),
+    UB:       () => ({cch_prod:pct(87,5), repair:rand(4,1), lots_fd2:rand(11,2), lots_yd2:rand(7,2)}),
+    Quality:  () => ({insp_fail:pct(3.2,1), wrng_prod:rand(1.1,0.4)}),
   };
-  return templates[dept] || {};
+
+  // Weekly KPI templates (Bathrobe and PPC — freq:W)
+  const weeklyTemplates = {
+    Bathrobe: () => ({wst_br:pct(9,1.5), wst_jsy:pct(8,2), nm_wip:rand(13,1.5)}),
+    PPC:      () => ({wip_t:rand(940,25), wip_days:rand(77,3), nm_br:rand(10,2), nm_fg:rand(28,4), nm_gr:rand(9,2), nm_tot:rand(47,5), rem_ppc:rand(46,3)}),
+  };
+
+  // Monthly KPI templates (last day of month)
+  const monthlyTemplates = {
+    PPC:      (mk) => ({insp_abort: mk==="2026-04" ? 0 : mk==="2026-05" ? 1 : 0}),
+  };
+
+  function getWeekKey(d) {
+    if (d <= 7)  return "wk1";
+    if (d <= 15) return "wk2";
+    if (d <= 23) return "wk3";
+    return "wk4";
+  }
+
+  const depts = ["Weaving","Dyeing","Finishing","Prep","UB","PPC","Bathrobe","Quality","RSB"];
+  const months = ["2026-04","2026-05","2026-06"];
+
+  depts.forEach(dept => {
+    months.forEach(mk => {
+      const [y,m] = mk.split("-").map(Number);
+      const totalDays = new Date(y,m,0).getDate();
+      const fillDays  = mk==="2026-04" ? 20 : mk==="2026-05" ? 10 : 0;
+      const data = {};
+
+      // Seed daily data
+      if (dailyTemplates[dept]) {
+        for (let d = 1; d <= fillDays; d++) {
+          data[d] = dailyTemplates[dept]();
+        }
+      }
+
+      // Seed weekly data — one entry per completed week within fillDays
+      if (weeklyTemplates[dept]) {
+        const weeksToFill = fillDays <= 7 ? 1 : fillDays <= 15 ? 2 : fillDays <= 23 ? 3 : 4;
+        for (let w = 1; w <= weeksToFill; w++) {
+          data["wk"+w] = weeklyTemplates[dept]();
+        }
+      }
+
+      // Seed monthly data — only for April and May (simulate closed months)
+      if (monthlyTemplates[dept] && mk !== "2026-06") {
+        const lastDay = totalDays;
+        data[lastDay] = {...(data[lastDay]||{}), ...monthlyTemplates[dept](mk)};
+      }
+
+      localStorage.setItem("stl:"+dept+":"+mk, JSON.stringify(data));
+    });
+  });
 }
 </script>
 </body>
