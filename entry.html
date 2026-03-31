@@ -908,8 +908,9 @@ function App() {
     return <EntryScreen dept={DEPTS.find(d => d.id === role)} onLogout={logout}/>;
   }
   if (screen === "admin") {
-    if (wd0.beforeQ1) return <HoldingScreen msg="Q1 hasn't started yet" sub="Data entry opens 2 April 2026. Seed data is still available for demos." onLogout={logout}/>;
-    if (wd0.afterQ1)  return <HoldingScreen msg="Q1 has ended" sub="The Q1 tracker covered April–June 2026." onLogout={logout}/>;
+    if (wd0.beforeQ1)    return <HoldingScreen msg="Q1 hasn't started yet" sub="Data entry opens 2 April 2026. Seed data is still available for demos." onLogout={logout}/>;
+    if (wd0.afterQ1)     return <HoldingScreen msg="Q1 has ended" sub="The Q1 tracker covered April–June 2026." onLogout={logout}/>;
+    if (wd0.entryClosed) return <EntryClosedScreen onLogout={logout}/>;
     return <AdminScreen pins={pins} onUpdatePins={updatePins} onLogout={logout}/>;
   }
   return null;
