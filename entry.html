@@ -22,6 +22,7 @@ input[type=number]{-moz-appearance:textfield}
 const {useState,useEffect,useRef} = React;
 const D = "daily";
 const M = "monthly";
+const W = "weekly";
 
 const MONTHS = [
   {key:"2026-04", label:"April 2026",  short:"APR", days:30},
@@ -103,18 +104,19 @@ const DEPTS = [
     {id:"wip_ub",    name:"WIP - Tons (RM + FG)",                unit:"Tons",     hib:false, freq:M, desc:"Total work-in-progress inventory in tons (raw material + finished goods). Reported on last day of month. Reduces approx 25 Tons/month.", targets:{"2026-04":945, "2026-05":920,   "2026-06":895}},
   ]},
   {id:"PPC", label:"PPC", accent:"#0f766e", kpis:[
-    {id:"wip_t",     name:"WIP - Tons (RM + FG)",                unit:"Tons",     hib:false, freq:M, desc:"Total inventory in tons (RM + FG combined). Reported last day of month. Target reduces approx 25 Tons/month from March baseline.",    targets:{"2026-04":945,   "2026-05":920,   "2026-06":895}},
-    {id:"wip_days",  name:"WIP - No. of Days",                   unit:"Days",     hib:false, freq:M, desc:"Total WIP expressed as equivalent dispatch days. Lower means leaner inventory relative to dispatch volume. Last day of month.",         targets:{"2026-04":78,    "2026-05":76,    "2026-06":74}},
-    {id:"nm_br",     name:"Non-Moving - Bathrobe",               unit:"Tons",     hib:false, freq:M, desc:"Non-moving bathrobe inventory (fabric or finished goods). Inventory metric - last day of month. Lower is better.",                    targets:{"2026-04":11,    "2026-05":8,     "2026-06":5}},
-    {id:"nm_fg",     name:"Non-Moving - Finished Goods",         unit:"Tons",     hib:false, freq:M, desc:"Finished goods (towels, madeups) not dispatched and sitting idle. Inventory metric - last day of month. Lower is better.",            targets:{"2026-04":30,    "2026-05":20,    "2026-06":10}},
-    {id:"nm_gr",     name:"Non-Moving - Greigh Fabric",          unit:"Tons",     hib:false, freq:M, desc:"Greighe (undyed) fabric not progressed to dyeing for extended period. Last day of month. Lower is better.",                           targets:{"2026-04":10,    "2026-05":8,     "2026-06":6}},
-    {id:"nm_tot",    name:"Total Non-Moving Stock",              unit:"Tons",     hib:false, freq:M, desc:"Sum of all non-moving categories: Bathrobe + Finished Goods + Greighe. Auto-calculated. Last day of month.",                          targets:{"2026-04":51,    "2026-05":36,    "2026-06":21}},
-    {id:"rem_ppc",   name:"Remnant / Dead Yarn Stock",           unit:"Tons",     hib:false, freq:M, desc:"Non-moving remnant yarn stock. Reduces approx 10 Tons/month from March baseline of 57.71 Tons. Last day of month.",                   targets:{"2026-04":47.71, "2026-05":37.71, "2026-06":27.71}},
+    {id:"wip_t",     name:"WIP - Tons (RM + FG)",                unit:"Tons",     hib:false, freq:W, desc:"Total inventory in tons (RM + FG combined). Reported last day of month. Target reduces approx 25 Tons/month from March baseline.",    targets:{"2026-04":945,   "2026-05":920,   "2026-06":895}},
+    {id:"wip_days",  name:"WIP - No. of Days",                   unit:"Days",     hib:false, freq:W, desc:"Total WIP expressed as equivalent dispatch days. Lower means leaner inventory relative to dispatch volume. Last day of month.",         targets:{"2026-04":78,    "2026-05":76,    "2026-06":74}},
+    {id:"nm_br",     name:"Non-Moving - Bathrobe",               unit:"Tons",     hib:false, freq:W, desc:"Non-moving bathrobe inventory (fabric or finished goods). Inventory metric - last day of month. Lower is better.",                    targets:{"2026-04":11,    "2026-05":8,     "2026-06":5}},
+    {id:"nm_fg",     name:"Non-Moving - Finished Goods",         unit:"Tons",     hib:false, freq:W, desc:"Finished goods (towels, madeups) not dispatched and sitting idle. Inventory metric - last day of month. Lower is better.",            targets:{"2026-04":30,    "2026-05":20,    "2026-06":10}},
+    {id:"nm_gr",     name:"Non-Moving - Greigh Fabric",          unit:"Tons",     hib:false, freq:W, desc:"Greighe (undyed) fabric not progressed to dyeing for extended period. Last day of month. Lower is better.",                           targets:{"2026-04":10,    "2026-05":8,     "2026-06":6}},
+    {id:"nm_tot",    name:"Total Non-Moving Stock",              unit:"Tons",     hib:false, freq:W, desc:"Sum of all non-moving categories: Bathrobe + Finished Goods + Greighe. Auto-calculated. Last day of month.",                          targets:{"2026-04":51,    "2026-05":36,    "2026-06":21}},
+    {id:"rem_ppc",   name:"Remnant / Dead Yarn Stock",           unit:"Tons",     hib:false, freq:W, desc:"Non-moving remnant yarn stock. Reduces approx 10 Tons/month from March baseline of 57.71 Tons. Last day of month.",                   targets:{"2026-04":47.71, "2026-05":37.71, "2026-06":27.71}},
+    {id:"insp_abort", name:"Inspections Aborted",                 unit:"No.",      hib:false, freq:M, desc:"Number of inspection batches aborted during the month. Target is zero — any aborted inspection is a failure.",                   targets:{"2026-04":0,     "2026-05":0,     "2026-06":0}},
   ]},
   {id:"Bathrobe", label:"Bathrobe", accent:"#9f1239", kpis:[
-    {id:"wst_br",    name:"Wastage % - Bathrobe + Madeups",      unit:"%",        hib:false, freq:M, desc:"Monthly total wastage % across bathrobe and made-up garments. Includes cutting waste, jersey wastage and processing losses.",          targets:{"2026-04":10,    "2026-05":9,     "2026-06":8}},
-    {id:"wst_jsy",   name:"Wastage % - Jersey",                  unit:"%",        hib:false, freq:M, desc:"Monthly jersey fabric wastage % in bathrobe production. Pattern sizing, consumption control and width control from dyeing.",           targets:{"2026-04":null,  "2026-05":null,  "2026-06":null}},
-    {id:"nm_wip",    name:"Non-Moving WIP (Finishing Floor 1)",  unit:"Tons",     hib:false, freq:M, desc:"Net non-moving WIP on Finishing Floor 1 (bathrobe). Segregated by size, colour, GSM and quality. Reduces 1.5T Apr, 2.5T May, 3T Jun.", targets:{"2026-04":13.3, "2026-05":10.8,  "2026-06":7.8}},
+    {id:"wst_br",    name:"Wastage % - Bathrobe + Madeups",      unit:"%",        hib:false, freq:W, desc:"Monthly total wastage % across bathrobe and made-up garments. Includes cutting waste, jersey wastage and processing losses.",          targets:{"2026-04":10,    "2026-05":9,     "2026-06":8}},
+    {id:"wst_jsy",   name:"Wastage % - Jersey",                  unit:"%",        hib:false, freq:W, desc:"Monthly jersey fabric wastage % in bathrobe production. Pattern sizing, consumption control and width control from dyeing.",           targets:{"2026-04":null,  "2026-05":null,  "2026-06":null}},
+    {id:"nm_wip",    name:"Non-Moving WIP (Finishing Floor 1)",  unit:"Tons",     hib:false, freq:W, desc:"Net non-moving WIP on Finishing Floor 1 (bathrobe). Segregated by size, colour, GSM and quality. Reduces 1.5T Apr, 2.5T May, 3T Jun.", targets:{"2026-04":13.3, "2026-05":10.8,  "2026-06":7.8}},
   ]},
   {id:"Quality", label:"Quality", accent:"#059669", kpis:[
     {id:"insp_fail", name:"Overall Inspection Failure",          unit:"count",    hib:false, freq:D, desc:"Number of buyer/external inspections that failed or were rejected. Target zero. Each failure must be investigated and closed.",         targets:{"2026-04":0,     "2026-05":0,     "2026-06":0}},
@@ -165,6 +167,17 @@ function getWorkingDate() {
   return {y:2026, m:4, d:30, mk:"2026-04", hour, isTesting:true, entryClosed:false};
 }
 function isLastDayOfMonth(y,m,d) { return new Date(y,m,0).getDate() === d; }
+function getWeekOfMonth(d) {
+  if (d <= 7)  return 1;
+  if (d <= 15) return 2;
+  if (d <= 23) return 3;
+  return 4;
+}
+function getWeekKey(d)   { return "wk" + getWeekOfMonth(d); }
+function getWeekRange(d) {
+  const wk = getWeekOfMonth(d);
+  return wk===1?"Week 1 (1–7)":wk===2?"Week 2 (8–15)":wk===3?"Week 3 (16–23)":"Week 4 (24–end)";
+}
 
 const MN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function fmtDate(y,m,d) { return d + " " + MN[m-1] + " " + y; }
@@ -343,12 +356,13 @@ function KpiRow({kpi, mkey, value, onChange, locked, accent}) {
 }
 
 // -- KPI FORM -----------------------------------------------------
-function KpiForm({dept, inputs, onChange, mkey, isAdmin, onSave, saving, flash, lockedMonthly}) {
+function KpiForm({dept, inputs, onChange, mkey, isAdmin, onSave, saving, flash, lockedMonthly, wkRange}) {
   const dailyKpis   = dept.kpis.filter(k => k.freq === D);
+  const weeklyKpis  = dept.kpis.filter(k => k.freq === W);
   const monthlyKpis = dept.kpis.filter(k => k.freq === M);
   const canFillMonthly = !lockedMonthly || isAdmin;
 
-  const totalFillable = dailyKpis.length + (canFillMonthly ? monthlyKpis.length : 0);
+  const totalFillable = dailyKpis.length + weeklyKpis.length + (canFillMonthly ? monthlyKpis.length : 0);
   const totalFilled = dept.kpis.filter(k => {
     if (k.freq === M && !canFillMonthly) return false;
     return inputs[k.id] !== undefined && inputs[k.id] !== "";
@@ -399,6 +413,19 @@ function KpiForm({dept, inputs, onChange, mkey, isAdmin, onSave, saving, flash, 
           <SectionDivider label="DAILY ENTRY - enter every working day" color="#16a34a" bg="#f0fdf4" border="#bbf7d0"/>
           <div style={{display:"flex", flexDirection:"column", gap:8, marginBottom:14}}>
             {dailyKpis.map(kpi => (
+              <KpiRow key={kpi.id} kpi={kpi} mkey={mkey} value={inputs[kpi.id]} onChange={onChange} locked={false} accent={dept.accent}/>
+            ))}
+          </div>
+        </>
+      )}
+
+      {weeklyKpis.length > 0 && (
+        <>
+          <SectionDivider
+            label={"WEEKLY ENTRY — " + (wkRange || "current week")}
+            color="#0f766e" bg="#f0fdfa" border="#99f6e4"/>
+          <div style={{display:"flex", flexDirection:"column", gap:8}}>
+            {weeklyKpis.map(kpi => (
               <KpiRow key={kpi.id} kpi={kpi} mkey={mkey} value={inputs[kpi.id]} onChange={onChange} locked={false} accent={dept.accent}/>
             ))}
           </div>
@@ -480,16 +507,29 @@ function EntryScreen({dept, onLogout}) {
   const [saving,  setSaving]  = useState(false);
   const [flash,   setFlash]   = useState(null);
 
+  const wkKey   = getWeekKey(wd.d);
+  const wkRange = getWeekRange(wd.d);
+
   useEffect(() => {
     const data = loadData(dept.id, month.key);
     setEntries(data);
-    setInputs(data[wd.d] || {});
+    // Merge daily + weekly inputs into one inputs object
+    const dayData  = data[wd.d]  || {};
+    const weekData = data[wkKey] || {};
+    setInputs({...dayData, ...weekData});
   }, [dept.id, month.key]);
 
   function handleChange(id, val) { setInputs(p => ({...p, [id]:val})); }
   function handleSave() {
     setSaving(true);
-    const upd = {...entries, [wd.d]: {...inputs}};
+    // Split inputs: daily KPIs under day key, weekly KPIs under week key
+    const dayData = {}, weekData = {};
+    dept.kpis.forEach(k => {
+      if (inputs[k.id] === undefined || inputs[k.id] === "") return;
+      if (k.freq === W) weekData[k.id] = inputs[k.id];
+      else dayData[k.id] = inputs[k.id];
+    });
+    const upd = {...entries, [wd.d]: dayData, [wkKey]: weekData};
     const ok = saveData(dept.id, month.key, upd);
     setEntries(upd); setSaving(false);
     setFlash(ok ? "ok" : "err");
@@ -573,7 +613,7 @@ function EntryScreen({dept, onLogout}) {
         </div>
 
         <KpiForm dept={dept} inputs={inputs} onChange={handleChange} mkey={month.key}
-          isAdmin={false} onSave={handleSave} saving={saving} flash={flash} lockedMonthly={!isLast}/>
+          isAdmin={false} onSave={handleSave} saving={saving} flash={flash} lockedMonthly={!isLast} wkRange={wkRange}/>
       </div>
     </div>
   );
@@ -682,18 +722,34 @@ function AdminScreen({pins, onUpdatePins, onLogout}) {
 
   const isToday = selMonth.key === wd.mk && selDay === wd.d;
   const isPast  = !isToday;
+  const wkKey   = getWeekKey(selDay);
+  const wkRange = getWeekRange(selDay);
 
   useEffect(() => {
     const data = loadData(selDept.id, selMonth.key);
-    setEntries(data); setInputs(data[selDay] || {});
+    setEntries(data);
+    const dayData  = data[selDay] || {};
+    const weekData = data[getWeekKey(selDay)] || {};
+    setInputs({...dayData, ...weekData});
   }, [selDept, selMonth]);
 
-  useEffect(() => { setInputs(entries[selDay] || {}); }, [selDay]);
+  useEffect(() => {
+    const dayData  = entries[selDay] || {};
+    const weekData = entries[getWeekKey(selDay)] || {};
+    setInputs({...dayData, ...weekData});
+  }, [selDay]);
 
   function handleChange(id, val) { setInputs(p => ({...p, [id]:val})); }
   function handleSave() {
     setSaving(true);
-    const upd = {...entries, [selDay]: {...inputs}};
+    const dayData = {}, weekData = {};
+    selDept.kpis.forEach(k => {
+      if (inputs[k.id] === undefined || inputs[k.id] === "") return;
+      if (k.freq === W) weekData[k.id] = inputs[k.id];
+      else dayData[k.id] = inputs[k.id];
+    });
+    const wk = getWeekKey(selDay);
+    const upd = {...entries, [selDay]: dayData, [wk]: weekData};
     const ok = saveData(selDept.id, selMonth.key, upd);
     setEntries(upd); setSaving(false);
     setFlash(ok ? "ok" : "err");
@@ -783,7 +839,7 @@ function AdminScreen({pins, onUpdatePins, onLogout}) {
                 <KpiForm dept={selDept} inputs={inputs} onChange={handleChange}
                   mkey={selMonth.key} isAdmin={true}
                   onSave={handleSave} saving={saving} flash={flash}
-                  lockedMonthly={false}/>
+                  lockedMonthly={false} wkRange={wkRange}/>
               </div>
             </div>
           </>
