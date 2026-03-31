@@ -176,7 +176,7 @@ function seedDemoData() {
 
   // Daily KPI templates (for depts with daily data)
   const dailyTemplates = {
-    RSB:      () => ({rsb_cch:pct(83,5), rsb_agrd:pct(87,4), rsb_effjq:pct(79,6), rsb_effdb:pct(81,5), rsb_ltsf:pct(88,4), rsb_ltsy:pct(90,3)}),
+    RSB:      () => ({rsb_cch:pct(83,5), rsb_agrd:pct(87,4), rsb_effjq:pct(79,6), rsb_effdb:pct(81,5), rsb_ltsf:pct(88,4), rsb_ltsy:pct(90,3), rsb_ls_dy:rand(8,4), rsb_ls_gy:rand(7,4)}),
     Weaving:  () => ({eff_jq:pct(79,6), eff_db:pct(81,5), wastage:pct(1.8,0.4), bpf:rand(2.2,0.5), mending:pct(92,4), knot_eff:pct(85,5)}),
     Dyeing:   () => ({rft_fab:pct(88,5), rft_yrn:pct(91,4), dwngrade:pct(2.1,0.6), water:rand(38,4), lots_fd:rand(12,3), lots_yd:rand(8,2)}),
     Finishing:() => ({aql:pct(94,3), a_grade:pct(91,4), insp_f:pct(96,3), cch_eff:pct(84,5)}),
