@@ -362,6 +362,16 @@ function SummaryStrip(props) {
   );
 }
 
+function doLogout() {
+  var isDemo = localStorage.getItem('stl_demo') === 'true';
+  var token  = localStorage.getItem('stl_token') || window.STL_TOKEN || '';
+  ['stl_token','stl_role','stl_name','stl_dept','stl_demo'].forEach(function(k){localStorage.removeItem(k);});
+  if (token && !isDemo) {
+    fetch('https://square-flower-57b5.deepit.workers.dev/auth/logout', {method:'POST', headers:{'X-Session-Token':token}}).catch(function(){});
+  }
+  window.location.href = isDemo ? 'demo_login.html' : 'login.html';
+}
+
 function App() {
   var wd=getWorkingDate();
   var sdi=useState("Weaving"), selDeptId=sdi[0], setSelDeptId=sdi[1];
@@ -403,7 +413,8 @@ function App() {
       ),
       CE("div",{style:{display:"flex",alignItems:"center",gap:8}},
         CE("div",{style:{fontSize:11,color:"#64748b",fontFamily:"monospace"}},fmtDate(wd.y,wd.m,wd.d)),
-        CE("button",{onClick:function(){setTick(function(n){return n+1;});},style:{padding:"4px 12px",borderRadius:6,border:"1px solid #334155",background:"transparent",color:"#94a3b8",cursor:"pointer",fontSize:11,fontWeight:600}},"Refresh")
+        CE("button",{onClick:function(){setTick(function(n){return n+1;});},style:{padding:"4px 12px",borderRadius:6,border:"1px solid #334155",background:"transparent",color:"#94a3b8",cursor:"pointer",fontSize:11,fontWeight:600}},"Refresh"),
+        CE("button",{onClick:doLogout,style:{padding:"4px 12px",borderRadius:6,border:"1px solid #334155",background:"transparent",color:"#94a3b8",cursor:"pointer",fontSize:11,fontWeight:600}},"Logout")
       )
     ),
     // Filter bar
