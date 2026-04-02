@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STL — Migrate My Data</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;background:#0f172a;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:#fff;border-radius:20px;padding:36px 32px;width:100%;max-width:420px;box-shadow:0 24px 60px rgba(0,0,0,0.4)}
+.logo-wrap{background:#0f172a;border-radius:12px;padding:12px 18px;display:inline-block;margin-bottom:16px}
+h1{font-size:18px;font-weight:800;color:#0f172a;margin-bottom:6px}
+p{font-size:13px;color:#64748b;line-height:1.6;margin-bottom:20px}
+.btn{width:100%;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;background:#6366f1;color:#fff;transition:background 0.2s}
+.btn:hover{background:#4f46e5}
+.btn:disabled{background:#e2e8f0;color:#94a3b8;cursor:not-allowed}
+.log{margin-top:18px;font-size:12px;color:#475569;line-height:1.8;max-height:240px;overflow-y:auto;background:#f8fafc;border-radius:8px;padding:12px;display:none}
+.log.show{display:block}
+.row{display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot.ok{background:#16a34a}
+.dot.err{background:#dc2626}
+.dot.info{background:#6366f1}
+.done-box{margin-top:16px;padding:14px 16px;border-radius:10px;font-size:13px;font-weight:700;text-align:center;display:none}
+.done-box.success{background:#f0fdf4;color:#15803d;border:1.5px solid #bbf7d0}
+.done-box.partial{background:#fefce8;color:#854d0e;border:1.5px solid #fde68a}
+.done-box.error{background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo-wrap">
+    <img src="https://www.saratextiles.com/wp-content/uploads/2017/11/logo-Sara-white-150X50-1.png"
+         alt="STL" style="height:40px;width:auto;display:block">
+  </div>
+  <h1>Migrate My Data</h1>
+  <p>This will transfer the data you already entered on this device to the central server, so it appears on the management dashboards.</p>
+  <p style="font-size:12px;color:#94a3b8">Takes about 5 seconds. You only need to do this once.</p>
+  <button class="btn" id="migrateBtn" onclick="migrate()">Migrate My Data Now</button>
+  <div class="log" id="log"></div>
+  <div class="done-box" id="doneBox"></div>
+</div>
+
+<script>
+const WORKER = 'https://square-flower-57b5.deepit.workers.dev';
+
+function log(msg, type='info') {
+  const logEl = document.getElementById('log');
+  logEl.classList.add('show');
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.innerHTML = `<div class="dot ${type}"></div><span>${msg}</span>`;
+  logEl.appendChild(row);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+async function migrate() {
+  const btn = document.getElementById('migrateBtn');
+  const doneBox = document.getElementById('doneBox');
+  btn.disabled = true;
+  btn.textContent = 'Migrating...';
+
+  // Check session
+  const token = localStorage.getItem('stl_token');
+  const role  = localStorage.getItem('stl_role');
+  const isDemo = localStorage.getItem('stl_demo') === 'true';
+
+  if (!token || isDemo) {
+    log('Not logged in. Please log in at dashboards.saratextiles.com first, then return to this page.', 'err');
+    btn.disabled = false;
+    btn.textContent = 'Migrate My Data Now';
+    return;
+  }
+
+  // Verify session is valid
+  try {
+    const s = await fetch(WORKER+'/auth/session', {headers:{'X-Session-Token':token}});
+    const sd = await s.json();
+    if (!sd.ok) {
+      log('Session expired — please log in again and retry.', 'err');
+      btn.disabled = false; btn.textContent = 'Migrate My Data Now'; return;
+    }
+    log('Logged in as: ' + sd.name + ' (' + sd.role + ')', 'info');
+  } catch(e) {
+    log('Could not reach server — check your connection.', 'err');
+    btn.disabled = false; btn.textContent = 'Migrate My Data Now'; return;
+  }
+
+  // Find all stl: keys in localStorage
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('stl:') && !k.startsWith('stl_'));
+  if (keys.length === 0) {
+    log('No local data found on this device — nothing to migrate.', 'info');
+    doneBox.className = 'done-box partial';
+    doneBox.textContent = 'No data found on this device.';
+    doneBox.style.display = 'block';
+    btn.textContent = 'Done';
+    return;
+  }
+
+  log('Found ' + keys.length + ' data record(s) to migrate...', 'info');
+
+  let ok = 0, fail = 0;
+  for (const key of keys) {
+    // key format: stl:Dept:2026-04
+    const parts = key.split(':');
+    if (parts.length < 3) continue;
+    const dept = parts[1];
+    const mk   = parts.slice(2).join(':');
+
+    try {
+      const raw = localStorage.getItem(key);
+      const data = JSON.parse(raw) || {};
+
+      // Remove any empty day entries to keep it clean
+      const cleaned = {};
+      for (const [k, v] of Object.entries(data)) {
+        if (v && typeof v === 'object' && Object.keys(v).length > 0) cleaned[k] = v;
+      }
+
+      if (Object.keys(cleaned).length === 0) {
+        log('Skipped ' + dept + ' ' + mk + ' (empty)', 'info');
+        continue;
+      }
+
+      const resp = await fetch(WORKER+'/kpidata/'+encodeURIComponent(dept)+'/'+encodeURIComponent(mk), {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-Session-Token':token},
+        body: JSON.stringify({data: cleaned})
+      });
+      const result = await resp.json();
+
+      if (result.ok) {
+        log(dept + ' / ' + mk + ' — ' + Object.keys(cleaned).length + ' day(s) uploaded ✓', 'ok');
+        ok++;
+      } else {
+        log(dept + ' / ' + mk + ' — ' + (result.error || 'Failed') + ' ✗', 'err');
+        fail++;
+      }
+    } catch(e) {
+      log(dept + ' / ' + mk + ' — Error: ' + e.message, 'err');
+      fail++;
+    }
+  }
+
+  // Show result
+  doneBox.style.display = 'block';
+  if (fail === 0 && ok > 0) {
+    doneBox.className = 'done-box success';
+    doneBox.textContent = '✓ All ' + ok + ' record(s) migrated successfully. Your data is now on the central server.';
+  } else if (ok > 0) {
+    doneBox.className = 'done-box partial';
+    doneBox.textContent = ok + ' record(s) migrated, ' + fail + ' failed. Check the log above.';
+  } else {
+    doneBox.className = 'done-box error';
+    doneBox.textContent = 'Migration failed. You may not have permission to upload this department\'s data.';
+  }
+
+  btn.textContent = 'Done';
+}
+
+// Auto-check for data on load
+window.onload = function() {
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('stl:') && !k.startsWith('stl_'));
+  const token = localStorage.getItem('stl_token');
+  const isDemo = localStorage.getItem('stl_demo') === 'true';
+  if (!token || isDemo) {
+    document.querySelector('p').textContent = 'You need to be logged in first. Go to dashboards.saratextiles.com, log in, then come back to this page.';
+    document.getElementById('migrateBtn').disabled = true;
+    document.getElementById('migrateBtn').textContent = 'Please log in first';
+  } else if (keys.length === 0) {
+    document.querySelector('p').textContent = 'No local data found on this device. Either data was never entered here, or it has already been migrated.';
+    document.getElementById('migrateBtn').disabled = true;
+    document.getElementById('migrateBtn').textContent = 'No data to migrate';
+  } else {
+    document.querySelector('p').textContent = keys.length + ' data record(s) found on this device. Tap below to migrate to the central server.';
+  }
+};
+</script>
+</body>
+</html>
