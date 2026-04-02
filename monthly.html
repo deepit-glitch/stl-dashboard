@@ -141,9 +141,18 @@ var SC  = {g:"#16a34a", w:"#ca8a04", b:"#dc2626", n:"#94a3b8"};
 var SBG = {g:"#f0fdf4", w:"#fefce8", b:"#fef2f2", n:"#f8fafc"};
 var SLB = {g:"On Target", w:"Close", b:"Off Target", n:"-"};
 
-function loadData(deptId, mk) {
-  try { return JSON.parse(localStorage.getItem("stl:" + deptId + ":" + mk)) || {}; }
-  catch(e) { return {}; }
+var WORKER = "https://square-flower-57b5.deepit.workers.dev";
+async function loadData(deptId, mk) {
+  var isDemo = localStorage.getItem('stl_demo') === 'true';
+  var token  = localStorage.getItem('stl_token') || window.STL_TOKEN || '';
+  if (isDemo) { try { return JSON.parse(localStorage.getItem('stl:'+deptId+':'+mk))||{}; } catch(e){return{};} }
+  try {
+    var r = await fetch(WORKER+'/kpidata/'+encodeURIComponent(deptId)+'/'+encodeURIComponent(mk),
+      {headers:{'X-Session-Token':token}});
+    if (!r.ok) return {};
+    var j = await r.json();
+    return j.data || {};
+  } catch(e) { return {}; }
 }
 
 function getStatus(val, t, hib) {
@@ -276,9 +285,12 @@ function App() {
   var dept=DEPTS.find(function(d){return d.id===selDeptId;})||DEPTS[0];
 
   useEffect(function(){
-    var data={};
-    MONTHS.forEach(function(m){data[m.key]=loadData(selDeptId,m.key);});
-    setAllEntries(data);
+    Promise.all(MONTHS.map(function(m){ return loadData(selDeptId,m.key).then(function(d){return{key:m.key,d:d};}); }))
+    .then(function(results){
+      var data={};
+      results.forEach(function(r){data[r.key]=r.d;});
+      setAllEntries(data);
+    });
   },[selDeptId,tick]);
   useEffect(function(){
     var t=setInterval(function(){setTick(function(n){return n+1;});},60000);

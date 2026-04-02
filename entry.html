@@ -23,6 +23,7 @@ const {useState,useEffect,useRef} = React;
 const D = "daily";
 const M = "monthly";
 const W = "weekly";
+const WORKER = "https://square-flower-57b5.deepit.workers.dev";
 
 const MONTHS = [
   {key:"2026-04", label:"April 2026",  short:"APR", days:30},
@@ -139,8 +140,31 @@ const dk = (d,mk) => "stl:" + d + ":" + mk;
 
 function loadPins()  { try { return JSON.parse(localStorage.getItem(PINS_KEY)) || {...DEF_PINS}; } catch(e) { return {...DEF_PINS}; } }
 function savePins(p) { try { localStorage.setItem(PINS_KEY, JSON.stringify(p)); return true; } catch(e) { return false; } }
-function loadData(d,mk)       { try { return JSON.parse(localStorage.getItem(dk(d,mk))) || {}; } catch(e) { return {}; } }
-function saveData(d,mk,data)  { try { localStorage.setItem(dk(d,mk), JSON.stringify(data)); return true; } catch(e) { return false; } }
+async function loadData(d, mk) {
+  const token = localStorage.getItem("stl_token");
+  const isDemo = localStorage.getItem("stl_demo") === "true";
+  if (isDemo) { try { return JSON.parse(localStorage.getItem("stl:"+d+":"+mk))||{}; } catch(e){return{};} }
+  try {
+    const r = await fetch(WORKER+"/kpidata/"+encodeURIComponent(d)+"/"+encodeURIComponent(mk),
+      {headers:{"X-Session-Token":token||""}});
+    if (!r.ok) return {};
+    const j = await r.json();
+    return j.data || {};
+  } catch(e) { return {}; }
+}
+async function saveData(d, mk, data) {
+  const token = localStorage.getItem("stl_token");
+  const isDemo = localStorage.getItem("stl_demo") === "true";
+  if (isDemo) { try { localStorage.setItem("stl:"+d+":"+mk, JSON.stringify(data)); return true; } catch(e){return false;} }
+  try {
+    const r = await fetch(WORKER+"/kpidata/"+encodeURIComponent(d)+"/"+encodeURIComponent(mk), {
+      method:"POST", headers:{"Content-Type":"application/json","X-Session-Token":token||""},
+      body: JSON.stringify({data})
+    });
+    const j = await r.json();
+    return j.ok === true;
+  } catch(e) { return false; }
+}
 
 function getIST() {
   const n = new Date(new Date().toLocaleString("en-US", {timeZone:"Asia/Kolkata"}));
@@ -513,16 +537,16 @@ function EntryScreen({dept, onLogout}) {
   const wkRange = getWeekRange(wd.d);
 
   useEffect(() => {
-    const data = loadData(dept.id, month.key);
-    setEntries(data);
-    // Merge daily + weekly inputs into one inputs object
-    const dayData  = data[wd.d]  || {};
-    const weekData = data[wkKey] || {};
-    setInputs({...dayData, ...weekData});
+    loadData(dept.id, month.key).then(data => {
+      setEntries(data);
+      const dayData  = data[wd.d]  || {};
+      const weekData = data[wkKey] || {};
+      setInputs({...dayData, ...weekData});
+    });
   }, [dept.id, month.key]);
 
   function handleChange(id, val) { setInputs(p => ({...p, [id]:val})); }
-  function handleSave() {
+  async function handleSave() {
     setSaving(true);
     // Split inputs: daily KPIs under day key, weekly KPIs under week key
     const dayData = {}, weekData = {};
@@ -532,7 +556,7 @@ function EntryScreen({dept, onLogout}) {
       else dayData[k.id] = inputs[k.id];
     });
     const upd = {...entries, [wd.d]: dayData, [wkKey]: weekData};
-    const ok = saveData(dept.id, month.key, upd);
+    const ok = await saveData(dept.id, month.key, upd);
     setEntries(upd); setSaving(false);
     setFlash(ok ? "ok" : "err");
     setTimeout(() => setFlash(null), 2200);
@@ -728,11 +752,12 @@ function AdminScreen({pins, onUpdatePins, onLogout}) {
   const wkRange = getWeekRange(selDay);
 
   useEffect(() => {
-    const data = loadData(selDept.id, selMonth.key);
-    setEntries(data);
-    const dayData  = data[selDay] || {};
-    const weekData = data[getWeekKey(selDay)] || {};
-    setInputs({...dayData, ...weekData});
+    loadData(selDept.id, selMonth.key).then(data => {
+      setEntries(data);
+      const dayData  = data[selDay] || {};
+      const weekData = data[getWeekKey(selDay)] || {};
+      setInputs({...dayData, ...weekData});
+    });
   }, [selDept, selMonth]);
 
   useEffect(() => {
@@ -742,7 +767,7 @@ function AdminScreen({pins, onUpdatePins, onLogout}) {
   }, [selDay]);
 
   function handleChange(id, val) { setInputs(p => ({...p, [id]:val})); }
-  function handleSave() {
+  async function handleSave() {
     setSaving(true);
     const dayData = {}, weekData = {};
     selDept.kpis.forEach(k => {
@@ -752,7 +777,7 @@ function AdminScreen({pins, onUpdatePins, onLogout}) {
     });
     const wk = getWeekKey(selDay);
     const upd = {...entries, [selDay]: dayData, [wk]: weekData};
-    const ok = saveData(selDept.id, selMonth.key, upd);
+    const ok = await saveData(selDept.id, selMonth.key, upd);
     setEntries(upd); setSaving(false);
     setFlash(ok ? "ok" : "err");
     setTimeout(() => setFlash(null), 2200);
