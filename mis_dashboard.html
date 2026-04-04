@@ -73,7 +73,7 @@
       <span class="view-label">View:</span>
       <select class="msel" id="ov-view" onchange="updateOverview()" style="margin-bottom:0">
         <option value="monthly">Last 3 months comparison</option>
-        <option value="current">Current month — Apr 2026 (MTD)</option>
+        <option value="current">Current month — MTD</option>
       </select>
     </div>
     <div id="ov-monthly">
@@ -138,9 +138,7 @@
 
   <!-- WEAVING -->
   <div id="tab-wv" class="tc">
-    <select class="msel" id="wv-month" onchange="updateWeaving()">
-      <option>Jan-26</option><option>Jan-26</option><option>Feb-26</option><option selected>Mar-26</option>
-    </select>
+    <select class="msel" id="wv-month" onchange="updateWeaving()"></select>
     <div class="kg3" id="wv-kpis"></div>
     <div class="sec">
       <div class="sl">Daily total weaving production (kg)</div>
@@ -176,9 +174,7 @@
 
   <!-- DYE HOUSE -->
   <div id="tab-dh" class="tc">
-    <select class="msel" id="dh-month" onchange="updateDH()">
-      <option>Jan-26</option><option>Jan-26</option><option>Feb-26</option><option selected>Mar-26</option>
-    </select>
+    <select class="msel" id="dh-month" onchange="updateDH()"></select>
     <div class="kg4" id="dh-kpis"></div>
     <div class="sec">
       <div class="sl">Daily dye house output (kg)</div>
@@ -200,9 +196,7 @@
   <div id="tab-co" class="tc">
     <div class="view-row">
       <span class="view-label">Month:</span>
-      <select class="msel" id="co-month" onchange="updateCosts()" style="margin-bottom:0">
-        <option>Jan-26</option><option>Jan-26</option><option>Feb-26</option><option selected>Mar-26</option>
-      </select>
+      <select class="msel" id="co-month" onchange="updateCosts()" style="margin-bottom:0"></select>
     </div>
     <div class="kg3" id="co-kpis"></div>
     <div class="row2">
@@ -258,7 +252,8 @@ function showTab(t){
   document.querySelectorAll('.tab').forEach(e=>e.classList.remove('act'));
   document.getElementById('tab-'+t).classList.add('act');
   document.querySelectorAll('.tab').forEach(e=>{if(e.getAttribute('onclick').includes("'"+t+"'"))e.classList.add('act');});
-  if(t==='ov'&&!CHARTS['c-avg-wv'])initOverview();
+  if(t==='ov'&&!CHARTS['c-avg-wv'])initMonthDropdowns();
+  initOverview();
   if(t==='wv'&&!CHARTS['c-daily-wv'])initWeaving();
   if(t==='dh'&&!CHARTS['c-daily-dh'])initDH();
   if(t==='co'&&!CHARTS['c-co-raw'])initCosts();
@@ -337,6 +332,31 @@ function buildOvKPIs(){
     </div>`;
 }
 
+
+// ── Dynamic month dropdowns — auto-populated from MONTHS array ──────────
+function initMonthDropdowns() {
+  const ids = ['wv-month','dh-month','co-month'];
+  ids.forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel || typeof MONTHS === 'undefined') return;
+    sel.innerHTML = '';
+    MONTHS.forEach((m, i) => {
+      const opt = document.createElement('option');
+      opt.value = m; opt.text = m;
+      if (i === MONTHS.length - 1) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  });
+  // Update overview current month label
+  const ovSel = document.getElementById('ov-view');
+  if (ovSel && typeof CURRENT_MONTH !== 'undefined') {
+    const monthMap = {'Jan-26':'Jan 2026','Feb-26':'Feb 2026','Mar-26':'Mar 2026','Apr-26':'Apr 2026','May-26':'May 2026','Jun-26':'Jun 2026','Jul-26':'Jul 2026','Aug-26':'Aug 2026','Sep-26':'Sep 2026','Oct-26':'Oct 2026','Nov-26':'Nov 2026','Dec-26':'Dec 2026'};
+    const lbl = monthMap[CURRENT_MONTH] || CURRENT_MONTH;
+    [...ovSel.options].forEach(o => {
+      if (o.value === 'current') o.text = 'Current month — ' + lbl + ' (MTD)';
+    });
+  }
+}
 function initOverview(){
   buildOvKPIs();
 
