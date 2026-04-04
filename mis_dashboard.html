@@ -73,7 +73,7 @@
       <span class="view-label">View:</span>
       <select class="msel" id="ov-view" onchange="updateOverview()" style="margin-bottom:0">
         <option value="monthly">Last 3 months comparison</option>
-        <option value="current">Current month — Mar 2026 (MTD)</option>
+        <option value="current">Current month — Apr 2026 (MTD)</option>
       </select>
     </div>
     <div id="ov-monthly">
@@ -139,7 +139,7 @@
   <!-- WEAVING -->
   <div id="tab-wv" class="tc">
     <select class="msel" id="wv-month" onchange="updateWeaving()">
-      <option>Dec-25</option><option>Jan-26</option><option>Feb-26</option><option selected>Mar-26</option>
+      <option>Jan-26</option><option>Jan-26</option><option>Feb-26</option><option selected>Mar-26</option>
     </select>
     <div class="kg3" id="wv-kpis"></div>
     <div class="sec">
@@ -177,7 +177,7 @@
   <!-- DYE HOUSE -->
   <div id="tab-dh" class="tc">
     <select class="msel" id="dh-month" onchange="updateDH()">
-      <option>Dec-25</option><option>Jan-26</option><option>Feb-26</option><option selected>Mar-26</option>
+      <option>Jan-26</option><option>Jan-26</option><option>Feb-26</option><option selected>Mar-26</option>
     </select>
     <div class="kg4" id="dh-kpis"></div>
     <div class="sec">
@@ -201,7 +201,7 @@
     <div class="view-row">
       <span class="view-label">Month:</span>
       <select class="msel" id="co-month" onchange="updateCosts()" style="margin-bottom:0">
-        <option>Dec-25</option><option>Jan-26</option><option>Feb-26</option><option selected>Mar-26</option>
+        <option>Jan-26</option><option>Jan-26</option><option>Feb-26</option><option selected>Mar-26</option>
       </select>
     </div>
     <div class="kg3" id="co-kpis"></div>
@@ -309,7 +309,7 @@ function buildOvKPIs(){
   // Partial month label
   const partialEl = document.getElementById('ov-partial');
   if (partialEl) {
-    const monthNames = {'Dec-25':'December 2025','Jan-26':'January 2026','Feb-26':'February 2026','Mar-26':'March 2026','Apr-26':'April 2026','May-26':'May 2026','Jun-26':'June 2026'};
+    const monthNames = {'Jan-26':'December 2025','Jan-26':'January 2026','Feb-26':'February 2026','Mar-26':'March 2026','Apr-26':'April 2026','May-26':'May 2026','Jun-26':'June 2026'};
     partialEl.innerHTML = `${monthNames[cm] || cm} — ${CURRENT_DAYS} days MTD (data as of ${LAST_UPDATED})`;
   }
 
