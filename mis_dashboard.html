@@ -358,6 +358,7 @@ function initMonthDropdowns() {
   }
 }
 function initOverview(){
+  if(window._ovInited){return;} window._ovInited=true;
   buildOvKPIs();
 
 
