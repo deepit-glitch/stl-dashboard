@@ -204,7 +204,7 @@ function Sparkline(props) {
   var dayData = props.dayData;
   var target  = props.target;
   var color   = props.color;
-  var H = 90, W = 320, pad = 6;
+  var H = 110, W = 320, padT = 18, padB = 6, padL = 36, padR = 28;
 
   var validVals = dayData.filter(function(d){return d.val!==null;}).map(function(d){return d.val;});
   if (validVals.length === 0) {
@@ -218,8 +218,14 @@ function Sparkline(props) {
   var rng  = maxV - minV || 1;
   var N    = dayData.length;
 
-  function xp(day) { return pad + (day-1)/(N-1||1)*(W-pad*2); }
-  function yp(v)   { return H - pad - (v-minV)/rng*(H-pad*2); }
+  function xp(day) { return padL + (day-1)/(N-1||1)*(W-padL-padR); }
+  function yp(v)   { return H - padB - (v-minV)/rng*(H-padT-padB); }
+
+  function fmtTick(v) {
+    if (Math.abs(v) >= 1000) return (v/1000).toFixed(1)+"k";
+    if (v === Math.floor(v)) return String(Math.floor(v));
+    return v.toFixed(1);
+  }
 
   // Build segments of non-null consecutive points
   var segs = [], cur = [];
@@ -239,28 +245,49 @@ function Sparkline(props) {
     )
   ));
 
+  // Y-axis ticks (3 levels: min, mid, max)
+  var ticks = [minV, minV + rng/2, maxV];
+  ticks.forEach(function(tv, ti) {
+    var ty = yp(tv).toFixed(1);
+    children.push(CE("line",{key:"ytick"+ti,x1:padL-3,y1:ty,x2:W-padR,y2:ty,
+      stroke:"#e2e8f0",strokeWidth:0.8,strokeDasharray:"2 3"}));
+    children.push(CE("text",{key:"ytlbl"+ti,x:padL-5,y:ty,fontSize:7,fill:"#94a3b8",
+      textAnchor:"end",dominantBaseline:"middle"},fmtTick(tv)));
+  });
+
+  // Y-axis line
+  children.push(CE("line",{key:"yaxis",x1:padL,y1:padT,x2:padL,y2:H-padB,
+    stroke:"#e2e8f0",strokeWidth:1}));
+
   // Target line
   if (target != null) {
     var ty = yp(+target).toFixed(1);
-    children.push(CE("line",{key:"tgt",x1:pad,y1:ty,x2:W-pad,y2:ty,
+    children.push(CE("line",{key:"tgt",x1:padL,y1:ty,x2:W-padR,y2:ty,
       stroke:"#94a3b8",strokeDasharray:"4 3",strokeWidth:1.5}));
-    children.push(CE("text",{key:"tgtlbl",x:W-pad+2,y:ty,fontSize:8,fill:"#94a3b8",dominantBaseline:"middle"},
-      String(target)));
+    children.push(CE("text",{key:"tgtlbl",x:W-padR+2,y:ty,fontSize:8,fill:"#94a3b8",dominantBaseline:"middle"},
+      "T:"+String(target)));
   }
 
   // Area + line for each segment
   segs.forEach(function(pts,si) {
     if (pts.length < 2) return;
     var ptsStr = pts.map(function(p){return p[0].toFixed(1)+","+p[1].toFixed(1);}).join(" ");
-    var areaPath = "M "+pts[0][0].toFixed(1)+","+H+" L "+ptsStr+" L "+pts[pts.length-1][0].toFixed(1)+","+H+" Z";
+    var areaPath = "M "+pts[0][0].toFixed(1)+","+(H-padB)+" L "+ptsStr+" L "+pts[pts.length-1][0].toFixed(1)+","+(H-padB)+" Z";
     children.push(CE("path",{key:"area"+si,d:areaPath,fill:"url(#grad_"+props.uid+")",stroke:"none"}));
     children.push(CE("polyline",{key:"line"+si,points:ptsStr,fill:"none",stroke:color,strokeWidth:2,strokeLinecap:"round",strokeLinejoin:"round"}));
   });
 
-  // Dots for all valid points
+  // Dots + data labels for all valid points
   dayData.forEach(function(d,i) {
     if (d.val===null) return;
-    children.push(CE("circle",{key:"dot"+i,cx:xp(d.day).toFixed(1),cy:yp(d.val).toFixed(1),r:3,fill:color,stroke:"#fff",strokeWidth:1.5}));
+    var cx = xp(d.day).toFixed(1);
+    var cy = yp(d.val).toFixed(1);
+    children.push(CE("circle",{key:"dot"+i,cx:cx,cy:cy,r:3,fill:color,stroke:"#fff",strokeWidth:1.5}));
+    // Label above dot (flip below if too close to top)
+    var labelY = (+cy - 6 < padT) ? +cy + 12 : +cy - 6;
+    children.push(CE("text",{key:"lbl"+i,x:cx,y:labelY.toFixed(1),
+      fontSize:7,fill:color,textAnchor:"middle",fontWeight:"600",fontFamily:"monospace"},
+      fmtTick(d.val)));
   });
 
   return CE("svg",{width:"100%",height:H,viewBox:"0 0 "+W+" "+H,style:{overflow:"visible"}},children);
