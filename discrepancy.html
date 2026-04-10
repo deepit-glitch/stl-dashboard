@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>STL — Data Discrepancy Report</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body,#root{height:100%;min-height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;background:#f0f4f8;-webkit-font-smoothing:antialiased}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+var CE = React.createElement;
+var useState = React.useState;
+var useEffect = React.useEffect;
+var WORKER = 'https://square-flower-57b5.deepit.workers.dev';
+
+// All shared KPIs — which dept/id shares each metric
+var SHARED_KPIS = [
+  {
+    name: 'CCH Efficiency',
+    unit: '%',
+    sources: [
+      {dept:'RSB',      id:'rsb_cch',  label:'Sr. GM Ops'},
+      {dept:'Finishing', id:'cch_eff', label:'Finishing'},
+    ]
+  },
+  {
+    name: 'Jacquard Loom Efficiency',
+    unit: '%',
+    sources: [
+      {dept:'RSB',     id:'rsb_effjq', label:'Sr. GM Ops'},
+      {dept:'Weaving', id:'eff_jq',    label:'Weaving'},
+    ]
+  },
+  {
+    name: 'Dobby Loom Efficiency',
+    unit: '%',
+    sources: [
+      {dept:'RSB',     id:'rsb_effdb', label:'Sr. GM Ops'},
+      {dept:'Weaving', id:'eff_db',    label:'Weaving'},
+    ]
+  },
+  {
+    name: 'Fabric Dyeing — Lots/Day/Machine',
+    unit: 'lots',
+    sources: [
+      {dept:'RSB',   id:'rsb_ltsf', label:'Sr. GM Ops'},
+      {dept:'Dyeing',id:'lots_fd',  label:'Dyeing'},
+      {dept:'UB',    id:'lots_fd2', label:'GM Tech'},
+    ]
+  },
+  {
+    name: 'Yarn Dyeing — Lots/Day/Machine',
+    unit: 'lots',
+    sources: [
+      {dept:'RSB',   id:'rsb_ltsy', label:'Sr. GM Ops'},
+      {dept:'Dyeing',id:'lots_yd',  label:'Dyeing'},
+      {dept:'UB',    id:'lots_yd2', label:'GM Tech'},
+    ]
+  },
+  {
+    name: 'BPF Generation',
+    unit: 'Tons',
+    sources: [
+      {dept:'RSB',    id:'rsb_bpf', label:'Sr. GM Ops'},
+      {dept:'Weaving',id:'bpf',     label:'Weaving'},
+    ]
+  },
+  {
+    name: 'WIP — Tons (RM + FG)',
+    unit: 'Tons',
+    sources: [
+      {dept:'UB', id:'wip_ub', label:'GM Tech'},
+      {dept:'PPC',id:'wip_t',  label:'PPC'},
+    ]
+  },
+  {
+    name: 'WIP — No. of Days',
+    unit: 'Days',
+    sources: [
+      {dept:'RSB',id:'rsb_wip',  label:'Sr. GM Ops'},
+      {dept:'PPC',id:'wip_days', label:'PPC'},
+    ]
+  },
+  {
+    name: 'PPP — Line Tailors',
+    unit: 'No.',
+    sources: [
+      {dept:'Finishing',id:'ppp',    label:'Finishing'},
+      {dept:'UB',       id:'ppp_ub', label:'GM Tech'},
+    ]
+  },
+  {
+    name: 'Remnant / Dead Yarn Stock',
+    unit: 'Tons',
+    sources: [
+      {dept:'Prep',id:'rem_yrn', label:'Preparatory'},
+      {dept:'PPC', id:'rem_ppc', label:'PPC'},
+    ]
+  },
+];
+
+var MONTHS = [
+  {key:'2026-04', short:'APR', days:30},
+  {key:'2026-05', short:'MAY', days:31},
+  {key:'2026-06', short:'JUN', days:30},
+];
+
+var MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtDate(y,m,d){ return d+' '+MN[m-1]+' '+y; }
+function fmt(v){ if(v===null||v===undefined)return null; var n=+v; if(n===Math.floor(n)) return String(n); return n.toFixed(2); }
+
+function getWorkingDate(){
+  var now = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'}));
+  return {y:now.getFullYear(), m:now.getMonth()+1, d:now.getDate()};
+}
+
+function App(){
+  var wd = getWorkingDate();
+  var [selMkey, setSelMkey] = useState(wd.y+'-'+String(wd.m).padStart(2,'0'));
+  var [allData, setAllData] = useState({});
+  var [loading, setLoading] = useState(true);
+  var [error, setError] = useState(null);
+  var [lastRefresh, setLastRefresh] = useState(null);
+  var [tick, setTick] = useState(0);
+
+  // Auth guard
+  useEffect(function(){
+    var token = localStorage.getItem('stl_token');
+    var role  = localStorage.getItem('stl_role');
+    var isDemo = localStorage.getItem('stl_demo') === 'true';
+    if (!token) { window.location.href='login.html'; return; }
+    if (!isDemo) {
+      fetch(WORKER+'/auth/session',{headers:{'X-Session-Token':token}})
+        .then(function(r){return r.json();})
+        .then(function(d){
+          if (!d.ok || (d.role !== 'admin' && d.role !== 'management')) {
+            window.location.href='login.html';
+          }
+        })
+        .catch(function(){ if(role !== 'admin' && role !== 'management') window.location.href='login.html'; });
+    }
+  },[]);
+
+  // Load data for all unique depts
+  useEffect(function(){
+    var token = localStorage.getItem('stl_token');
+    if (!token) return;
+    setLoading(true);
+    setError(null);
+
+    // Get unique depts for this month
+    var depts = [];
+    SHARED_KPIS.forEach(function(kpi){
+      kpi.sources.forEach(function(s){
+        if (depts.indexOf(s.dept) === -1) depts.push(s.dept);
+      });
+    });
+
+    var month = MONTHS.find(function(m){return m.key===selMkey;})||MONTHS[0];
+    Promise.all(depts.map(function(dept){
+      return fetch(WORKER+'/kpidata/'+encodeURIComponent(dept)+'/'+encodeURIComponent(selMkey),
+        {headers:{'X-Session-Token':token}})
+        .then(function(r){return r.json();})
+        .then(function(j){return {dept:dept, data:j.data||{}};});
+    }))
+    .then(function(results){
+      var combined = {};
+      results.forEach(function(r){ combined[r.dept] = r.data; });
+      setAllData(combined);
+      setLoading(false);
+      setLastRefresh(new Date());
+    })
+    .catch(function(e){
+      setError('Failed to load data. Please refresh.');
+      setLoading(false);
+    });
+  },[selMkey, tick]);
+
+  // Auto-refresh every 60s
+  useEffect(function(){
+    var t = setInterval(function(){setTick(function(n){return n+1;});}, 60000);
+    return function(){clearInterval(t);};
+  },[]);
+
+  function doLogout(){
+    var isDemo = localStorage.getItem('stl_demo') === 'true';
+    var token = localStorage.getItem('stl_token');
+    ['stl_token','stl_role','stl_name','stl_dept','stl_demo'].forEach(function(k){localStorage.removeItem(k);});
+    if (token && !isDemo) {
+      fetch(WORKER+'/auth/logout',{method:'POST',headers:{'X-Session-Token':token}}).catch(function(){});
+    }
+    window.location.href = isDemo ? 'demo_login.html' : 'login.html';
+  }
+
+  // Compute discrepancies
+  var month = MONTHS.find(function(m){return m.key===selMkey;})||MONTHS[0];
+  var dayDiscrepancies = []; // [{day, date, items:[{kpiName, unit, values:[{label,val}], maxDiff}]}]
+
+  for (var d = 1; d <= month.days; d++) {
+    var dayItems = [];
+    SHARED_KPIS.forEach(function(kpi){
+      var vals = kpi.sources.map(function(s){
+        var deptData = allData[s.dept] || {};
+        var dayEntry = deptData[d] || {};
+        var v = dayEntry[s.id];
+        return {label: s.label, val: (v !== undefined && v !== '') ? +v : null};
+      }).filter(function(v){ return v.val !== null; });
+
+      if (vals.length < 2) return; // need at least 2 entries to compare
+      var nums = vals.map(function(v){return v.val;});
+      var maxV = Math.max.apply(null, nums);
+      var minV = Math.min.apply(null, nums);
+      var diff = maxV - minV;
+      if (diff === 0) return; // perfectly matching — skip
+
+      dayItems.push({
+        kpiName: kpi.name,
+        unit: kpi.unit,
+        values: vals,
+        maxDiff: diff,
+      });
+    });
+
+    if (dayItems.length > 0) {
+      dayDiscrepancies.push({day:d, items:dayItems});
+    }
+  }
+
+  var wd2 = {y:parseInt(selMkey.split('-')[0]), m:parseInt(selMkey.split('-')[1])};
+
+  // ── RENDER ──
+  return CE('div',{style:{minHeight:'100vh', background:'#f0f4f8'}},
+
+    // Header
+    CE('div',{style:{background:'#0f172a', padding:'0 20px', height:56, display:'flex',
+      alignItems:'center', justifyContent:'space-between', borderBottom:'3px solid #6366f1'}},
+      CE('div',{style:{display:'flex', alignItems:'center', gap:10}},
+        CE('div',{style:{width:30, height:30, borderRadius:8, background:'#6366f11a', display:'flex',
+          alignItems:'center', justifyContent:'center', border:'1px solid #6366f144'}},
+          CE('span',{style:{fontFamily:'monospace', fontSize:12, fontWeight:800, color:'#818cf8'}},'S')
+        ),
+        CE('div',{style:{fontFamily:'monospace', fontSize:12, fontWeight:700, color:'#818cf8', letterSpacing:2}},'STL'),
+        CE('div',{style:{width:1, height:16, background:'#334155'}}),
+        CE('div',{style:{fontSize:13, fontWeight:600, color:'#e2e8f0'}},'Data Discrepancy Report'),
+      ),
+      CE('div',{style:{display:'flex', alignItems:'center', gap:8}},
+        lastRefresh && CE('div',{style:{fontSize:10, color:'#475569', fontFamily:'monospace'}},
+          'Refreshed '+lastRefresh.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})
+        ),
+        CE('button',{onClick:function(){setTick(function(n){return n+1;});},
+          style:{padding:'4px 12px', borderRadius:6, border:'1px solid #334155',
+          background:'transparent', color:'#94a3b8', cursor:'pointer', fontSize:11, fontWeight:600}},
+          'Refresh'),
+        CE('button',{onClick:function(){window.location.href='daily.html';},
+          style:{padding:'4px 12px', borderRadius:6, border:'1px solid #334155',
+          background:'transparent', color:'#94a3b8', cursor:'pointer', fontSize:11, fontWeight:600}},
+          'Dashboard'),
+        CE('button',{onClick:doLogout,
+          style:{padding:'4px 12px', borderRadius:6, border:'1px solid #334155',
+          background:'transparent', color:'#94a3b8', cursor:'pointer', fontSize:11, fontWeight:600}},
+          'Logout'),
+      )
+    ),
+
+    // Month tabs
+    CE('div',{style:{background:'#fff', borderBottom:'1px solid #e2e8f0', padding:'10px 20px',
+      display:'flex', alignItems:'center', gap:8}},
+      MONTHS.map(function(mo){
+        var active = mo.key === selMkey;
+        return CE('button',{key:mo.key, onClick:function(){setSelMkey(mo.key);},
+          style:{padding:'5px 16px', borderRadius:20, cursor:'pointer', fontWeight:700,
+          fontSize:11, fontFamily:'monospace',
+          border:'2px solid '+(active ? '#6366f1' : '#f1f5f9'),
+          background: active ? '#6366f1' : '#f8fafc',
+          color: active ? '#fff' : '#64748b', transition:'all 0.15s'}},
+          mo.short);
+      })
+    ),
+
+    // Body
+    CE('div',{style:{maxWidth:900, margin:'0 auto', padding:'20px 16px'}},
+
+      loading && CE('div',{style:{textAlign:'center', padding:'60px 20px', color:'#64748b', fontSize:13}},
+        'Loading data...'
+      ),
+
+      error && CE('div',{style:{padding:'16px', background:'#fef2f2', border:'1px solid #fecaca',
+        borderRadius:10, color:'#dc2626', fontSize:13, marginBottom:16}}, error),
+
+      !loading && !error && dayDiscrepancies.length === 0 && CE('div',{
+        style:{textAlign:'center', padding:'60px 20px', background:'#fff', borderRadius:14,
+        border:'1.5px solid #bbf7d0', color:'#15803d'}},
+        CE('div',{style:{fontSize:32, marginBottom:12}},'✓'),
+        CE('div',{style:{fontSize:15, fontWeight:700, marginBottom:6}},'No discrepancies found'),
+        CE('div',{style:{fontSize:13, color:'#64748b'}},'All shared KPIs match across departments for '+month.short+' 2026')
+      ),
+
+      !loading && !error && dayDiscrepancies.map(function(dayObj){
+        return CE('div',{key:dayObj.day, style:{
+          background:'#fff', borderRadius:14, marginBottom:14,
+          border:'1.5px solid #fecaca', overflow:'hidden'}},
+
+          // Day header
+          CE('div',{style:{display:'flex', alignItems:'center', justifyContent:'space-between',
+            padding:'10px 16px', background:'#fef2f2', borderBottom:'1px solid #fecaca'}},
+            CE('div',{style:{fontSize:13, fontWeight:700, color:'#dc2626'}},
+              fmtDate(wd2.y, wd2.m, dayObj.day)
+            ),
+            CE('div',{style:{fontSize:11, color:'#dc2626'}},
+              dayObj.items.length+' mismatch'+(dayObj.items.length>1?'es':'')
+            )
+          ),
+
+          // Table
+          CE('table',{style:{width:'100%', borderCollapse:'collapse', fontSize:12}},
+            CE('thead',null,
+              CE('tr',null,
+                CE('th',{style:{textAlign:'left', padding:'8px 16px', fontSize:11, fontWeight:600,
+                  color:'#64748b', borderBottom:'1px solid #f1f5f9', width:'35%'}},'KPI'),
+                CE('th',{style:{textAlign:'left', padding:'8px 16px', fontSize:11, fontWeight:600,
+                  color:'#64748b', borderBottom:'1px solid #f1f5f9', width:'50%'}},'Values entered'),
+                CE('th',{style:{textAlign:'left', padding:'8px 16px', fontSize:11, fontWeight:600,
+                  color:'#64748b', borderBottom:'1px solid #f1f5f9', width:'15%'}},'Difference'),
+              )
+            ),
+            CE('tbody',null,
+              dayObj.items.map(function(item, ii){
+                return CE('tr',{key:ii, style:{borderBottom: ii < dayObj.items.length-1 ? '1px solid #f8fafc' : 'none'}},
+                  CE('td',{style:{padding:'10px 16px', fontWeight:600, color:'#1e293b', verticalAlign:'top'}},
+                    item.kpiName,
+                    CE('span',{style:{marginLeft:6, fontSize:10, fontWeight:600, fontFamily:'monospace',
+                      color:'#fff', background:'#64748b', padding:'1px 5px', borderRadius:3}},
+                      item.unit)
+                  ),
+                  CE('td',{style:{padding:'10px 16px', verticalAlign:'top'}},
+                    item.values.map(function(v, vi){
+                      return CE('div',{key:vi, style:{display:'flex', alignItems:'center',
+                        gap:6, marginBottom: vi < item.values.length-1 ? 5 : 0}},
+                        CE('span',{style:{fontSize:10, fontWeight:600, padding:'2px 7px',
+                          borderRadius:4, background:'#f1f5f9', color:'#475569', flexShrink:0}},
+                          v.label),
+                        CE('span',{style:{fontFamily:'monospace', fontWeight:700, color:'#1e293b'}},
+                          fmt(v.val))
+                      );
+                    })
+                  ),
+                  CE('td',{style:{padding:'10px 16px', verticalAlign:'top'}},
+                    CE('span',{style:{fontSize:12, fontWeight:700, padding:'3px 9px',
+                      borderRadius:6, background:'#fef2f2', color:'#dc2626',
+                      fontFamily:'monospace'}},
+                      fmt(item.maxDiff))
+                  )
+                );
+              })
+            )
+          )
+        );
+      })
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(CE(App));
+</script>
+</body>
+</html>
