@@ -147,7 +147,7 @@ async function loadData(d, mk) {
   try {
     const r = await fetch(WORKER+"/kpidata/"+encodeURIComponent(d)+"/"+encodeURIComponent(mk),
       {headers:{"X-Session-Token":token||""}});
-    if (!r.ok) return {};
+    if (!r.ok) return null;  // null = definitive failure, not empty data
     const j = await r.json();
     return j.data || {};
   } catch(e) { return {}; }
@@ -538,9 +538,10 @@ function EntryScreen({dept, onLogout}) {
 
   useEffect(() => {
     loadData(dept.id, month.key).then(data => {
-      setEntries(data);
-      const dayData  = data[wd.d]  || {};
-      const weekData = data[wkKey] || {};
+      const safeData = data || {};
+      setEntries(safeData);
+      const dayData  = safeData[wd.d]  || {};
+      const weekData = safeData[wkKey] || {};
       setInputs({...dayData, ...weekData});
     });
   }, [dept.id, month.key]);
@@ -555,9 +556,16 @@ function EntryScreen({dept, onLogout}) {
       if (k.freq === W) weekData[k.id] = inputs[k.id];
       else dayData[k.id] = inputs[k.id];
     });
-    const upd = {...entries, [wd.d]: dayData, [wkKey]: weekData};
+    // Safety: if entries didn't load properly, re-fetch before saving
+    // to avoid overwriting existing data with an empty base
+    let base = entries;
+    if (base === null || base === undefined) {
+      base = await loadData(dept.id, month.key) || {};
+    }
+    const upd = {...base, [wd.d]: dayData, [wkKey]: weekData};
     const ok = await saveData(dept.id, month.key, upd);
-    setEntries(upd); setSaving(false);
+    if (ok) setEntries(upd);
+    setSaving(false);
     setFlash(ok ? "ok" : "err");
     setTimeout(() => setFlash(null), 2200);
   }
@@ -753,9 +761,10 @@ function AdminScreen({pins, onUpdatePins, onLogout}) {
 
   useEffect(() => {
     loadData(selDept.id, selMonth.key).then(data => {
-      setEntries(data);
-      const dayData  = data[selDay] || {};
-      const weekData = data[getWeekKey(selDay)] || {};
+      const safeData = data || {};
+      setEntries(safeData);
+      const dayData  = safeData[selDay] || {};
+      const weekData = safeData[getWeekKey(selDay)] || {};
       setInputs({...dayData, ...weekData});
     });
   }, [selDept, selMonth]);
