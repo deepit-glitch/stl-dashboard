@@ -408,8 +408,8 @@ function renderWeavingCharts(m){
 }
 
 function initWeaving(){
-  buildWvKPIs('Mar-26');
-  renderWeavingCharts('Mar-26');
+  buildWvKPIs(CURRENT_MONTH);
+  renderWeavingCharts(CURRENT_MONTH);
   CHARTS['c-eff2']=new Chart(document.getElementById('c-eff2'),{type:'bar',data:{labels:MONTHS,datasets:[{data:MONTHLY.dobby_inst,backgroundColor:'#EF9F27',borderRadius:3},{data:MONTHLY.jaq_inst,backgroundColor:'#378ADD',borderRadius:3},{data:MONTHLY.dobby_op,backgroundColor:'rgba(239,159,39,0.35)',borderRadius:3},{data:MONTHLY.jaq_op,backgroundColor:'rgba(55,138,221,0.35)',borderRadius:3},{type:'line',data:[65,65,65,65],borderColor:'#E24B4A',borderDash:[5,3],pointRadius:0}]},options:{...base,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.raw.toFixed(2)+'%'}}},scales:{x:{grid:{display:false},ticks:{color:tc}},y:{min:48,max:70,grid:{color:gc},ticks:{color:tc,callback:v=>v+'%'}}}}});
 }
 
