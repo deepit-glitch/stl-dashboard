@@ -117,9 +117,9 @@ const DEPTS = [
     {id:"insp_abort", name:"Inspections Aborted",                 unit:"No.",      hib:false, freq:M, desc:"Number of inspection batches aborted during the month. Target is zero — any aborted inspection is a failure.",                   targets:{"2026-04":0,     "2026-05":0,     "2026-06":0}},
   ]},
   {id:"Bathrobe", label:"Bathrobe", accent:"#9f1239", kpis:[
-    {id:"wst_br",    name:"Wastage % - Bathrobe + Madeups",      unit:"%",        hib:false, freq:W, desc:"Monthly total wastage % across bathrobe and made-up garments. Includes cutting waste, jersey wastage and processing losses.",          targets:{"2026-04":10,    "2026-05":9,     "2026-06":8}},
-    {id:"wst_jsy",   name:"Wastage % - Jersey",                  unit:"%",        hib:false, freq:W, desc:"Monthly jersey fabric wastage % in bathrobe production. Pattern sizing, consumption control and width control from dyeing.",           targets:{"2026-04":null,  "2026-05":null,  "2026-06":null}},
-    {id:"nm_wip",    name:"Non-Moving WIP (Finishing Floor 1)",  unit:"Tons",     hib:false, freq:W, desc:"Net non-moving WIP on Finishing Floor 1 (bathrobe). Segregated by size, colour, GSM and quality. Reduces 1.5T Apr, 2.5T May, 3T Jun.", targets:{"2026-04":13.3, "2026-05":10.8,  "2026-06":7.8}},
+    {id:"wst_br",    name:"Wastage % - Bathrobe + Madeups",      unit:"%",        hib:false, freq:M, desc:"Monthly total wastage % across bathrobe and made-up garments. Includes cutting waste, jersey wastage and processing losses.",          targets:{"2026-04":10,    "2026-05":9,     "2026-06":8}},
+    {id:"wst_jsy",   name:"Wastage % - Jersey",                  unit:"%",        hib:false, freq:M, desc:"Monthly jersey fabric wastage % in bathrobe production. Pattern sizing, consumption control and width control from dyeing.",           targets:{"2026-04":null,  "2026-05":null,  "2026-06":null}},
+    {id:"nm_wip",    name:"Non-Moving WIP (Finishing Floor 1)",  unit:"Tons",     hib:false, freq:M, desc:"Net non-moving WIP on Finishing Floor 1 (bathrobe). Segregated by size, colour, GSM and quality. Reduces 1.5T Apr, 2.5T May, 3T Jun.", targets:{"2026-04":13.3, "2026-05":10.8,  "2026-06":7.8}},
   ]},
   {id:"Quality", label:"Quality", accent:"#059669", kpis:[
     {id:"insp_fail", name:"Overall Inspection Failure",          unit:"count",    hib:false, freq:D, desc:"Number of buyer/external inspections that failed or were rejected. Target zero. Each failure must be investigated and closed.",         targets:{"2026-04":0,     "2026-05":0,     "2026-06":0}},
