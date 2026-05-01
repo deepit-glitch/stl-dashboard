@@ -173,8 +173,16 @@ function getIST() {
 }
 function getWorkingDate() {
   var ist = getIST();
-  var mk = ist.y + "-" + String(ist.m).padStart(2,"0");
-  if (MONTHS.find(function(mo){return mo.key===mk;})) return Object.assign({},ist,{mk:mk,isTesting:false});
+  // On the 1st of a new month, roll back to show the previous month
+  // so management sees April data by default on May 1, etc.
+  var y = ist.y, m = ist.m, d = ist.d;
+  if (d === 1) {
+    m -= 1;
+    if (m < 1) { m = 12; y -= 1; }
+    d = new Date(y, m, 0).getDate();
+  }
+  var mk = y + "-" + String(m).padStart(2,"0");
+  if (MONTHS.find(function(mo){return mo.key===mk;})) return Object.assign({},ist,{y:y,m:m,d:d,mk:mk,isTesting:false});
   return {y:2026,m:4,d:30,mk:"2026-04",isTesting:true};
 }
 var MN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
