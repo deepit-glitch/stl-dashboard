@@ -121,13 +121,13 @@ var DEPTS = [
     {id:"wip_ub",    name:"WIP - Tons (RM + FG)",             unit:"Tons",      hib:false, freq:"monthly", targets:{"2026-04":945,  "2026-05":920,  "2026-06":895}},
   ]},
   {id:"PPC",      label:"PPC",                 accent:"#0f766e", kpis:[
-    {id:"wip_days",  name:"WIP - No. of Days",                unit:"Days",      hib:false, freq:"monthly", targets:{"2026-04":78,   "2026-05":76,   "2026-06":74}},
+    {id:"wip_t",name:"WIP - Tons (RM + FG)",unit:"Tons",hib:false,freq:"monthly",desc:"Total inventory in tons (RM + FG combined). Entered last day of month.",targets:{"2026-04":null,"2026-05":null,"2026-06":null}},{id:"wip_days",  name:"WIP - No. of Days",                unit:"Days",      hib:false, freq:"monthly", targets:{"2026-04":78,   "2026-05":76,   "2026-06":74}},
     {id:"nm_br",     name:"Non-Moving - Bathrobe",            unit:"Tons",      hib:false, freq:"monthly", targets:{"2026-04":11,   "2026-05":8,    "2026-06":5}},
     {id:"nm_fg",     name:"Non-Moving - Finished Goods",      unit:"Tons",      hib:false, freq:"monthly", targets:{"2026-04":30,   "2026-05":20,   "2026-06":10}},
     {id:"nm_gr",     name:"Non-Moving - Greigh Fabric",       unit:"Tons",      hib:false, freq:"monthly", targets:{"2026-04":10,   "2026-05":8,    "2026-06":6}},
     {id:"nm_tot",    name:"Total Non-Moving Stock",           unit:"Tons",      hib:false, freq:"monthly", targets:{"2026-04":51,   "2026-05":36,   "2026-06":21}},
     {id:"rem_ppc",   name:"Remnant / Dead Yarn Stock",        unit:"Tons",      hib:false, freq:"monthly", targets:{"2026-04":47.71,"2026-05":37.71,"2026-06":27.71}},
-  ]},
+  ,{id:"insp_abort",name:"Inspections Aborted",unit:"No.",hib:false,freq:"monthly",desc:"Number of inspection batches aborted during the month. Target is zero.",targets:{"2026-04":0,"2026-05":0,"2026-06":0}}]},
   {id:"Bathrobe", label:"Bathrobe",            accent:"#9f1239", kpis:[
     {id:"wst_br",    name:"Wastage % - Bathrobe + Madeups",   unit:"%",         hib:false, freq:"monthly", targets:{"2026-04":10,   "2026-05":9,    "2026-06":8}},
     {id:"nm_wip",    name:"Non-Moving WIP (Floor 1)",         unit:"Tons",      hib:false, freq:"monthly", targets:{"2026-04":13.3, "2026-05":10.8, "2026-06":7.8}},
