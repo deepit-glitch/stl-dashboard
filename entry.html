@@ -179,7 +179,11 @@ function getWorkingDate() {
   // Working date is always the previous calendar day.
   // After 3pm the window closes — no entry until tomorrow.
   const now = getIST();
-  const entryClosed = now.hour >= 15; // 3pm IST cutoff
+  // On the 1st of a new month, the working date is the last day of the previous month.
+  // This is the only chance to enter monthly closing KPIs — so we extend the deadline
+  // to midnight (no cutoff) on this day only.
+  const isMonthBoundary = now.d === 1;
+  const entryClosed = isMonthBoundary ? false : now.hour >= 15; // no cutoff on 1st of month
 
   let d = now.d - 1, m = now.m, y = now.y;
   if (d < 1) {
