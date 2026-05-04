@@ -238,7 +238,7 @@
   <div class="updated"><span id="footer-date">Last updated: --</span> &nbsp;·&nbsp; Sara Textiles Ltd, Nalagarh</div>
 </div>
 
-<script src="stl_data.js?v=20260502"></script>
+<script src="stl_data.js?v=20260504"></script>
 <script>
 
 const CHARTS = {};
@@ -247,6 +247,7 @@ function fmt(n){return Math.round(n).toLocaleString('en-IN');}
 function fmtT(v){return (v/1000).toFixed(0)+'T';}
 const gc='rgba(255,255,255,0.06)', tc='#7c8299';
 const base={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:tc,font:{size:11}}},y:{grid:{color:gc},ticks:{color:tc,font:{size:11}}}}};
+function getIdx(m){return MONTHS.indexOf(m);}
 
 function getDailyDobbyJaq(m){
   const dj=DAILY_DJ[m];
