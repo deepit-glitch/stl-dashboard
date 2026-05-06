@@ -553,20 +553,28 @@ function EntryScreen({dept, onLogout}) {
   function handleChange(id, val) { setInputs(p => ({...p, [id]:val})); }
   async function handleSave() {
     setSaving(true);
-    // Split inputs: daily KPIs under day key, weekly KPIs under week key
-    const dayData = {}, weekData = {};
+    // Split inputs by frequency:
+    // daily/weekly KPIs → stored under working day / week key
+    // monthly KPIs      → ALWAYS stored under the last day of the month
+    const dayData = {}, weekData = {}, monthData = {};
     dept.kpis.forEach(k => {
       if (inputs[k.id] === undefined || inputs[k.id] === "") return;
       if (k.freq === W) weekData[k.id] = inputs[k.id];
+      else if (k.freq === M) monthData[k.id] = inputs[k.id];
       else dayData[k.id] = inputs[k.id];
     });
-    // Safety: if entries didn't load properly, re-fetch before saving
-    // to avoid overwriting existing data with an empty base
+    // Safety: re-fetch base if entries failed to load
     let base = entries;
     if (base === null || base === undefined) {
       base = await loadData(dept.id, month.key) || {};
     }
-    const upd = {...base, [wd.d]: dayData, [wkKey]: weekData};
+    const lastDay = month.days; // e.g. 30 for April
+    const upd = {
+      ...base,
+      [wd.d]: dayData,
+      [wkKey]: weekData,
+      [lastDay]: {...(base[lastDay] || {}), ...monthData}
+    };
     const ok = await saveData(dept.id, month.key, upd);
     if (ok) setEntries(upd);
     setSaving(false);
@@ -782,16 +790,25 @@ function AdminScreen({pins, onUpdatePins, onLogout}) {
   function handleChange(id, val) { setInputs(p => ({...p, [id]:val})); }
   async function handleSave() {
     setSaving(true);
-    const dayData = {}, weekData = {};
+    // Monthly KPIs always go to last day of selected month regardless of selDay
+    const dayData = {}, weekData = {}, monthData = {};
     selDept.kpis.forEach(k => {
       if (inputs[k.id] === undefined || inputs[k.id] === "") return;
       if (k.freq === W) weekData[k.id] = inputs[k.id];
+      else if (k.freq === M) monthData[k.id] = inputs[k.id];
       else dayData[k.id] = inputs[k.id];
     });
     const wk = getWeekKey(selDay);
-    const upd = {...entries, [selDay]: dayData, [wk]: weekData};
+    const lastDay = selMonth.days;
+    const upd = {
+      ...entries,
+      [selDay]: dayData,
+      [wk]: weekData,
+      [lastDay]: {...(entries[lastDay] || {}), ...monthData}
+    };
     const ok = await saveData(selDept.id, selMonth.key, upd);
-    setEntries(upd); setSaving(false);
+    if (ok) setEntries(upd);
+    setSaving(false);
     setFlash(ok ? "ok" : "err");
     setTimeout(() => setFlash(null), 2200);
   }
