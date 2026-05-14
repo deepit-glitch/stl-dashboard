@@ -972,6 +972,10 @@ function HoldingScreen({msg, sub, onLogout}) {
 }
 
 function App() {
+  // Redirect HR users to manpower.html
+  const _hrCheck = localStorage.getItem("stl_role");
+  if (_hrCheck === "hr") { window.location.href = "manpower.html"; return null; }
+
   // Check if user arrived via OTP login — if so, skip PIN screen entirely
   const otpRole = localStorage.getItem("stl_role");
   const otpDept = localStorage.getItem("stl_dept");
