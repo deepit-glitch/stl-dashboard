@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>STL Manpower Backfill — May 1-13</title>
+<style>
+  body{font-family:system-ui,sans-serif;background:#0f172a;color:#e8eaf0;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}
+  .card{background:#1a1d27;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:40px;max-width:520px;width:100%;text-align:center;}
+  h1{font-size:20px;font-weight:700;margin-bottom:8px;}
+  p{color:#7c8299;font-size:13px;margin-bottom:20px;line-height:1.6;}
+  input{width:100%;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:#0f172a;color:#e8eaf0;font-size:12px;font-family:monospace;margin-bottom:16px;box-sizing:border-box;}
+  button{background:#6366f1;color:#fff;border:none;border-radius:10px;padding:14px 32px;font-size:15px;font-weight:700;cursor:pointer;width:100%;}
+  button:disabled{opacity:0.5;cursor:not-allowed;}
+  .log{margin-top:20px;text-align:left;font-size:12px;font-family:monospace;background:#0f172a;border-radius:8px;padding:12px;max-height:280px;overflow-y:auto;}
+  .ok{color:#1D9E75;} .err{color:#E24B4A;} .info{color:#7c8299;}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>STL Manpower Backfill</h1>
+  <p>Paste the Cloudflare API token below, then click Run.<br>Writes actual May 1–13 headcount to KV. One-time use.</p>
+  <input id="token" type="password" placeholder="Paste Cloudflare API token here…" />
+  <button id="btn" onclick="run()">▶ Run Backfill</button>
+  <div class="log" id="log"><span class="info">Paste token and click Run.</span></div>
+</div>
+<script>
+const ACCOUNT = 'a08439327fd40a55ccece4923416d08f';
+const NS      = '6a9d1e6415a84bd7b96ec22ab1faa98c';
+
+const DATA = [
+  {d:"2026-05-01",mp:{weaving:82,sizing:22,sectionalWarping:28,yarnDyeing:23,fabricDyeing:32,finishing:157,finishing1:61}},
+  {d:"2026-05-02",mp:{weaving:84,sizing:22,sectionalWarping:22,yarnDyeing:23,fabricDyeing:29,finishing:172,finishing1:57}},
+  {d:"2026-05-03",mp:{weaving:79,sizing:22,sectionalWarping:20,yarnDyeing:13,fabricDyeing:20,finishing:136,finishing1:48}},
+  {d:"2026-05-04",mp:{weaving:79,sizing:22,sectionalWarping:23,yarnDyeing:26,fabricDyeing:36,finishing:157,finishing1:51}},
+  {d:"2026-05-05",mp:{weaving:74,sizing:22,sectionalWarping:29,yarnDyeing:24,fabricDyeing:31,finishing:155,finishing1:60}},
+  {d:"2026-05-06",mp:{weaving:71,sizing:22,sectionalWarping:28,yarnDyeing:23,fabricDyeing:34,finishing:169,finishing1:58}},
+  {d:"2026-05-07",mp:{weaving:76,sizing:22,sectionalWarping:39,yarnDyeing:24,fabricDyeing:36,finishing:168,finishing1:65}},
+  {d:"2026-05-08",mp:{weaving:78,sizing:22,sectionalWarping:33,yarnDyeing:23,fabricDyeing:34,finishing:174,finishing1:67}},
+  {d:"2026-05-09",mp:{weaving:76,sizing:22,sectionalWarping:31,yarnDyeing:21,fabricDyeing:32,finishing:164,finishing1:66}},
+  {d:"2026-05-10",mp:{weaving:63,sizing:22,sectionalWarping:24,yarnDyeing:22,fabricDyeing:31,finishing:141,finishing1:57}},
+  {d:"2026-05-11",mp:{weaving:70,sizing:22,sectionalWarping:23,yarnDyeing:20,fabricDyeing:28,finishing:139,finishing1:56}},
+  {d:"2026-05-12",mp:{weaving:70,sizing:17,sectionalWarping:35,yarnDyeing:22,fabricDyeing:31,finishing:148,finishing1:64}},
+  {d:"2026-05-13",mp:{weaving:79,sizing:22,sectionalWarping:32,yarnDyeing:19,fabricDyeing:36,finishing:151,finishing1:63}}
+];
+
+function log(msg,cls='info'){const el=document.getElementById('log');el.innerHTML+=`<div class="${cls}">${msg}</div>`;el.scrollTop=el.scrollHeight;}
+
+async function run(){
+  const TOKEN = document.getElementById('token').value.trim();
+  if(!TOKEN){log('Please paste the API token first.','err');return;}
+  const btn=document.getElementById('btn');
+  btn.disabled=true;btn.textContent='Running…';
+  document.getElementById('log').innerHTML='';
+  log('Starting backfill of 13 days…');
+  let ok=0,fail=0;
+  for(const e of DATA){
+    const key=encodeURIComponent('manpower:'+e.d);
+    const value=JSON.stringify({...e.mp,enteredBy:'backfill-actual',enteredAt:e.d+'T00:00:00.000Z'});
+    const url=`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/storage/kv/namespaces/${NS}/values/${key}`;
+    try{
+      const r=await fetch(url,{method:'PUT',headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'text/plain'},body:value});
+      const j=await r.json();
+      if(j.success){log(`✓ ${e.d}  saved`,'ok');ok++;}
+      else{log(`✗ ${e.d}  ${JSON.stringify(j.errors)}` ,'err');fail++;}
+    }catch(err){log(`✗ ${e.d}  ${err.message}`,'err');fail++;}
+  }
+  log(`Done — ${ok} saved, ${fail} failed.`,ok===13?'ok':'err');
+  btn.textContent=ok===13?'✓ Complete':`⚠ ${fail} failed`;
+}
+</script>
+</body>
+</html>
