@@ -230,16 +230,46 @@
   <!-- DAILY SUMMARY -->
   <div id="tab-mp" class="tc">
     <div id="mp-loading" style="text-align:center;padding:60px 0;color:var(--muted);">
-      <div id="mp-spinner" style="width:36px;height:36px;border:3px solid var(--amber);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;"></div>
+      <div style="width:36px;height:36px;border:3px solid var(--amber);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;"></div>
       Loading manpower data…
     </div>
     <div id="mp-content" style="display:none;">
       <!-- Yesterday summary cards -->
       <div id="mp-yesterday" style="display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:20px;"></div>
-      <!-- Chart -->
-      <div style="background:var(--bg2);border-radius:10px;border:1px solid var(--border);padding:16px;margin-bottom:20px;">
-        <div style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;">Rolling 30-Day PPP (kg / person)</div>
-        <canvas id="mpChart" height="280"></canvas>
+      <!-- Individual dept charts — row2 = 2-col grid -->
+      <div class="row2">
+        <div class="sec">
+          <div class="sl">Weaving — kg / person / day</div>
+          <div class="cw" style="height:180px"><canvas id="mp-c-weaving"></canvas></div>
+        </div>
+        <div class="sec">
+          <div class="sl">Sizing — kg / person / day</div>
+          <div class="cw" style="height:180px"><canvas id="mp-c-sizing"></canvas></div>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="sec">
+          <div class="sl">Sectional Warping — kg / person / day</div>
+          <div class="cw" style="height:180px"><canvas id="mp-c-warping"></canvas></div>
+        </div>
+        <div class="sec">
+          <div class="sl">Yarn Dyeing — kg / person / day</div>
+          <div class="cw" style="height:180px"><canvas id="mp-c-yarnDyeing"></canvas></div>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="sec">
+          <div class="sl">Fabric Dyeing — kg / person / day</div>
+          <div class="cw" style="height:180px"><canvas id="mp-c-fabricDyeing"></canvas></div>
+        </div>
+        <div class="sec">
+          <div class="sl">Finishing — kg / person / day</div>
+          <div class="cw" style="height:180px"><canvas id="mp-c-finishing"></canvas></div>
+        </div>
+      </div>
+      <div class="sec" style="margin-bottom:20px;">
+        <div class="sl">Finishing 1 — kg / person / day</div>
+        <div class="cw" style="height:180px"><canvas id="mp-c-finishing1"></canvas></div>
       </div>
       <!-- Full table -->
       <div style="background:var(--bg2);border-radius:10px;border:1px solid var(--border);overflow:hidden;">
@@ -625,7 +655,7 @@ const MP_DEPTS = [
   {id:'finishing',       label:'Finishing',        color:'#dc2626'},
   {id:'finishing1',      label:'Finishing 1',      color:'#ea580c'},
 ];
-let mpChartInst = null;
+var mpCharts={};
 let mpInitDone = false;
 
 function buildProdLookup(){
@@ -695,6 +725,9 @@ async function initMPTab(){
 }
 
 function renderMPTab(rows){
+  var tc='#7c8299', gc='rgba(255,255,255,0.04)';
+  var labels=rows.map(function(r){return fmtDate(r.date);});
+
   // Yesterday cards
   var yest=rows.length>0?rows[rows.length-1]:null;
   var cards=document.getElementById('mp-yesterday');
@@ -709,35 +742,35 @@ function renderMPTab(rows){
     }).join('');
   }
 
-  // Chart
-  var labels=rows.map(function(r){return fmtDate(r.date);});
-  var datasets=MP_DEPTS.map(function(d){
-    return{label:d.label,data:rows.map(function(r){return r[d.id];}),
-      borderColor:d.color,backgroundColor:d.color+'22',
-      borderWidth:2,pointRadius:3,pointHoverRadius:5,tension:0.3,spanGaps:true};
-  });
-  if(mpChartInst) mpChartInst.destroy();
-  mpChartInst=new Chart(document.getElementById('mpChart'),{
-    type:'line',
-    data:{labels:labels,datasets:datasets},
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      interaction:{mode:'index',intersect:false},
-      plugins:{
-        legend:{labels:{color:'#e8eaf0',font:{size:11},padding:16}},
-        tooltip:{backgroundColor:'#1a1d27',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,
-          titleColor:'#e8eaf0',bodyColor:'#7c8299',
-          callbacks:{label:function(ctx){return ' '+ctx.dataset.label+': '+(ctx.raw!=null?ctx.raw+' kg/p':'—');}}}
-      },
-      scales:{
-        x:{ticks:{color:'#7c8299',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}},
-        y:{ticks:{color:'#7c8299',font:{size:10},callback:function(v){return v+' kg/p';}},
-           grid:{color:'rgba(255,255,255,0.04)'},beginAtZero:false}
+  // Individual chart per dept — own Y scale
+  MP_DEPTS.forEach(function(d){
+    var cid='mp-c-'+d.id;
+    var el=document.getElementById(cid); if(!el) return;
+    if(mpCharts[cid]) mpCharts[cid].destroy();
+    mpCharts[cid]=new Chart(el,{
+      type:'line',
+      data:{labels:labels,datasets:[{
+        data:rows.map(function(r){return r[d.id];}),
+        borderColor:d.color,backgroundColor:d.color+'22',
+        borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,spanGaps:true,fill:true
+      }]},
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{
+          legend:{display:false},
+          tooltip:{backgroundColor:'#1a1d27',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,
+            titleColor:'#e8eaf0',bodyColor:tc,
+            callbacks:{label:function(ctx){return ' '+(ctx.raw!=null?ctx.raw+' kg/p':'—');}}}
+        },
+        scales:{
+          x:{grid:{display:false},ticks:{color:tc,font:{size:10},maxTicksLimit:15}},
+          y:{grid:{color:gc},ticks:{color:tc,font:{size:10}},beginAtZero:false}
+        }
       }
-    }
+    });
   });
 
-  // Table
+  // Daily detail table
   var tbody=document.getElementById('mp-tbody');
   var allRows=[...rows].reverse();
   tbody.innerHTML=allRows.map(function(r,idx){
@@ -745,7 +778,7 @@ function renderMPTab(rows){
     function cell(v){return v!=null?'<td style="padding:8px 14px;text-align:right;color:var(--text);">'+v+'</td>':'<td style="padding:8px 14px;text-align:right;color:var(--muted);">—</td>';}
     return '<tr style="background:'+bg+';">'+
       '<td style="padding:8px 14px;color:var(--muted);white-space:nowrap;">'+fmtDate(r.date)+'</td>'+
-      cell(r.weaving)+cell(r.sizing)+cell(r.sectionalWarping)+cell(r.yarnDyeing)+cell(r.fabricDyeing)+
+      cell(r.weaving)+cell(r.sizing)+cell(r.sectionalWarping)+cell(r.yarnDyeing)+cell(r.fabricDyeing)+cell(r.finishing)+cell(r.finishing1)+
     '</tr>';
   }).join('');
 }
