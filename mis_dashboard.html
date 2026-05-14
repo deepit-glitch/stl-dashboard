@@ -47,6 +47,7 @@
   .view-row { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
   .view-label { font-size: 13px; color: var(--muted); white-space: nowrap; }
   .partial { font-size: 11px; color: var(--amber); background: rgba(239,159,39,0.1); border: 1px solid rgba(239,159,39,0.2); border-radius: 6px; padding: 4px 10px; display: inline-block; margin-bottom: 12px; }
+  @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -65,6 +66,7 @@
     <button class="tab" onclick="showTab('dh')">Dye House & Dispatch</button>
     <button class="tab" onclick="showTab('co')">Costs</button>
     <button class="tab" onclick="showTab('ds')">Daily Summary</button>
+    <button class="tab" onclick="showTab('mp');initMPTab()">Manpower Productivity</button>
   </div>
 
   <!-- OVERVIEW -->
@@ -226,6 +228,44 @@
   </div>
 
   <!-- DAILY SUMMARY -->
+  <div id="tab-mp" class="tc">
+    <div id="mp-loading" style="text-align:center;padding:60px 0;color:var(--muted);">
+      <div id="mp-spinner" style="width:36px;height:36px;border:3px solid var(--amber);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;"></div>
+      Loading manpower data…
+    </div>
+    <div id="mp-content" style="display:none;">
+      <!-- Yesterday summary cards -->
+      <div id="mp-yesterday" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;"></div>
+      <!-- Chart -->
+      <div style="background:var(--bg2);border-radius:10px;border:1px solid var(--border);padding:16px;margin-bottom:20px;">
+        <div style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;">Rolling 30-Day PPP (kg / person)</div>
+        <canvas id="mpChart" height="280"></canvas>
+      </div>
+      <!-- Full table -->
+      <div style="background:var(--bg2);border-radius:10px;border:1px solid var(--border);overflow:hidden;">
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border);font-size:11px;font-weight:600;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;">Daily Detail</div>
+        <div style="overflow-x:auto;">
+          <table id="mp-table" style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="background:var(--bg3);">
+                <th style="padding:10px 14px;text-align:left;color:var(--muted);font-weight:600;white-space:nowrap;">Date</th>
+                <th style="padding:10px 14px;text-align:right;color:#2563eb;font-weight:600;">Weaving</th>
+                <th style="padding:10px 14px;text-align:right;color:#7c3aed;font-weight:600;">Sizing</th>
+                <th style="padding:10px 14px;text-align:right;color:#0891b2;font-weight:600;">S/Warping</th>
+                <th style="padding:10px 14px;text-align:right;color:#d97706;font-weight:600;">Yarn Dyeing</th>
+                <th style="padding:10px 14px;text-align:right;color:#059669;font-weight:600;">Fabric Dyeing</th>
+              </tr>
+            </thead>
+            <tbody id="mp-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div id="mp-error" style="display:none;text-align:center;padding:60px 0;color:var(--red);">
+      Could not load manpower data. Check that HR entries have been submitted.
+    </div>
+  </div>
+
   <div id="tab-ds" class="tc">
     <div id="ds-header" style="font-size:13px;color:var(--muted);margin-bottom:20px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px"></div>
     <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px">Production — Last day vs MTD daily average</div>
@@ -569,6 +609,138 @@ var _b = document.getElementById('hdr-badge');
 var _f = document.getElementById('footer-date');
 if (_b) _b.textContent = 'Updated: ' + LAST_UPDATED;
 if (_f) _f.textContent = 'Last updated: ' + LAST_UPDATED;
+
+
+// ── MANPOWER PRODUCTIVITY TAB ─────────────────────────────────────────────
+const MP_WORKER = 'https://square-flower-57b5.deepit.workers.dev';
+const MONTH_MAP = {'Feb-26':'2026-02','Mar-26':'2026-03','Apr-26':'2026-04','May-26':'2026-05','Jun-26':'2026-06'};
+const MP_DEPTS = [
+  {id:'weaving',         label:'Weaving',         color:'#2563eb'},
+  {id:'sizing',          label:'Sizing',           color:'#7c3aed'},
+  {id:'sectionalWarping',label:'S/Warping',        color:'#0891b2'},
+  {id:'yarnDyeing',      label:'Yarn Dyeing',      color:'#d97706'},
+  {id:'fabricDyeing',    label:'Fabric Dyeing',    color:'#059669'},
+];
+let mpChartInst = null;
+let mpInitDone = false;
+
+function buildProdLookup(){
+  var lk={};
+  if(typeof DAILY_OV==='undefined') return lk;
+  Object.keys(DAILY_OV).forEach(function(mk){
+    var pfx=MONTH_MAP[mk]; if(!pfx) return;
+    var d=DAILY_OV[mk];
+    (d.dates||[]).forEach(function(day,i){
+      lk[pfx+'-'+day]={
+        weaving:(d.weaving||[])[i]||0,
+        sizing:(d.sizing||[])[i]||0,
+        warping:(d.warping||[])[i]||0,
+        yarn:(d.yarn||[])[i]||0,
+        fabwash:(d.fabwash||[])[i]||0
+      };
+    });
+  });
+  return lk;
+}
+
+function fmtDate(s){
+  var p=s.split('-'); var ms=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return parseInt(p[2])+' '+ms[parseInt(p[1])-1];
+}
+
+function ppp(prod,mp){ return (prod>0&&mp>0)?Math.round(prod/mp):null; }
+
+async function initMPTab(){
+  if(mpInitDone) return;
+  mpInitDone=true;
+  document.getElementById('mp-loading').style.display='block';
+  document.getElementById('mp-content').style.display='none';
+  document.getElementById('mp-error').style.display='none';
+  try{
+    var end=new Date(); var start=new Date(); start.setDate(end.getDate()-29);
+    var s=start.toISOString().slice(0,10); var e=end.toISOString().slice(0,10);
+    var r=await fetch(MP_WORKER+'/manpower-range?start='+s+'&end='+e);
+    var j=await r.json();
+    if(!j.ok) throw new Error(j.error);
+    var prodLk=buildProdLookup();
+    var rows=[];
+    (j.data||[]).forEach(function(entry){
+      if(!entry.data) return;
+      var pr=prodLk[entry.date]||{};
+      var mp=entry.data;
+      rows.push({
+        date:entry.date,
+        weaving:ppp(pr.weaving,mp.weaving),
+        sizing:ppp(pr.sizing,mp.sizing),
+        sectionalWarping:ppp(pr.warping,mp.sectionalWarping),
+        yarnDyeing:ppp(pr.yarn,mp.yarnDyeing),
+        fabricDyeing:ppp(pr.fabwash,mp.fabricDyeing)
+      });
+    });
+    renderMPTab(rows);
+    document.getElementById('mp-loading').style.display='none';
+    document.getElementById('mp-content').style.display='block';
+  }catch(err){
+    document.getElementById('mp-loading').style.display='none';
+    document.getElementById('mp-error').style.display='block';
+  }
+}
+
+function renderMPTab(rows){
+  // Yesterday cards
+  var yest=rows.length>0?rows[rows.length-1]:null;
+  var cards=document.getElementById('mp-yesterday');
+  if(yest){
+    cards.innerHTML=MP_DEPTS.map(function(d){
+      var v=yest[d.id]; var disp=v!=null?v+' kg/p':'—';
+      return '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;border-top:3px solid '+d.color+';">'+
+        '<div style="font-size:10px;font-weight:600;color:var(--muted);letter-spacing:1px;margin-bottom:8px;text-transform:uppercase;">'+d.label+'</div>'+
+        '<div style="font-size:22px;font-weight:800;color:'+d.color+';">'+disp+'</div>'+
+        '<div style="font-size:10px;color:var(--muted);margin-top:4px;">'+fmtDate(yest.date)+'</div>'+
+      '</div>';
+    }).join('');
+  }
+
+  // Chart
+  var labels=rows.map(function(r){return fmtDate(r.date);});
+  var datasets=MP_DEPTS.map(function(d){
+    return{label:d.label,data:rows.map(function(r){return r[d.id];}),
+      borderColor:d.color,backgroundColor:d.color+'22',
+      borderWidth:2,pointRadius:3,pointHoverRadius:5,tension:0.3,spanGaps:true};
+  });
+  if(mpChartInst) mpChartInst.destroy();
+  mpChartInst=new Chart(document.getElementById('mpChart'),{
+    type:'line',
+    data:{labels:labels,datasets:datasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:'#e8eaf0',font:{size:11},padding:16}},
+        tooltip:{backgroundColor:'#1a1d27',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,
+          titleColor:'#e8eaf0',bodyColor:'#7c8299',
+          callbacks:{label:function(ctx){return ' '+ctx.dataset.label+': '+(ctx.raw!=null?ctx.raw+' kg/p':'—');}}}
+      },
+      scales:{
+        x:{ticks:{color:'#7c8299',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}},
+        y:{ticks:{color:'#7c8299',font:{size:10},callback:function(v){return v+' kg/p';}},
+           grid:{color:'rgba(255,255,255,0.04)'},beginAtZero:false}
+      }
+    }
+  });
+
+  // Table
+  var tbody=document.getElementById('mp-tbody');
+  var allRows=[...rows].reverse();
+  tbody.innerHTML=allRows.map(function(r,idx){
+    var bg=idx%2===0?'var(--bg2)':'var(--bg3)';
+    function cell(v){return v!=null?'<td style="padding:8px 14px;text-align:right;color:var(--text);">'+v+'</td>':'<td style="padding:8px 14px;text-align:right;color:var(--muted);">—</td>';}
+    return '<tr style="background:'+bg+';">'+
+      '<td style="padding:8px 14px;color:var(--muted);white-space:nowrap;">'+fmtDate(r.date)+'</td>'+
+      cell(r.weaving)+cell(r.sizing)+cell(r.sectionalWarping)+cell(r.yarnDyeing)+cell(r.fabricDyeing)+
+    '</tr>';
+  }).join('');
+}
 
 </script>
 </body>
