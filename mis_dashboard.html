@@ -235,7 +235,7 @@
     </div>
     <div id="mp-content" style="display:none;">
       <!-- Yesterday summary cards -->
-      <div id="mp-yesterday" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;"></div>
+      <div id="mp-yesterday" style="display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:20px;"></div>
       <!-- Chart -->
       <div style="background:var(--bg2);border-radius:10px;border:1px solid var(--border);padding:16px;margin-bottom:20px;">
         <div style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;">Rolling 30-Day PPP (kg / person)</div>
@@ -254,6 +254,8 @@
                 <th style="padding:10px 14px;text-align:right;color:#0891b2;font-weight:600;">S/Warping</th>
                 <th style="padding:10px 14px;text-align:right;color:#d97706;font-weight:600;">Yarn Dyeing</th>
                 <th style="padding:10px 14px;text-align:right;color:#059669;font-weight:600;">Fabric Dyeing</th>
+                <th style="padding:10px 14px;text-align:right;color:#dc2626;font-weight:600;">Finishing</th>
+                <th style="padding:10px 14px;text-align:right;color:#ea580c;font-weight:600;">Finishing 1</th>
               </tr>
             </thead>
             <tbody id="mp-tbody"></tbody>
@@ -620,6 +622,8 @@ const MP_DEPTS = [
   {id:'sectionalWarping',label:'S/Warping',        color:'#0891b2'},
   {id:'yarnDyeing',      label:'Yarn Dyeing',      color:'#d97706'},
   {id:'fabricDyeing',    label:'Fabric Dyeing',    color:'#059669'},
+  {id:'finishing',       label:'Finishing',        color:'#dc2626'},
+  {id:'finishing1',      label:'Finishing 1',      color:'#ea580c'},
 ];
 let mpChartInst = null;
 let mpInitDone = false;
@@ -636,7 +640,9 @@ function buildProdLookup(){
         sizing:(d.sizing||[])[i]||0,
         warping:(d.warping||[])[i]||0,
         yarn:(d.yarn||[])[i]||0,
-        fabwash:(d.fabwash||[])[i]||0
+        fabwash:(d.fabwash||[])[i]||0,
+        fin:(d.fin||[])[i]||0,
+        fin1:(d.fin1||[])[i]||0
       };
     });
   });
@@ -674,7 +680,9 @@ async function initMPTab(){
         sizing:ppp(pr.sizing,mp.sizing),
         sectionalWarping:ppp(pr.warping,mp.sectionalWarping),
         yarnDyeing:ppp(pr.yarn,mp.yarnDyeing),
-        fabricDyeing:ppp(pr.fabwash,mp.fabricDyeing)
+        fabricDyeing:ppp(pr.fabwash,mp.fabricDyeing),
+        finishing:ppp(pr.fin,mp.finishing),
+        finishing1:ppp(pr.fin1,mp.finishing1)
       });
     });
     renderMPTab(rows);
