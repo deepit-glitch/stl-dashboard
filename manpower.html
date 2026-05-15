@@ -76,6 +76,8 @@ async function loadDate(dateStr){
           sectionalWarping: String(d.data.sectionalWarping ?? ""),
           yarnDyeing:       String(d.data.yarnDyeing       ?? ""),
           fabricDyeing:     String(d.data.fabricDyeing     ?? ""),
+          finishing:        String(d.data.finishing        ?? ""),
+          finishing1:       String(d.data.finishing1       ?? ""),
         },
         savedFor: dateStr,
         existingEntry: true,
@@ -83,7 +85,7 @@ async function loadDate(dateStr){
       });
     } else {
       setState({
-        values: { weaving:"", sizing:"", sectionalWarping:"", yarnDyeing:"", fabricDyeing:"" },
+        values: { weaving:"", sizing:"", sectionalWarping:"", yarnDyeing:"", fabricDyeing:"", finishing:"", finishing1:"" },
         savedFor: null,
         existingEntry: false,
         loading: false,
