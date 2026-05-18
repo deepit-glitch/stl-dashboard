@@ -57,7 +57,7 @@
       <h1>Sara Textiles Ltd — Operations MIS Dashboard</h1>
       <p>Nalagarh Plant &nbsp;·&nbsp; Dec 2025 – Mar 2026 · rolling 3-month window</p>
     </div>
-    <span class="badge" id="hdr-badge">Updated: --</span>
+    <span class="badge" id="hdr-badge">Updated As On: --</span>
   </div>
 
   <div class="tabs">
@@ -618,7 +618,7 @@ function initDailySummary(){
   document.getElementById('ds-header').innerHTML =
     '<strong>Last recorded day: '+lastDay+' '+cm+'</strong>'
     +' &nbsp;&middot;&nbsp; MTD: '+days+' days'
-    +' &nbsp;&middot;&nbsp; Updated: '+LAST_UPDATED;
+    +' &nbsp;&middot;&nbsp; Updated As On: '+LAST_UPDATED;
 
   document.getElementById('ds-prod').innerHTML = prodRows.map(function(m){return card(m,false);}).join('');
   document.getElementById('ds-eff').innerHTML  = effRows.map(function(m){return card(m,true);}).join('');
@@ -646,8 +646,8 @@ initOverview();
 // Set badge and footer date from data file
 var _b = document.getElementById('hdr-badge');
 var _f = document.getElementById('footer-date');
-if (_b) _b.textContent = 'Updated: ' + LAST_UPDATED;
-if (_f) _f.textContent = 'Last updated: ' + LAST_UPDATED;
+if (_b) _b.textContent = 'Updated As On: ' + LAST_UPDATED;
+if (_f) _f.textContent = 'Updated As On: ' + LAST_UPDATED;
 
 
 // ── MANPOWER PRODUCTIVITY TAB ─────────────────────────────────────────────
