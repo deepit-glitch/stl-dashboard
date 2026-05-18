@@ -27,6 +27,12 @@ function todayStr(){
   return d.toISOString().slice(0,10);
 }
 
+function yesterdayStr(){
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0,10);
+}
+
 function formatDisplay(dateStr){
   // dateStr = YYYY-MM-DD
   const [y,m,d] = dateStr.split("-");
@@ -49,7 +55,7 @@ const DEPTS = [
 let state = {
   screen: "loading",     // loading | entry
   userName: "",
-  selectedDate: todayStr(),
+  selectedDate: yesterdayStr(),
   values: { weaving: "", sizing: "", sectionalWarping: "", yarnDyeing: "", fabricDyeing: "", finishing: "", finishing1: "" },
   savedFor: null,        // date string of last loaded data
   saving: false,
@@ -184,7 +190,7 @@ function render(){
     return;
   }
 
-  const isToday = state.selectedDate === todayStr();
+  const isYesterday = state.selectedDate === yesterdayStr();
   const allFilled = DEPTS.every(d => state.values[d.id] !== "" && !isNaN(parseInt(state.values[d.id])));
 
   root.innerHTML = `
@@ -227,19 +233,19 @@ function render(){
       <div style="background:#fff;border-radius:14px;padding:16px 20px;margin-bottom:20px;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
         <div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;">Date</div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <button class="date-btn ${isToday ? 'active' : ''}" onclick="onDateChange('${todayStr()}')">Today</button>
-          <button class="date-btn ${!isToday ? 'active' : ''}" onclick="">Backfill</button>
+          <button class="date-btn ${isYesterday ? 'active' : ''}" onclick="onDateChange('${yesterdayStr()}')">Yesterday</button>
+          <button class="date-btn ${!isYesterday ? 'active' : ''}" onclick="">Backfill</button>
           <input type="date"
             id="dateInput"
             value="${state.selectedDate}"
             min="2026-05-01"
-            max="${todayStr()}"
+            max="${yesterdayStr()}"
             onchange="onDateChange(this.value)"
-            style="border:2px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:13px;font-weight:600;color:#374151;outline:none;cursor:pointer;${isToday ? 'display:none;' : ''}">
+            style="border:2px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:13px;font-weight:600;color:#374151;outline:none;cursor:pointer;${isYesterday ? 'display:none;' : ''}">
           <span style="font-size:14px;font-weight:700;color:#0f172a;">${formatDisplay(state.selectedDate)}</span>
           ${state.existingEntry ? `<span style="font-size:11px;font-weight:700;color:#059669;background:#d1fae5;padding:3px 8px;border-radius:6px;">✓ Saved</span>` : ""}
         </div>
-        ${!isToday ? `
+        ${!isYesterday ? `
         <div style="margin-top:10px;font-size:11px;color:#f59e0b;font-weight:600;background:#fef3c7;padding:6px 10px;border-radius:6px;">
           📅 Backfilling data for ${formatDisplay(state.selectedDate)}
         </div>` : ""}
@@ -302,7 +308,7 @@ function render(){
 
   // wire up backfill button to show/hide date input
   const backfillBtn = root.querySelector('.date-btn:not(.active)');
-  if (backfillBtn && isToday){
+  if (backfillBtn && isYesterday){
     backfillBtn.onclick = () => {
       const inp = document.getElementById("dateInput");
       if (inp){ inp.style.display = "block"; inp.focus(); }
