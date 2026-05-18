@@ -3,7 +3,7 @@ const MONTHS = ['Feb-26','Mar-26','Apr-26','May-26'];
 const CURRENT_MONTH  = 'May-26'; // always MONTHS[3]
 const LAST_MONTH = 'Apr-26'; // always MONTHS[2] - last full month for KPIs
 const CURRENT_DAYS   = 16; // days elapsed in current month
-const LAST_UPDATED   = '18 May 2026';
+const LAST_UPDATED   = '16 May 2026';
 // -----------------------------------------------------------------------------
 const MONTHLY = {
   weaving:[303612,309688,323898,167821],
