@@ -235,7 +235,7 @@
     </div>
     <div id="mp-content" style="display:none;">
       <!-- Yesterday summary cards -->
-      <div id="mp-yesterday" style="display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:20px;"></div>
+      <div id="mp-yesterday" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;"></div>
       <!-- Individual dept charts — row2 = 2-col grid -->
       <div class="row2">
         <div class="sec">
@@ -268,15 +268,22 @@
           <div class="cw" style="height:180px"><canvas id="mp-c-fabricDyeing"></canvas></div>
         </div>
         <div class="sec">
-          <div class="sl">Finishing — kg / person / day</div>
+          <div class="sl">Nalagarh Finishing — kg / person / day</div>
           <div class="lr"><span class="li"><span class="ls" style="background:#dc2626"></span>kg/p</span></div>
           <div class="cw" style="height:180px"><canvas id="mp-c-finishing"></canvas></div>
         </div>
       </div>
-      <div class="sec" style="margin-bottom:20px;">
-        <div class="sl">Finishing 1 — kg / person / day</div>
-        <div class="lr"><span class="li"><span class="ls" style="background:#ea580c"></span>kg/p</span></div>
-        <div class="cw" style="height:180px"><canvas id="mp-c-finishing1"></canvas></div>
+      <div class="row2">
+        <div class="sec">
+          <div class="sl">Finishing 1 — kg / person / day</div>
+          <div class="lr"><span class="li"><span class="ls" style="background:#ea580c"></span>kg/p</span></div>
+          <div class="cw" style="height:180px"><canvas id="mp-c-finishing1"></canvas></div>
+        </div>
+        <div class="sec">
+          <div class="sl">Noida Finishing — kg / person / day</div>
+          <div class="lr"><span class="li"><span class="ls" style="background:#0f766e"></span>kg/p</span></div>
+          <div class="cw" style="height:180px"><canvas id="mp-c-noidaFinishing"></canvas></div>
+        </div>
       </div>
       <!-- Full table -->
       <div style="background:var(--bg2);border-radius:10px;border:1px solid var(--border);overflow:hidden;">
@@ -293,6 +300,7 @@
                 <th style="padding:10px 14px;text-align:right;color:#059669;font-weight:600;">Fabric Dyeing</th>
                 <th style="padding:10px 14px;text-align:right;color:#dc2626;font-weight:600;">Finishing</th>
                 <th style="padding:10px 14px;text-align:right;color:#ea580c;font-weight:600;">Finishing 1</th>
+                <th style="padding:10px 14px;text-align:right;color:#0f766e;font-weight:600;">Noida Fin.</th>
               </tr>
             </thead>
             <tbody id="mp-tbody"></tbody>
@@ -659,8 +667,9 @@ const MP_DEPTS = [
   {id:'sectionalWarping',label:'S/Warping',        color:'#0891b2'},
   {id:'yarnDyeing',      label:'Yarn Dyeing',      color:'#d97706'},
   {id:'fabricDyeing',    label:'Fabric Dyeing',    color:'#059669'},
-  {id:'finishing',       label:'Finishing',        color:'#dc2626'},
+  {id:'finishing',       label:'Nalagarh Finishing',color:'#dc2626'},
   {id:'finishing1',      label:'Finishing 1',      color:'#ea580c'},
+  {id:'noidaFinishing',  label:'Noida Finishing',   color:'#0f766e'},
 ];
 var mpCharts={};
 let mpInitDone = false;
@@ -679,7 +688,8 @@ function buildProdLookup(){
         yarn:(d.yarn||[])[i]||0,
         fabwash:(d.fabwash||[])[i]||0,
         fin:(d.fin||[])[i]||0,
-        fin1:(d.fin1||[])[i]||0
+        fin1:(d.fin1||[])[i]||0,
+        noida_fin:(d.noida_fin||[])[i]||0
       };
     });
   });
@@ -718,8 +728,9 @@ async function initMPTab(){
         sectionalWarping:ppp(pr.warping,mp.sectionalWarping),
         yarnDyeing:ppp(pr.yarn,mp.yarnDyeing),
         fabricDyeing:ppp(pr.fabwash,mp.fabricDyeing),
-        finishing:ppp(pr.fin,mp.finishing),
-        finishing1:ppp(pr.fin1,mp.finishing1)
+        finishing:ppp((pr.fin||0)-(pr.noida_fin||0),mp.finishing),
+        finishing1:ppp(pr.fin1,mp.finishing1),
+        noidaFinishing:ppp(pr.noida_fin,mp.noidaFinishing)
       });
     });
     renderMPTab(rows);
@@ -785,7 +796,7 @@ function renderMPTab(rows){
     function cell(v){return v!=null?'<td style="padding:8px 14px;text-align:right;color:var(--text);">'+v+'</td>':'<td style="padding:8px 14px;text-align:right;color:var(--muted);">—</td>';}
     return '<tr style="background:'+bg+';">'+
       '<td style="padding:8px 14px;color:var(--muted);white-space:nowrap;">'+fmtDate(r.date)+'</td>'+
-      cell(r.weaving)+cell(r.sizing)+cell(r.sectionalWarping)+cell(r.yarnDyeing)+cell(r.fabricDyeing)+cell(r.finishing)+cell(r.finishing1)+
+      cell(r.weaving)+cell(r.sizing)+cell(r.sectionalWarping)+cell(r.yarnDyeing)+cell(r.fabricDyeing)+cell(r.finishing)+cell(r.finishing1)+cell(r.noidaFinishing)+
     '</tr>';
   }).join('');
 }

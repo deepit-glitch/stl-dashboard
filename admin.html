@@ -107,7 +107,8 @@ tr:last-child td{border-bottom:none}
           <option value="bathrobe">Bathrobe</option>
           <option value="quality">Quality</option>
           <option value="rsb">Sr. GM Operations (RSB)</option>
-          <option value="hr">HR (Manpower Entry)</option>
+          <option value="hr">HR (Manpower Entry — Nalagarh)</option>
+          <option value="hr_noida">HR (Manpower Entry — Noida)</option>
           <option value="admin">Admin</option>
         </select>
       </div>
@@ -127,7 +128,7 @@ tr:last-child td{border-bottom:none}
 
 <script>
 const WORKER = "https://square-flower-57b5.deepit.workers.dev";
-const ROLE_DEPT = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality",hr:"HR"};
+const ROLE_DEPT = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality",hr:"HR",hr_noida:"Noida Finishing"};
 const ROLE_COLORS = {admin:"r-admin",management:"r-management"};
 
 function getToken() { return localStorage.getItem("stl_token"); }
@@ -212,8 +213,8 @@ function editUser(mobile, name, role, dept) {
   const existing = document.getElementById('edit-row');
   if (existing) existing.remove();
 
-  const ROLE_DEPT_MAP = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality",rsb:"RSB",hr:"HR"};
-  const deptOptions = ['','Weaving','Dyeing','Finishing','Prep','UB','PPC','Bathrobe','Quality','RSB','HR'];
+  const ROLE_DEPT_MAP = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality",rsb:"RSB",hr:"HR",hr_noida:"Noida Finishing"};
+  const deptOptions = ['','Weaving','Dyeing','Finishing','Prep','UB','PPC','Bathrobe','Quality','RSB','HR','Noida Finishing'];
 
   const row = document.getElementById('row-' + mobile);
   const editRow = document.createElement('tr');
@@ -224,7 +225,7 @@ function editUser(mobile, name, role, dept) {
       <div class="edit-inline">
         <input type="text" id="edit-name" value="${name}" placeholder="Name" style="width:160px">
         <select id="edit-role">
-          ${['management','weaving','dyeing','finishing','prep','gm_tech','ppc','bathrobe','quality','rsb','admin'].map(r =>
+          ${['management','weaving','dyeing','finishing','prep','gm_tech','ppc','bathrobe','quality','rsb','hr','hr_noida','admin'].map(r =>
             `<option value="${r}" ${r===role?'selected':''}>${r}</option>`
           ).join('')}
         </select>
@@ -241,7 +242,7 @@ async function saveUser(mobile) {
   const name  = document.getElementById('edit-name').value.trim();
   const role  = document.getElementById('edit-role').value;
   if (!name) { showFlash('Name cannot be empty.', 'err'); return; }
-  const ROLE_DEPT_MAP = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality",rsb:"RSB",hr:"HR"};
+  const ROLE_DEPT_MAP = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality",rsb:"RSB",hr:"HR",hr_noida:"Noida Finishing"};
   const dept = ROLE_DEPT_MAP[role] || null;
   const token = getToken();
   try {

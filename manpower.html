@@ -34,14 +34,13 @@ function yesterdayStr(){
 }
 
 function formatDisplay(dateStr){
-  // dateStr = YYYY-MM-DD
   const [y,m,d] = dateStr.split("-");
   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   return `${parseInt(d)} ${months[parseInt(m)-1]} ${y}`;
 }
 
-/* ── dept config ─────────────────────────────────────────── */
-const DEPTS = [
+/* ── dept configs ────────────────────────────────────────── */
+const DEPTS_NALAGARH = [
   { id:"weaving",          label:"Weaving",           color:"#2563eb", icon:"🧵" },
   { id:"sizing",           label:"Sizing",             color:"#7c3aed", icon:"📏" },
   { id:"sectionalWarping", label:"Sectional Warping",  color:"#0891b2", icon:"🔄" },
@@ -51,20 +50,39 @@ const DEPTS = [
   { id:"finishing1",       label:"Finishing 1",         color:"#ea580c", icon:"📋" },
 ];
 
-/* ── main app state ──────────────────────────────────────── */
+const DEPTS_NOIDA = [
+  { id:"noidaFinishing",   label:"Noida Finishing",    color:"#0f766e", icon:"🏭" },
+];
+
+/* ── app state ───────────────────────────────────────────── */
 let state = {
-  screen: "loading",     // loading | entry
+  screen: "loading",
   userName: "",
+  userRole: "",
   selectedDate: yesterdayStr(),
-  values: { weaving: "", sizing: "", sectionalWarping: "", yarnDyeing: "", fabricDyeing: "", finishing: "", finishing1: "" },
-  savedFor: null,        // date string of last loaded data
+  values: {
+    weaving:"", sizing:"", sectionalWarping:"", yarnDyeing:"",
+    fabricDyeing:"", finishing:"", finishing1:"", noidaFinishing:""
+  },
+  savedFor: null,
   saving: false,
   loading: false,
-  toast: null,           // {msg, type: ok|err}
-  existingEntry: false,  // whether current date has existing data
+  toast: null,
+  existingEntry: false,
 };
 
 function setState(patch){ Object.assign(state, patch); render(); }
+
+/* ── role helpers ────────────────────────────────────────── */
+function isNoidaRole(){ return state.userRole === "hr_noida"; }
+function getActiveDepts(){ return isNoidaRole() ? DEPTS_NOIDA : DEPTS_NALAGARH; }
+
+function emptyValues(){
+  return {
+    weaving:"", sizing:"", sectionalWarping:"", yarnDyeing:"",
+    fabricDyeing:"", finishing:"", finishing1:"", noidaFinishing:""
+  };
+}
 
 /* ── API calls ───────────────────────────────────────────── */
 async function loadDate(dateStr){
@@ -84,18 +102,14 @@ async function loadDate(dateStr){
           fabricDyeing:     String(d.data.fabricDyeing     ?? ""),
           finishing:        String(d.data.finishing        ?? ""),
           finishing1:       String(d.data.finishing1       ?? ""),
+          noidaFinishing:   String(d.data.noidaFinishing   ?? ""),
         },
         savedFor: dateStr,
         existingEntry: true,
         loading: false,
       });
     } else {
-      setState({
-        values: { weaving:"", sizing:"", sectionalWarping:"", yarnDyeing:"", fabricDyeing:"", finishing:"", finishing1:"" },
-        savedFor: null,
-        existingEntry: false,
-        loading: false,
-      });
+      setState({ values: emptyValues(), savedFor: null, existingEntry: false, loading: false });
     }
   } catch(e) {
     setState({ loading: false });
@@ -105,13 +119,14 @@ async function loadDate(dateStr){
 
 async function saveData(){
   const vals = state.values;
-  for (const d of DEPTS){
+  const depts = getActiveDepts();
+  for (const d of depts){
     const v = parseInt(vals[d.id]);
     if (isNaN(v) || v < 0){ showToast(`Please enter a valid number for ${d.label}`, "err"); return; }
   }
   setState({ saving: true });
   const payload = {};
-  DEPTS.forEach(d => { payload[d.id] = parseInt(vals[d.id]); });
+  depts.forEach(d => { payload[d.id] = parseInt(vals[d.id]); });
   try {
     const r = await fetch(`${WORKER}/manpower/${state.selectedDate}`, {
       method: "POST",
@@ -162,13 +177,18 @@ async function init(){
     if (!r.ok){ clearSession(); window.location.href = "login.html"; return; }
     const d = await r.json();
     if (!d.ok){ clearSession(); window.location.href = "login.html"; return; }
+    // Only hr and hr_noida may access this page
+    if (d.role !== "hr" && d.role !== "hr_noida" && d.role !== "admin"){
+      window.location.href = "login.html"; return;
+    }
     state.userName = d.name || d.mobile || "";
+    state.userRole = d.role || "";
     state.screen = "entry";
     render();
     loadDate(state.selectedDate);
   } catch(e) {
-    // fallback: allow if token exists
     state.userName = localStorage.getItem("stl_name") || "";
+    state.userRole = localStorage.getItem("stl_role") || "";
     state.screen = "entry";
     render();
     loadDate(state.selectedDate);
@@ -190,8 +210,11 @@ function render(){
     return;
   }
 
+  const depts = getActiveDepts();
   const isYesterday = state.selectedDate === yesterdayStr();
-  const allFilled = DEPTS.every(d => state.values[d.id] !== "" && !isNaN(parseInt(state.values[d.id])));
+  const allFilled = depts.every(d => state.values[d.id] !== "" && !isNaN(parseInt(state.values[d.id])));
+  const locationLabel = isNoidaRole() ? "Noida (Plant 1600)" : "Nalagarh";
+  const accentColor = isNoidaRole() ? "#0f766e" : "#6366f1";
 
   root.innerHTML = `
     <style>
@@ -201,17 +224,17 @@ function render(){
       .dept-card:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 15%,transparent);}
       .dept-input{border:none;outline:none;font-size:22px;font-weight:800;color:#0f172a;width:120px;text-align:right;font-family:monospace;background:transparent;}
       .dept-input::placeholder{color:#cbd5e1;font-weight:600;}
-      .save-btn{width:100%;padding:16px;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;letter-spacing:0.5px;transition:opacity 0.2s,transform 0.1s;box-shadow:0 4px 14px rgba(99,102,241,0.35);}
+      .save-btn{width:100%;padding:16px;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,${accentColor},${accentColor}dd);color:#fff;letter-spacing:0.5px;transition:opacity 0.2s,transform 0.1s;box-shadow:0 4px 14px ${accentColor}55;}
       .save-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
       .save-btn:hover:not(:disabled){opacity:0.92;transform:translateY(-1px);}
       .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 24px;border-radius:10px;font-size:13px;font-weight:700;animation:fadeIn 0.25s ease;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,0.15);white-space:nowrap;}
       .date-btn{padding:6px 14px;border-radius:8px;border:2px solid #e2e8f0;background:#fff;font-size:13px;font-weight:700;cursor:pointer;color:#374151;transition:all 0.15s;}
-      .date-btn.active{border-color:#6366f1;background:#6366f1;color:#fff;}
-      .date-btn:hover:not(.active){border-color:#6366f1;color:#6366f1;}
+      .date-btn.active{border-color:${accentColor};background:${accentColor};color:#fff;}
+      .date-btn:hover:not(.active){border-color:${accentColor};color:${accentColor};}
     </style>
 
     <!-- HEADER -->
-    <div style="background:#0f172a;padding:0 20px;height:54px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #6366f1;position:sticky;top:0;z-index:100;">
+    <div style="background:#0f172a;padding:0 20px;height:54px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid ${accentColor};position:sticky;top:0;z-index:100;">
       <div style="font-family:monospace;font-size:12px;font-weight:700;color:#818cf8;letter-spacing:2px;">STL DASHBOARDS</div>
       <div style="display:flex;align-items:center;gap:12px;">
         ${state.userName ? `<span style="font-size:12px;color:#94a3b8;font-weight:600;">${state.userName}</span>` : ""}
@@ -224,7 +247,7 @@ function render(){
 
       <!-- title -->
       <div style="margin-bottom:24px;">
-        <div style="font-size:11px;font-weight:700;color:#6366f1;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">Daily Entry</div>
+        <div style="font-size:11px;font-weight:700;color:${accentColor};letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">Daily Entry · ${locationLabel}</div>
         <h1 style="font-size:24px;font-weight:900;color:#0f172a;letter-spacing:-0.5px;">Manpower Headcount</h1>
         <p style="font-size:13px;color:#64748b;margin-top:4px;">Enter the number of workers present in each department.</p>
       </div>
@@ -254,13 +277,13 @@ function render(){
       <!-- loading state -->
       ${state.loading ? `
       <div style="text-align:center;padding:40px 0;">
-        <div style="width:32px;height:32px;border:3px solid #6366f1;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>
+        <div style="width:32px;height:32px;border:3px solid ${accentColor};border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>
         <div style="font-size:13px;color:#64748b;font-weight:600;">Loading…</div>
       </div>` : `
 
       <!-- dept fields -->
       <div style="margin-bottom:20px;">
-        ${DEPTS.map(d => `
+        ${depts.map(d => `
           <div class="dept-card" style="--accent:${d.color}">
             <div style="width:42px;height:42px;border-radius:12px;background:${d.color}18;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">${d.icon}</div>
             <div style="flex:1;">
@@ -294,7 +317,7 @@ function render(){
         }
       </button>
 
-      ${!allFilled ? `<p style="text-align:center;font-size:12px;color:#94a3b8;margin-top:10px;">Fill in all 5 departments to save.</p>` : ""}
+      ${!allFilled ? `<p style="text-align:center;font-size:12px;color:#94a3b8;margin-top:10px;">Fill in all departments to save.</p>` : ""}
       `}
 
     </div>
