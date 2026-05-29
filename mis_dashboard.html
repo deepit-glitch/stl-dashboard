@@ -325,7 +325,7 @@
   <div class="updated"><span id="footer-date">Last updated: --</span> &nbsp;·&nbsp; Sara Textiles Ltd, Nalagarh</div>
 </div>
 
-<script src="stl_data.js?v=20260528"></script>
+<script src="stl_data.js?v=20260529"></script>
 <script>
 
 const CHARTS = {};
@@ -546,6 +546,12 @@ function linReg(data){
   var minX=pts[0].x,maxX=pts[pts.length-1].x;
   return data.map(function(_,i){return(i<minX||i>maxX)?null:Math.round((slope*i+intercept)*100)/100;});
 }
+function trimTopBottom(arr,n){
+  var idx=arr.map(function(v,i){return{v:v,i:i};}).filter(function(x){return x.v!==null&&x.v>0;});
+  idx.sort(function(a,b){return a.v-b.v;});
+  var kill=new Set(idx.slice(0,n).concat(idx.slice(-n)).map(function(x){return x.i;}));
+  return arr.map(function(v,i){return kill.has(i)?null:v;});
+}
 
 // ── COSTS — 90-DAY ROLLING ─────────────────────────────────────────────────
 function build90DayCosts(){
@@ -590,15 +596,15 @@ function lineOpts(unit){
 function renderCostCharts(){
   var data=build90DayCosts();
   var labels=data.map(function(r){return r.label;});
-  var rawD=data.map(function(r){return r.raw;});
-  var dyesD=data.map(function(r){return r.dyes;});
-  var elecD=data.map(function(r){return r.elec;});
-  var petcokeD=data.map(function(r){return r.petcoke;});
+  var rawD=trimTopBottom(data.map(function(r){return r.raw;}),5);
+  var dyesD=trimTopBottom(data.map(function(r){return r.dyes;}),5);
+  var elecD=trimTopBottom(data.map(function(r){return r.elec;}),5);
+  var petcokeD=trimTopBottom(data.map(function(r){return r.petcoke;}),5);
   ['c-co-raw','c-co-dyes','c-co-elec','c-co-petcoke'].forEach(function(id){dc(id);});
   function mkCostChart(id,mainData,col,bgCol,unit){
     CHARTS[id]=new Chart(document.getElementById(id),{type:'line',data:{labels:labels,datasets:[
       {data:mainData,borderColor:col,backgroundColor:bgCol,fill:true,borderWidth:2,
-       pointRadius:2,pointHoverRadius:4,tension:0.3,order:2},
+       pointRadius:2,pointHoverRadius:4,tension:0.3,spanGaps:true,order:2},
       {data:linReg(mainData),borderColor:col,borderWidth:1.5,borderDash:[6,4],
        pointRadius:0,fill:false,tension:0,spanGaps:true,order:1}
     ]},options:lineOpts(unit)});
