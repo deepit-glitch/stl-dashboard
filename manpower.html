@@ -18,25 +18,35 @@ input[type=number]{-moz-appearance:textfield}
 <script>
 const WORKER = "https://square-flower-57b5.deepit.workers.dev";
 
+/* ── month config ────────────────────────────────────────── */
+const MANPOWER_MONTHS = [
+  {key:"2026-04", label:"April 2026",   short:"APR", days:30},
+  {key:"2026-05", label:"May 2026",     short:"MAY", days:31},
+  {key:"2026-06", label:"June 2026",    short:"JUN", days:30},
+];
+
 /* ── helpers ─────────────────────────────────────────────── */
 function getToken(){ return localStorage.getItem("stl_token"); }
 function clearSession(){ ["stl_token","stl_role","stl_name","stl_dept","stl_demo"].forEach(k=>localStorage.removeItem(k)); }
 
-function todayStr(){
+function todayISOStr(){
   const d = new Date();
   return d.toISOString().slice(0,10);
 }
-
 function yesterdayStr(){
   const d = new Date();
   d.setDate(d.getDate() - 1);
   return d.toISOString().slice(0,10);
 }
-
 function formatDisplay(dateStr){
   const [y,m,d] = dateStr.split("-");
   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   return `${parseInt(d)} ${months[parseInt(m)-1]} ${y}`;
+}
+function dateToMonthKey(dateStr){ return dateStr.slice(0,7); }
+function currentMonthKey(){
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
 }
 
 /* ── dept configs ────────────────────────────────────────── */
@@ -49,39 +59,70 @@ const DEPTS_NALAGARH = [
   { id:"finishing",        label:"Finishing",           color:"#dc2626", icon:"📦" },
   { id:"finishing1",       label:"Finishing 1",         color:"#ea580c", icon:"📋" },
 ];
-
 const DEPTS_NOIDA = [
   { id:"noidaFinishing",   label:"Noida Finishing",    color:"#0f766e", icon:"🏭" },
 ];
 
 /* ── app state ───────────────────────────────────────────── */
+const mkNow = currentMonthKey();
+const defMonth = MANPOWER_MONTHS.find(m => m.key === mkNow) || MANPOWER_MONTHS[1];
+
 let state = {
-  screen: "loading",
-  userName: "",
-  userRole: "",
-  selectedDate: yesterdayStr(),
+  screen:        "loading",
+  userName:      "",
+  userRole:      "",
+  selectedDate:  yesterdayStr(),
+  calMonth:      defMonth,
+  monthEntries:  {},   // {YYYY-MM-DD: true}  — populated by prefetch
   values: {
     weaving:"", sizing:"", sectionalWarping:"", yarnDyeing:"",
     fabricDyeing:"", finishing:"", finishing1:"", noidaFinishing:""
   },
-  savedFor: null,
-  saving: false,
-  loading: false,
-  toast: null,
+  savedFor:      null,
+  saving:        false,
+  loading:       false,
+  calLoading:    false,
+  toast:         null,
   existingEntry: false,
 };
 
 function setState(patch){ Object.assign(state, patch); render(); }
 
 /* ── role helpers ────────────────────────────────────────── */
-function isNoidaRole(){ return state.userRole === "hr_noida"; }
-function getActiveDepts(){ return isNoidaRole() ? DEPTS_NOIDA : DEPTS_NALAGARH; }
-
+const urlParams = new URLSearchParams(window.location.search);
+function isNoidaMode(){
+  return state.userRole === "hr_noida" ||
+    (state.userRole === "admin" && urlParams.get("loc") === "noida");
+}
+function getActiveDepts(){ return isNoidaMode() ? DEPTS_NOIDA : DEPTS_NALAGARH; }
 function emptyValues(){
-  return {
-    weaving:"", sizing:"", sectionalWarping:"", yarnDyeing:"",
-    fabricDyeing:"", finishing:"", finishing1:"", noidaFinishing:""
-  };
+  return { weaving:"", sizing:"", sectionalWarping:"", yarnDyeing:"",
+           fabricDyeing:"", finishing:"", finishing1:"", noidaFinishing:"" };
+}
+
+/* ── calendar prefetch ───────────────────────────────────── */
+async function prefetchMonthEntries(monthKey){
+  setState({ calLoading: true });
+  const [y, m] = monthKey.split("-").map(Number);
+  const todayStr = todayISOStr();
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const fetched = {};
+  const token = getToken();
+  const promises = [];
+  for (let d = 1; d <= daysInMonth; d++){
+    const ds = `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    if (ds > todayStr) continue;
+    promises.push(
+      fetch(`${WORKER}/manpower/${ds}`, { headers:{"X-Session-Token": token} })
+        .then(r => r.json())
+        .then(j => { if (j.ok && j.data) fetched[ds] = true; })
+        .catch(()=>{})
+    );
+  }
+  await Promise.all(promises);
+  // merge into existing (other months may already be cached)
+  const merged = Object.assign({}, state.monthEntries, fetched);
+  setState({ monthEntries: merged, calLoading: false });
 }
 
 /* ── API calls ───────────────────────────────────────────── */
@@ -104,9 +145,7 @@ async function loadDate(dateStr){
           finishing1:       String(d.data.finishing1       ?? ""),
           noidaFinishing:   String(d.data.noidaFinishing   ?? ""),
         },
-        savedFor: dateStr,
-        existingEntry: true,
-        loading: false,
+        savedFor: dateStr, existingEntry: true, loading: false,
       });
     } else {
       setState({ values: emptyValues(), savedFor: null, existingEntry: false, loading: false });
@@ -135,7 +174,9 @@ async function saveData(){
     });
     const resp = await r.json();
     if (resp.ok) {
-      setState({ saving: false, savedFor: state.selectedDate, existingEntry: true });
+      // mark date as saved in calendar
+      const merged = Object.assign({}, state.monthEntries, {[state.selectedDate]: true});
+      setState({ saving: false, savedFor: state.selectedDate, existingEntry: true, monthEntries: merged });
       showToast(`Saved for ${formatDisplay(state.selectedDate)}`, "ok");
     } else {
       setState({ saving: false });
@@ -153,8 +194,24 @@ function showToast(msg, type){
 }
 
 function onDateChange(newDate){
-  setState({ selectedDate: newDate });
+  // Also switch calendar month if needed
+  const mk = dateToMonthKey(newDate);
+  const newCalMonth = MANPOWER_MONTHS.find(m => m.key === mk) || state.calMonth;
+  setState({ selectedDate: newDate, calMonth: newCalMonth });
   loadDate(newDate);
+}
+
+function onCalMonthChange(monthObj){
+  setState({ calMonth: monthObj });
+  // Prefetch if not already done
+  const alreadyFetched = Object.keys(state.monthEntries).some(k => k.startsWith(monthObj.key));
+  if (!alreadyFetched) prefetchMonthEntries(monthObj.key);
+}
+
+function onCalDayClick(dateStr){
+  const todayStr = todayISOStr();
+  if (dateStr > todayStr) return; // block future
+  onDateChange(dateStr);
 }
 
 function onValueChange(id, val){
@@ -168,6 +225,101 @@ function logout(){
   window.location.href = isDemo ? "demo_login.html" : "login.html";
 }
 
+/* ── calendar renderer ───────────────────────────────────── */
+function renderCalendar(){
+  const mo = state.calMonth;
+  const [y, m] = mo.key.split("-").map(Number);
+  const firstDow  = new Date(y, m-1, 1).getDay();
+  const todayStr  = todayISOStr();
+  const todayMk   = todayStr.slice(0,7);
+  const todayDay  = todayMk === mo.key ? parseInt(todayStr.slice(8)) : null;
+  const selMk     = state.selectedDate.slice(0,7);
+  const selDay    = selMk === mo.key ? parseInt(state.selectedDate.slice(8)) : null;
+  const accent    = isNoidaMode() ? "#0f766e" : "#6366f1";
+
+  let dayCells = "";
+  // offset blanks
+  for (let i = 0; i < firstDow; i++) dayCells += `<div></div>`;
+  for (let day = 1; day <= mo.days; day++){
+    const ds  = `${y}-${String(m).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+    const isSaved    = !!state.monthEntries[ds];
+    const isSelected = selDay === day;
+    const isToday    = todayDay === day;
+    const isFuture   = ds > todayStr;
+
+    let bg    = "transparent";
+    let color = "#475569";
+    let border= "none";
+    let fw    = 500;
+    if (isSelected){ bg = accent; color = "#fff"; fw = 700; }
+    else if (isSaved){ bg = "#dcfce7"; color = "#15803d"; }
+    if (isToday && !isSelected) border = `2px solid ${accent}`;
+
+    const opacity  = isFuture ? "0.3" : "1";
+    const cursor   = isFuture ? "default" : "pointer";
+    const onclick  = isFuture ? "" : `onCalDayClick('${ds}')`;
+
+    dayCells += `<button onclick="${onclick}"
+      style="width:100%;aspect-ratio:1/1;border-radius:6px;font-family:monospace;font-size:10px;
+             font-weight:${fw};background:${bg};color:${color};border:${border};
+             cursor:${cursor};opacity:${opacity};transition:all 0.12s;padding:0;"
+      >${day}</button>`;
+  }
+
+  const monthTabsHtml = MANPOWER_MONTHS.map(mm => {
+    const active = mm.key === mo.key;
+    return `<button onclick="onCalMonthChange(MANPOWER_MONTHS.find(x=>x.key==='${mm.key}'))"
+      style="padding:3px 12px;border-radius:5px;font-family:monospace;font-size:10px;font-weight:700;
+             cursor:pointer;border:1.5px solid ${active ? '#0f172a' : '#e2e8f0'};
+             background:${active ? '#0f172a' : 'transparent'};color:${active ? '#fff' : '#94a3b8'};
+             transition:all 0.12s;">${mm.short}</button>`;
+  }).join("");
+
+  // selected date info panel
+  const [sy,sm,sd] = state.selectedDate.split("-");
+  const mNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const dispDate = `${parseInt(sd)} ${mNames[parseInt(sm)-1]} ${sy}`;
+  const isYest  = state.selectedDate === yesterdayStr();
+  const statusLabel = isYest ? "Today's entry" : "Editing past data";
+  const statusColor = isYest ? "#16a34a" : "#ea580c";
+
+  return `
+    <div style="width:236px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;">
+      <!-- calendar card -->
+      <div style="background:#fff;border-radius:12px;padding:14px;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+        <!-- month tabs -->
+        <div style="display:flex;gap:4px;margin-bottom:10px;">${monthTabsHtml}</div>
+        <!-- label -->
+        <div style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:2px;margin-bottom:8px;font-family:monospace;">${mo.label.toUpperCase()}</div>
+        <!-- grid -->
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:8px;">
+          ${["S","M","T","W","T","F","S"].map(d=>`<div style="font-size:9px;text-align:center;color:#cbd5e1;font-weight:700;padding-bottom:4px;">${d}</div>`).join("")}
+          ${dayCells}
+        </div>
+        <!-- legend -->
+        <div style="display:flex;gap:8px;padding-top:8px;border-top:1px solid #f8fafc;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#94a3b8;">
+            <div style="width:8px;height:8px;border-radius:3px;background:${accent};"></div>Selected
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#94a3b8;">
+            <div style="width:8px;height:8px;border-radius:3px;background:#dcfce7;"></div>Saved
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#94a3b8;">
+            <div style="width:8px;height:8px;border-radius:3px;border:2px solid ${accent};background:transparent;"></div>Today
+          </div>
+        </div>
+        ${state.calLoading ? `<div style="font-size:10px;color:#94a3b8;margin-top:8px;font-style:italic;">Loading saved dates…</div>` : ""}
+      </div>
+      <!-- selected date info -->
+      <div style="background:#fff;border-radius:10px;padding:12px 14px;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+        <div style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:2px;text-transform:uppercase;">Selected Date</div>
+        <div style="font-size:17px;font-weight:800;color:#0f172a;margin-top:5px;font-family:monospace;">${dispDate}</div>
+        <div style="margin-top:5px;font-size:11px;font-weight:700;color:${statusColor};">${statusLabel}</div>
+        ${state.existingEntry ? `<div style="margin-top:4px;font-size:11px;color:#059669;font-weight:600;">✓ Data saved</div>` : ""}
+      </div>
+    </div>`;
+}
+
 /* ── session check ───────────────────────────────────────── */
 async function init(){
   const token = getToken();
@@ -177,27 +329,30 @@ async function init(){
     if (!r.ok){ clearSession(); window.location.href = "login.html"; return; }
     const d = await r.json();
     if (!d.ok){ clearSession(); window.location.href = "login.html"; return; }
-    // Only hr and hr_noida may access this page
     if (d.role !== "hr" && d.role !== "hr_noida" && d.role !== "admin"){
       window.location.href = "login.html"; return;
     }
     state.userName = d.name || d.mobile || "";
     state.userRole = d.role || "";
-    state.screen = "entry";
+    state.screen   = "entry";
     render();
+    // load today's data and prefetch calendar
     loadDate(state.selectedDate);
+    prefetchMonthEntries(state.calMonth.key);
   } catch(e) {
     state.userName = localStorage.getItem("stl_name") || "";
     state.userRole = localStorage.getItem("stl_role") || "";
-    state.screen = "entry";
+    state.screen   = "entry";
     render();
     loadDate(state.selectedDate);
+    prefetchMonthEntries(state.calMonth.key);
   }
 }
 
 /* ── render ──────────────────────────────────────────────── */
 function render(){
   const root = document.getElementById("root");
+
   if (state.screen === "loading"){
     root.innerHTML = `
       <div style="min-height:100vh;background:#eef2f7;display:flex;align-items:center;justify-content:center;">
@@ -210,11 +365,11 @@ function render(){
     return;
   }
 
-  const depts = getActiveDepts();
-  const isYesterday = state.selectedDate === yesterdayStr();
-  const allFilled = depts.every(d => state.values[d.id] !== "" && !isNaN(parseInt(state.values[d.id])));
-  const locationLabel = isNoidaRole() ? "Noida (Plant 1600)" : "Nalagarh";
-  const accentColor = isNoidaRole() ? "#0f766e" : "#6366f1";
+  const depts      = getActiveDepts();
+  const accentColor= isNoidaMode() ? "#0f766e" : "#6366f1";
+  const locLabel   = isNoidaMode() ? "Noida (Plant 1600)" : "Nalagarh";
+  const allFilled  = depts.every(d => state.values[d.id] !== "" && !isNaN(parseInt(state.values[d.id])));
+  const isYest     = state.selectedDate === yesterdayStr();
 
   root.innerHTML = `
     <style>
@@ -228,9 +383,6 @@ function render(){
       .save-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
       .save-btn:hover:not(:disabled){opacity:0.92;transform:translateY(-1px);}
       .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 24px;border-radius:10px;font-size:13px;font-weight:700;animation:fadeIn 0.25s ease;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,0.15);white-space:nowrap;}
-      .date-btn{padding:6px 14px;border-radius:8px;border:2px solid #e2e8f0;background:#fff;font-size:13px;font-weight:700;cursor:pointer;color:#374151;transition:all 0.15s;}
-      .date-btn.active{border-color:${accentColor};background:${accentColor};color:#fff;}
-      .date-btn:hover:not(.active){border-color:${accentColor};color:${accentColor};}
     </style>
 
     <!-- HEADER -->
@@ -242,85 +394,66 @@ function render(){
       </div>
     </div>
 
-    <!-- MAIN -->
-    <div style="max-width:560px;margin:0 auto;padding:24px 16px 40px;">
+    <!-- MAIN CONTENT -->
+    <div style="max-width:1080px;margin:0 auto;padding:18px 16px 40px;">
 
-      <!-- title -->
-      <div style="margin-bottom:24px;">
-        <div style="font-size:11px;font-weight:700;color:${accentColor};letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">Daily Entry · ${locationLabel}</div>
-        <h1 style="font-size:24px;font-weight:900;color:#0f172a;letter-spacing:-0.5px;">Manpower Headcount</h1>
-        <p style="font-size:13px;color:#64748b;margin-top:4px;">Enter the number of workers present in each department.</p>
-      </div>
+      <!-- TWO-COLUMN LAYOUT -->
+      <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;">
 
-      <!-- date picker -->
-      <div style="background:#fff;border-radius:14px;padding:16px 20px;margin-bottom:20px;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
-        <div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;">Date</div>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <button class="date-btn ${isYesterday ? 'active' : ''}" onclick="onDateChange('${yesterdayStr()}')">Yesterday</button>
-          <button class="date-btn ${!isYesterday ? 'active' : ''}" onclick="">Backfill</button>
-          <input type="date"
-            id="dateInput"
-            value="${state.selectedDate}"
-            min="2026-05-01"
-            max="${yesterdayStr()}"
-            onchange="onDateChange(this.value)"
-            style="border:2px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:13px;font-weight:600;color:#374151;outline:none;cursor:pointer;${isYesterday ? 'display:none;' : ''}">
-          <span style="font-size:14px;font-weight:700;color:#0f172a;">${formatDisplay(state.selectedDate)}</span>
-          ${state.existingEntry ? `<span style="font-size:11px;font-weight:700;color:#059669;background:#d1fae5;padding:3px 8px;border-radius:6px;">✓ Saved</span>` : ""}
-        </div>
-        ${!isYesterday ? `
-        <div style="margin-top:10px;font-size:11px;color:#f59e0b;font-weight:600;background:#fef3c7;padding:6px 10px;border-radius:6px;">
-          📅 Backfilling data for ${formatDisplay(state.selectedDate)}
-        </div>` : ""}
-      </div>
+        <!-- LEFT: calendar sidebar -->
+        ${renderCalendar()}
 
-      <!-- loading state -->
-      ${state.loading ? `
-      <div style="text-align:center;padding:40px 0;">
-        <div style="width:32px;height:32px;border:3px solid ${accentColor};border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>
-        <div style="font-size:13px;color:#64748b;font-weight:600;">Loading…</div>
-      </div>` : `
+        <!-- RIGHT: form -->
+        <div style="flex:1;min-width:300px;">
 
-      <!-- dept fields -->
-      <div style="margin-bottom:20px;">
-        ${depts.map(d => `
-          <div class="dept-card" style="--accent:${d.color}">
-            <div style="width:42px;height:42px;border-radius:12px;background:${d.color}18;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">${d.icon}</div>
-            <div style="flex:1;">
-              <div style="font-size:13px;font-weight:700;color:#0f172a;">${d.label}</div>
-              <div style="font-size:11px;color:#94a3b8;margin-top:1px;">Headcount</div>
-            </div>
-            <div style="display:flex;align-items:center;gap:4px;">
-              <input
-                class="dept-input"
-                type="number"
-                min="0"
-                max="999"
-                placeholder="—"
-                value="${state.values[d.id]}"
-                oninput="onValueChange('${d.id}', this.value)"
-                style="color:${state.values[d.id] !== '' ? d.color : '#cbd5e1'};"
-              />
-              <span style="font-size:12px;color:#94a3b8;font-weight:600;">ppl</span>
-            </div>
+          <!-- title -->
+          <div style="margin-bottom:20px;">
+            <div style="font-size:11px;font-weight:700;color:${accentColor};letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">Daily Entry · ${locLabel}</div>
+            <h1 style="font-size:24px;font-weight:900;color:#0f172a;letter-spacing:-0.5px;">Manpower Headcount</h1>
+            <p style="font-size:13px;color:#64748b;margin-top:4px;">Enter the number of workers present in each department.</p>
           </div>
-        `).join("")}
-      </div>
 
-      <!-- save button -->
-      <button class="save-btn" onclick="saveData()" ${(!allFilled || state.saving) ? "disabled" : ""}>
-        ${state.saving
-          ? `<span style="display:inline-flex;align-items:center;gap:8px;"><span style="width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block;"></span>Saving…</span>`
-          : state.existingEntry
-            ? `✏️ Update ${formatDisplay(state.selectedDate)}`
-            : `💾 Save ${formatDisplay(state.selectedDate)}`
-        }
-      </button>
+          <!-- loading state -->
+          ${state.loading ? `
+          <div style="text-align:center;padding:40px 0;">
+            <div style="width:32px;height:32px;border:3px solid ${accentColor};border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>
+            <div style="font-size:13px;color:#64748b;font-weight:600;">Loading…</div>
+          </div>` : `
 
-      ${!allFilled ? `<p style="text-align:center;font-size:12px;color:#94a3b8;margin-top:10px;">Fill in all departments to save.</p>` : ""}
-      `}
+          <!-- dept fields -->
+          <div style="margin-bottom:20px;">
+            ${depts.map(d => `
+              <div class="dept-card" style="--accent:${d.color}">
+                <div style="width:42px;height:42px;border-radius:12px;background:${d.color}18;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">${d.icon}</div>
+                <div style="flex:1;">
+                  <div style="font-size:13px;font-weight:700;color:#0f172a;">${d.label}</div>
+                  <div style="font-size:11px;color:#94a3b8;margin-top:1px;">Headcount</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:4px;">
+                  <input class="dept-input" type="number" min="0" max="999" placeholder="—"
+                    value="${state.values[d.id]}"
+                    oninput="onValueChange('${d.id}', this.value)"
+                    style="color:${state.values[d.id] !== '' ? d.color : '#cbd5e1'};" />
+                  <span style="font-size:12px;color:#94a3b8;font-weight:600;">ppl</span>
+                </div>
+              </div>`).join("")}
+          </div>
 
-    </div>
+          <!-- save button -->
+          <button class="save-btn" onclick="saveData()" ${(!allFilled || state.saving) ? "disabled" : ""}>
+            ${state.saving
+              ? `<span style="display:inline-flex;align-items:center;gap:8px;"><span style="width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block;"></span>Saving…</span>`
+              : state.existingEntry
+                ? `✏️ Update ${formatDisplay(state.selectedDate)}`
+                : `💾 Save ${formatDisplay(state.selectedDate)}`
+            }
+          </button>
+          ${!allFilled ? `<p style="text-align:center;font-size:12px;color:#94a3b8;margin-top:10px;">Fill in all departments to save.</p>` : ""}
+          `}
+
+        </div><!-- /right -->
+      </div><!-- /two-column -->
+    </div><!-- /main -->
 
     <!-- TOAST -->
     ${state.toast ? `
@@ -328,15 +461,6 @@ function render(){
       ${state.toast.type === 'ok' ? '✓' : '✕'} ${state.toast.msg}
     </div>` : ""}
   `;
-
-  // wire up backfill button to show/hide date input
-  const backfillBtn = root.querySelector('.date-btn:not(.active)');
-  if (backfillBtn && isYesterday){
-    backfillBtn.onclick = () => {
-      const inp = document.getElementById("dateInput");
-      if (inp){ inp.style.display = "block"; inp.focus(); }
-    };
-  }
 }
 
 /* ── boot ────────────────────────────────────────────────── */
