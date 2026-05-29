@@ -325,7 +325,7 @@
   <div class="updated"><span id="footer-date">Last updated: --</span> &nbsp;·&nbsp; Sara Textiles Ltd, Nalagarh</div>
 </div>
 
-<script src="stl_data.js?v=20260528"></script>
+<script src="stl_data.js?v=20260529"></script>
 <script>
 
 const CHARTS = {};
@@ -689,7 +689,8 @@ function buildProdLookup(){
         fabwash:(d.fabwash||[])[i]||0,
         fin:(d.fin||[])[i]||0,
         fin1:(d.fin1||[])[i]||0,
-        noida_fin:(d.noida_fin||[])[i]||0
+        noida_fin:(d.noida_fin||[])[i]||0,
+        noida_manpower:(d.noida_manpower||[])[i]||0
       };
     });
   });
@@ -730,7 +731,7 @@ async function initMPTab(){
         fabricDyeing:ppp(pr.fabwash,mp.fabricDyeing),
         finishing:ppp((pr.fin||0)-(pr.noida_fin||0),mp.finishing),
         finishing1:ppp(pr.fin1,mp.finishing1),
-        noidaFinishing:ppp(pr.noida_fin,mp.noidaFinishing)
+        noidaFinishing:ppp(pr.noida_fin,pr.noida_manpower)
       });
     });
     renderMPTab(rows);
