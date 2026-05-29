@@ -196,9 +196,9 @@
 
   <!-- COSTS -->
   <div id="tab-co" class="tc">
-    <div class="view-row">
-      <span class="view-label">Month:</span>
-      <select class="msel" id="co-month" onchange="updateCosts()" style="margin-bottom:0"></select>
+    <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;">Rolling window:</span>
+      <span style="font-size:11px;font-weight:700;color:var(--amber);background:rgba(239,159,39,0.12);border:1px solid rgba(239,159,39,0.3);border-radius:6px;padding:3px 10px;">Last 90 days</span>
     </div>
     <div class="kg3" id="co-kpis"></div>
     <div class="row2">
@@ -430,7 +430,7 @@ function buildOvKPIs(){
 
 // ── Dynamic month dropdowns — auto-populated from MONTHS array ──────────
 function initMonthDropdowns() {
-  const ids = ['wv-month','dh-month','co-month'];
+  const ids = ['wv-month','dh-month'];
   ids.forEach(id => {
     const sel = document.getElementById(id);
     if (!sel || typeof MONTHS === 'undefined') return;
@@ -535,41 +535,81 @@ function initDH(){buildDHKPIs(CURRENT_MONTH);renderDHCharts(CURRENT_MONTH);}
 function updateDH(){const m=document.getElementById('dh-month').value;buildDHKPIs(m);renderDHCharts(m);}
 
 
-// ── COSTS ─────────────────────────────────────────────────────────────────
-function buildCoKPIs(m){
-  const i=getIdx(m);
-  const cp=CONSUMPTION_PARAMS[m];
-  const days=MONTHLY.days[i];
-  const totalRaw=cp.raw.reduce((a,b)=>a+b,0);
-  const dActive=cp.dyes_pkg.filter(v=>v>0);
-  const eActive=cp.elec_pkg.filter(v=>v>0);
-  const avgDyes=dActive.length?dActive.reduce((a,b)=>a+b,0)/dActive.length:0;
-  const avgElec=eActive.length?eActive.reduce((a,b)=>a+b,0)/eActive.length:0;
-  document.getElementById('co-kpis').innerHTML=`
-    <div class="kc"><div class="kl">Raw Material — total</div><div class="kv">₹${totalRaw.toFixed(1)} L</div><div class="ks">avg ₹${(totalRaw/days).toFixed(1)}L/day · ${days} days</div></div>
-    <div class="kc"><div class="kl">Dyes — avg cost/kg</div><div class="kv">₹${avgDyes.toFixed(2)}</div><div class="ks">per kg dyed (excl. zero days)</div></div>
-    <div class="kc"><div class="kl">Electricity — avg cost/kg</div><div class="kv">₹${avgElec.toFixed(2)}</div><div class="ks">per kg total production (excl. zero days)</div></div>`;
+// ── TRENDLINE HELPER ──────────────────────────────────────────────────────
+function linReg(data){
+  var pts=data.map(function(y,x){return{x:x,y:y};}).filter(function(p){return p.y!==null&&p.y!==undefined&&!isNaN(p.y)&&p.y>0;});
+  if(pts.length<2) return data.map(function(){return null;});
+  var n=pts.length,sx=pts.reduce(function(s,p){return s+p.x;},0),sy=pts.reduce(function(s,p){return s+p.y;},0);
+  var sxy=pts.reduce(function(s,p){return s+p.x*p.y;},0),sx2=pts.reduce(function(s,p){return s+p.x*p.x;},0);
+  var denom=n*sx2-sx*sx; if(!denom) return data.map(function(){return null;});
+  var slope=(n*sxy-sx*sy)/denom,intercept=(sy-slope*sx)/n;
+  var minX=pts[0].x,maxX=pts[pts.length-1].x;
+  return data.map(function(_,i){return(i<minX||i>maxX)?null:Math.round((slope*i+intercept)*100)/100;});
 }
 
+// ── COSTS — 90-DAY ROLLING ─────────────────────────────────────────────────
+function build90DayCosts(){
+  var MK={'Feb-26':'2026-02','Mar-26':'2026-03','Apr-26':'2026-04','May-26':'2026-05',
+          'Jun-26':'2026-06','Jul-26':'2026-07','Aug-26':'2026-08','Sep-26':'2026-09',
+          'Oct-26':'2026-10','Nov-26':'2026-11','Dec-26':'2026-12'};
+  var MS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var all=[];
+  MONTHS.forEach(function(mk){
+    var cp=CONSUMPTION_PARAMS[mk]; if(!cp) return;
+    var pfx=MK[mk]; if(!pfx) return;
+    var mo=parseInt(pfx.slice(5,7));
+    cp.dates.forEach(function(d,i){
+      var ds=pfx+'-'+String(d).padStart(2,'0');
+      all.push({ds:ds,label:parseInt(d)+' '+MS[mo-1],
+        raw:cp.raw[i]||0,dyes:cp.dyes_pkg[i]||0,
+        elec:cp.elec_pkg[i]||0,petcoke:cp.petcoke_pkg[i]||0});
+    });
+  });
+  all.sort(function(a,b){return a.ds<b.ds?-1:a.ds>b.ds?1:0;});
+  return all.slice(-90);
+}
+function buildCoKPIs(){
+  var data=build90DayCosts(),n=data.length;
+  var totalRaw=data.reduce(function(s,r){return s+r.raw;},0);
+  var dA=data.filter(function(r){return r.dyes>0;}),eA=data.filter(function(r){return r.elec>0;});
+  var avgDyes=dA.length?dA.reduce(function(s,r){return s+r.dyes;},0)/dA.length:0;
+  var avgElec=eA.length?eA.reduce(function(s,r){return s+r.elec;},0)/eA.length:0;
+  document.getElementById('co-kpis').innerHTML=
+    '<div class="kc"><div class="kl">Raw Material — 90-day total</div><div class="kv">₹'+totalRaw.toFixed(1)+' L</div><div class="ks">avg ₹'+(n?totalRaw/n:0).toFixed(1)+'L/day · '+n+' days</div></div>'+
+    '<div class="kc"><div class="kl">Dyes — 90-day avg</div><div class="kv">₹'+avgDyes.toFixed(2)+'</div><div class="ks">per kg dyed (excl. zero days)</div></div>'+
+    '<div class="kc"><div class="kl">Electricity — 90-day avg</div><div class="kv">₹'+avgElec.toFixed(2)+'</div><div class="ks">per kg total production (excl. zero days)</div></div>';
+}
 function lineOpts(unit){
-  return {...base,
-    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' ₹'+ctx.raw+' '+unit}}},
-    scales:{x:{grid:{display:false},ticks:{color:tc,maxTicksLimit:16}},y:{grid:{color:gc},ticks:{color:tc},beginAtZero:true}},
-    elements:{line:{tension:0.3},point:{radius:3,hoverRadius:5}}
+  return {responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ctx.raw!=null?' ₹'+ctx.raw+' '+unit:' —';}}}},
+    scales:{x:{grid:{display:false},ticks:{color:tc,maxTicksLimit:18,font:{size:10}}},
+            y:{grid:{color:gc},ticks:{color:tc,font:{size:10}},beginAtZero:true}},
+    elements:{line:{tension:0.3},point:{radius:2,hoverRadius:4}}
   };
 }
-
-function renderCostCharts(m){
-  const cp=CONSUMPTION_PARAMS[m];
-  ['c-co-raw','c-co-dyes','c-co-elec','c-co-petcoke'].forEach(id=>dc(id));
-  CHARTS['c-co-raw']    =new Chart(document.getElementById('c-co-raw'),    {type:'line',data:{labels:cp.dates,datasets:[{data:cp.raw,       borderColor:'#EF9F27',backgroundColor:'rgba(239,159,39,0.08)', fill:true}]},options:lineOpts('L')});
-  CHARTS['c-co-dyes']   =new Chart(document.getElementById('c-co-dyes'),   {type:'line',data:{labels:cp.dates,datasets:[{data:cp.dyes_pkg,  borderColor:'#D85A30',backgroundColor:'rgba(216,90,48,0.08)',   fill:true}]},options:lineOpts('/kg')});
-  CHARTS['c-co-elec']   =new Chart(document.getElementById('c-co-elec'),   {type:'line',data:{labels:cp.dates,datasets:[{data:cp.elec_pkg,  borderColor:'#378ADD',backgroundColor:'rgba(55,138,221,0.08)',  fill:true}]},options:lineOpts('/kg')});
-  CHARTS['c-co-petcoke']=new Chart(document.getElementById('c-co-petcoke'),{type:'line',data:{labels:cp.dates,datasets:[{data:cp.petcoke_pkg,borderColor:'#7F77DD',backgroundColor:'rgba(127,119,221,0.08)',fill:true}]},options:lineOpts('/kg')});
+function renderCostCharts(){
+  var data=build90DayCosts();
+  var labels=data.map(function(r){return r.label;});
+  var rawD=data.map(function(r){return r.raw;});
+  var dyesD=data.map(function(r){return r.dyes;});
+  var elecD=data.map(function(r){return r.elec;});
+  var petcokeD=data.map(function(r){return r.petcoke;});
+  ['c-co-raw','c-co-dyes','c-co-elec','c-co-petcoke'].forEach(function(id){dc(id);});
+  function mkCostChart(id,mainData,col,bgCol,unit){
+    CHARTS[id]=new Chart(document.getElementById(id),{type:'line',data:{labels:labels,datasets:[
+      {data:mainData,borderColor:col,backgroundColor:bgCol,fill:true,borderWidth:2,
+       pointRadius:2,pointHoverRadius:4,tension:0.3,order:2},
+      {data:linReg(mainData),borderColor:col,borderWidth:1.5,borderDash:[6,4],
+       pointRadius:0,fill:false,tension:0,spanGaps:true,order:1}
+    ]},options:lineOpts(unit)});
+  }
+  mkCostChart('c-co-raw',    rawD,    '#EF9F27','rgba(239,159,39,0.08)', 'L');
+  mkCostChart('c-co-dyes',   dyesD,   '#D85A30','rgba(216,90,48,0.08)',  '/kg');
+  mkCostChart('c-co-elec',   elecD,   '#378ADD','rgba(55,138,221,0.08)', '/kg');
+  mkCostChart('c-co-petcoke',petcokeD,'#7F77DD','rgba(127,119,221,0.08)','/kg');
 }
-
-function initCosts(){buildCoKPIs(CURRENT_MONTH);renderCostCharts(CURRENT_MONTH);}
-function updateCosts(){const m=document.getElementById('co-month').value;buildCoKPIs(m);renderCostCharts(m);}
+function initCosts(){buildCoKPIs();renderCostCharts();}
+function updateCosts(){buildCoKPIs();renderCostCharts();}
 
 
 // -- DAILY SUMMARY ------------------------------------------------------------
@@ -711,7 +751,7 @@ async function initMPTab(){
   document.getElementById('mp-content').style.display='none';
   document.getElementById('mp-error').style.display='none';
   try{
-    var end=new Date(); var start=new Date(); start.setDate(end.getDate()-29);
+    var end=new Date(); var start=new Date(); start.setDate(end.getDate()-89);
     var s=start.toISOString().slice(0,10); var e=end.toISOString().slice(0,10);
     var r=await fetch(MP_WORKER+'/manpower-range?start='+s+'&end='+e);
     var j=await r.json();
@@ -766,12 +806,17 @@ function renderMPTab(rows){
     var cid='mp-c-'+d.id;
     var el=document.getElementById(cid); if(!el) return;
     if(mpCharts[cid]) mpCharts[cid].destroy();
+    var _mpMain=rows.map(function(r){return r[d.id];});
     mpCharts[cid]=new Chart(el,{
       type:'line',
       data:{labels:labels,datasets:[{
-        data:rows.map(function(r){return r[d.id];}),
+        data:_mpMain,
         borderColor:d.color,backgroundColor:d.color+'22',
-        borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,spanGaps:true,fill:true
+        borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,spanGaps:true,fill:true,order:2
+      },{
+        data:linReg(_mpMain),
+        borderColor:d.color,borderWidth:1.5,borderDash:[6,4],
+        pointRadius:0,fill:false,tension:0,spanGaps:true,order:1
       }]},
       options:{
         responsive:true,maintainAspectRatio:false,
