@@ -751,7 +751,7 @@ async function initMPTab(){
   document.getElementById('mp-content').style.display='none';
   document.getElementById('mp-error').style.display='none';
   try{
-    var end=new Date(); var start=new Date(); start.setDate(end.getDate()-89);
+    var end=new Date(); var start=new Date(); start.setDate(end.getDate()-89); var _minStart=new Date("2026-05-01"); if(start<_minStart) start=_minStart;
     var s=start.toISOString().slice(0,10); var e=end.toISOString().slice(0,10);
     var r=await fetch(MP_WORKER+'/manpower-range?start='+s+'&end='+e);
     var j=await r.json();
