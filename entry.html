@@ -573,7 +573,7 @@ function EntryScreen({dept, onLogout}) {
       ...base,
       [wd.d]: dayData,
       [wkKey]: weekData,
-      [lastDay]: {...(base[lastDay] || {}), ...monthData}
+      [lastDay]: {...(base[lastDay] || {}), ...(wd.d === lastDay ? dayData : {}), ...monthData}
     };
     const ok = await saveData(dept.id, month.key, upd);
     if (ok) setEntries(upd);
@@ -804,7 +804,7 @@ function AdminScreen({pins, onUpdatePins, onLogout}) {
       ...entries,
       [selDay]: dayData,
       [wk]: weekData,
-      [lastDay]: {...(entries[lastDay] || {}), ...monthData}
+      [lastDay]: {...(entries[lastDay] || {}), ...(selDay === lastDay ? dayData : {}), ...monthData}
     };
     const ok = await saveData(selDept.id, selMonth.key, upd);
     if (ok) setEntries(upd);
