@@ -736,7 +736,14 @@ function buildProdLookup(){
         fin:(d.fin||[])[i]||0,
         fin1:(d.fin1||[])[i]||0,
         noida_fin:(d.noida_fin||[])[i]||0,
-        noida_manpower:(d.noida_manpower||[])[i]||0
+        noida_manpower:(d.noida_manpower||[])[i]||0,
+        mp_weaving:(d.mp_weaving||[])[i]||0,
+        mp_sizing:(d.mp_sizing||[])[i]||0,
+        mp_warping:(d.mp_warping||[])[i]||0,
+        mp_yarn:(d.mp_yarn||[])[i]||0,
+        mp_fabdye:(d.mp_fabdye||[])[i]||0,
+        mp_finishing:(d.mp_finishing||[])[i]||0,
+        mp_fin1:(d.mp_fin1||[])[i]||0
       };
     });
   });
@@ -757,27 +764,28 @@ async function initMPTab(){
   document.getElementById('mp-content').style.display='none';
   document.getElementById('mp-error').style.display='none';
   try{
-    var end=new Date(); var start=new Date(); start.setDate(end.getDate()-89); var _minStart=new Date("2026-05-01"); if(start<_minStart) start=_minStart;
-    var s=start.toISOString().slice(0,10); var e=end.toISOString().slice(0,10);
-    var r=await fetch(MP_WORKER+'/manpower-range?start='+s+'&end='+e);
-    var j=await r.json();
-    if(!j.ok) throw new Error(j.error);
     var prodLk=buildProdLookup();
     var rows=[];
-    (j.data||[]).forEach(function(entry){
-      if(!entry.data) return;
-      var pr=prodLk[entry.date]||{};
-      var mp=entry.data;
-      rows.push({
-        date:entry.date,
-        weaving:ppp(pr.weaving,mp.weaving),
-        sizing:ppp(pr.sizing,mp.sizing),
-        sectionalWarping:ppp(pr.warping,mp.sectionalWarping),
-        yarnDyeing:ppp(pr.yarn,mp.yarnDyeing),
-        fabricDyeing:ppp(pr.fabwash,mp.fabricDyeing),
-        finishing:ppp((pr.fin||0)-(pr.noida_fin||0),mp.finishing),
-        finishing1:ppp(pr.fin1,mp.finishing1),
-        noidaFinishing:ppp(pr.noida_fin,pr.noida_manpower)
+    // Build from stl_data.js DAILY_OV — permanent, never expires at month-end
+    var cutoffMs=new Date("2026-05-01").getTime();
+    Object.keys(DAILY_OV).sort().forEach(function(mk){
+      var pfx=MONTH_MAP[mk]; if(!pfx) return;
+      var d=DAILY_OV[mk];
+      (d.dates||[]).forEach(function(day,i){
+        var dateStr=pfx+'-'+day;
+        if(new Date(dateStr).getTime()<cutoffMs) return;
+        var pr=prodLk[dateStr]||{};
+        rows.push({
+          date:dateStr,
+          weaving:ppp(pr.weaving,pr.mp_weaving),
+          sizing:ppp(pr.sizing,pr.mp_sizing),
+          sectionalWarping:ppp(pr.warping,pr.mp_warping),
+          yarnDyeing:ppp(pr.yarn,pr.mp_yarn),
+          fabricDyeing:ppp(pr.fabwash,pr.mp_fabdye),
+          finishing:ppp((pr.fin||0)-(pr.noida_fin||0),pr.mp_finishing),
+          finishing1:ppp(pr.fin1,pr.mp_fin1),
+          noidaFinishing:ppp(pr.noida_fin,pr.noida_manpower)
+        });
       });
     });
     renderMPTab(rows);
