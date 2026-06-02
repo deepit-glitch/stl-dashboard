@@ -11,39 +11,55 @@
   input{width:100%;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:#0f172a;color:#e8eaf0;font-size:12px;font-family:monospace;margin-bottom:16px;box-sizing:border-box;}
   button{background:#6366f1;color:#fff;border:none;border-radius:10px;padding:14px 32px;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-bottom:8px;}
   button:disabled{opacity:0.5;cursor:not-allowed;}
-  .log{margin-top:20px;text-align:left;font-size:12px;font-family:monospace;background:#0f172a;border-radius:8px;padding:12px;max-height:320px;overflow-y:auto;}
+  .log{margin-top:20px;text-align:left;font-size:12px;font-family:monospace;background:#0f172a;border-radius:8px;padding:12px;max-height:340px;overflow-y:auto;}
   .ok{color:#1D9E75;} .err{color:#E24B4A;} .info{color:#7c8299;} .warn{color:#f59e0b;}
 </style>
 </head>
 <body>
 <div class="card">
-  <h1>STL Manpower KV Recovery</h1>
-  <p>Restores May 1–13 headcount data to Cloudflare KV with a <strong>365-day TTL</strong> so it never expires at month-end again.<br>Paste your Cloudflare API token and click Run.</p>
-  <input id="token" type="password" placeholder="Cloudflare API token (needs KV write permission)" />
-  <button id="btn" onclick="run()">▶ Run Recovery (May 1–13)</button>
-  <p style="color:#f59e0b;font-size:12px;">⚠ May 14–31 headcounts are not recoverable from this tool — re-enter them manually via manpower.html. The daily bot will then preserve them permanently.</p>
+  <h1>STL Manpower KV Recovery — Full May 2026</h1>
+  <p>Writes all 31 days of May headcount data (from DDR) to Cloudflare KV with a <strong>365-day TTL</strong>. Run once after any KV data loss.<br><br>Paste your Cloudflare API token and click Run.</p>
+  <input id="token" type="password" placeholder="Cloudflare API token (needs Workers KV write permission)" />
+  <button id="btn" onclick="run()">▶ Run Recovery (May 1–31, 365-day TTL)</button>
   <div class="log" id="log"><span class="info">Paste token and click Run.</span></div>
 </div>
 <script>
 const ACCOUNT = 'a08439327fd40a55ccece4923416d08f';
 const NS      = '6a9d1e6415a84bd7b96ec22ab1faa98c';
-const TTL_365 = 365 * 24 * 3600;  // 365 days in seconds
+const TTL_365 = 365 * 24 * 3600;
 
-// May 1-13 actual headcounts (from original backfill)
 const DATA = [
-  {d:"2026-05-01",mp:{weaving:82,sizing:22,sectionalWarping:28,yarnDyeing:23,fabricDyeing:32,finishing:157,finishing1:61}},
-  {d:"2026-05-02",mp:{weaving:84,sizing:22,sectionalWarping:22,yarnDyeing:23,fabricDyeing:29,finishing:172,finishing1:57}},
-  {d:"2026-05-03",mp:{weaving:79,sizing:22,sectionalWarping:20,yarnDyeing:13,fabricDyeing:20,finishing:136,finishing1:48}},
-  {d:"2026-05-04",mp:{weaving:79,sizing:22,sectionalWarping:23,yarnDyeing:26,fabricDyeing:36,finishing:157,finishing1:51}},
-  {d:"2026-05-05",mp:{weaving:74,sizing:22,sectionalWarping:29,yarnDyeing:24,fabricDyeing:31,finishing:155,finishing1:60}},
-  {d:"2026-05-06",mp:{weaving:71,sizing:22,sectionalWarping:28,yarnDyeing:23,fabricDyeing:34,finishing:169,finishing1:58}},
-  {d:"2026-05-07",mp:{weaving:76,sizing:22,sectionalWarping:39,yarnDyeing:24,fabricDyeing:36,finishing:168,finishing1:65}},
-  {d:"2026-05-08",mp:{weaving:78,sizing:22,sectionalWarping:33,yarnDyeing:23,fabricDyeing:34,finishing:174,finishing1:67}},
-  {d:"2026-05-09",mp:{weaving:76,sizing:22,sectionalWarping:31,yarnDyeing:21,fabricDyeing:32,finishing:164,finishing1:66}},
-  {d:"2026-05-10",mp:{weaving:63,sizing:22,sectionalWarping:24,yarnDyeing:22,fabricDyeing:31,finishing:141,finishing1:57}},
-  {d:"2026-05-11",mp:{weaving:70,sizing:22,sectionalWarping:23,yarnDyeing:20,fabricDyeing:28,finishing:139,finishing1:56}},
-  {d:"2026-05-12",mp:{weaving:70,sizing:17,sectionalWarping:35,yarnDyeing:22,fabricDyeing:31,finishing:148,finishing1:64}},
-  {d:"2026-05-13",mp:{weaving:79,sizing:22,sectionalWarping:32,yarnDyeing:19,fabricDyeing:36,finishing:151,finishing1:63}}
+  {d:"2026-05-01",mp:{"weaving":82,"sizing":22,"sectionalWarping":28,"yarnDyeing":23,"fabricDyeing":32,"finishing":157,"finishing1":61}},
+  {d:"2026-05-02",mp:{"weaving":84,"sizing":22,"sectionalWarping":22,"yarnDyeing":23,"fabricDyeing":29,"finishing":172,"finishing1":57}},
+  {d:"2026-05-03",mp:{"weaving":79,"sizing":22,"sectionalWarping":20,"yarnDyeing":13,"fabricDyeing":20,"finishing":136,"finishing1":48}},
+  {d:"2026-05-04",mp:{"weaving":79,"sizing":22,"sectionalWarping":23,"yarnDyeing":26,"fabricDyeing":36,"finishing":157,"finishing1":51}},
+  {d:"2026-05-05",mp:{"weaving":74,"sizing":22,"sectionalWarping":29,"yarnDyeing":24,"fabricDyeing":31,"finishing":155,"finishing1":60}},
+  {d:"2026-05-06",mp:{"weaving":71,"sizing":22,"sectionalWarping":28,"yarnDyeing":23,"fabricDyeing":34,"finishing":169,"finishing1":58}},
+  {d:"2026-05-07",mp:{"weaving":76,"sizing":22,"sectionalWarping":39,"yarnDyeing":24,"fabricDyeing":36,"finishing":168,"finishing1":65}},
+  {d:"2026-05-08",mp:{"weaving":78,"sizing":22,"sectionalWarping":33,"yarnDyeing":23,"fabricDyeing":34,"finishing":174,"finishing1":67}},
+  {d:"2026-05-09",mp:{"weaving":76,"sizing":22,"sectionalWarping":31,"yarnDyeing":21,"fabricDyeing":32,"finishing":164,"finishing1":66}},
+  {d:"2026-05-10",mp:{"weaving":63,"sizing":22,"sectionalWarping":24,"yarnDyeing":22,"fabricDyeing":31,"finishing":141,"finishing1":57}},
+  {d:"2026-05-11",mp:{"weaving":70,"sizing":22,"sectionalWarping":23,"yarnDyeing":20,"fabricDyeing":28,"finishing":139,"finishing1":56}},
+  {d:"2026-05-12",mp:{"weaving":70,"sizing":17,"sectionalWarping":35,"yarnDyeing":22,"fabricDyeing":31,"finishing":148,"finishing1":64}},
+  {d:"2026-05-13",mp:{"weaving":79,"sizing":22,"sectionalWarping":32,"yarnDyeing":19,"fabricDyeing":36,"finishing":151,"finishing1":63}},
+  {d:"2026-05-14",mp:{"weaving":82,"sizing":22,"sectionalWarping":36,"yarnDyeing":21,"fabricDyeing":35,"finishing":151,"finishing1":64}},
+  {d:"2026-05-15",mp:{"weaving":77,"sizing":20,"sectionalWarping":39,"yarnDyeing":19,"fabricDyeing":37,"finishing":154,"finishing1":60}},
+  {d:"2026-05-16",mp:{"weaving":86,"sizing":22,"sectionalWarping":38,"yarnDyeing":21,"fabricDyeing":38,"finishing":156,"finishing1":67}},
+  {d:"2026-05-17",mp:{"weaving":77,"sizing":20,"sectionalWarping":35,"yarnDyeing":13,"fabricDyeing":16,"finishing":146,"finishing1":60}},
+  {d:"2026-05-18",mp:{"weaving":78,"sizing":22,"sectionalWarping":35,"yarnDyeing":25,"fabricDyeing":36,"finishing":160,"finishing1":56}},
+  {d:"2026-05-19",mp:{"weaving":86,"sizing":21,"sectionalWarping":36,"yarnDyeing":24,"fabricDyeing":35,"finishing":170,"finishing1":57}},
+  {d:"2026-05-20",mp:{"weaving":83,"sizing":22,"sectionalWarping":36,"yarnDyeing":24,"fabricDyeing":35,"finishing":166,"finishing1":60}},
+  {d:"2026-05-21",mp:{"weaving":87,"sizing":22,"sectionalWarping":45,"yarnDyeing":23,"fabricDyeing":37,"finishing":174,"finishing1":79}},
+  {d:"2026-05-22",mp:{"weaving":84,"sizing":22,"sectionalWarping":44,"yarnDyeing":21,"fabricDyeing":40,"finishing":165,"finishing1":70}},
+  {d:"2026-05-23",mp:{"weaving":84,"sizing":18,"sectionalWarping":44,"yarnDyeing":22,"fabricDyeing":41,"finishing":173,"finishing1":74}},
+  {d:"2026-05-24",mp:{"weaving":86,"sizing":18,"sectionalWarping":35,"yarnDyeing":20,"fabricDyeing":36,"finishing":143,"finishing1":69}},
+  {d:"2026-05-25",mp:{"weaving":88,"sizing":18,"sectionalWarping":47,"yarnDyeing":23,"fabricDyeing":38,"finishing":164,"finishing1":66}},
+  {d:"2026-05-26",mp:{"weaving":91,"sizing":18,"sectionalWarping":45,"yarnDyeing":21,"fabricDyeing":32,"finishing":162,"finishing1":75}},
+  {d:"2026-05-27",mp:{"weaving":96,"sizing":18,"sectionalWarping":39,"yarnDyeing":19,"fabricDyeing":37,"finishing":168,"finishing1":67}},
+  {d:"2026-05-28",mp:{"weaving":90,"sizing":18,"sectionalWarping":46,"yarnDyeing":20,"fabricDyeing":38,"finishing":157,"finishing1":75}},
+  {d:"2026-05-29",mp:{"weaving":88,"sizing":18,"sectionalWarping":46,"yarnDyeing":24,"fabricDyeing":39,"finishing":175,"finishing1":78}},
+  {d:"2026-05-30",mp:{"weaving":89,"sizing":18,"sectionalWarping":31,"yarnDyeing":31,"fabricDyeing":36,"finishing":153,"finishing1":60}},
+  {d:"2026-05-31",mp:{"weaving":96,"sizing":18,"sectionalWarping":37,"yarnDyeing":32,"fabricDyeing":37,"finishing":176,"finishing1":63}}
 ];
 
 function log(msg,cls='info'){const el=document.getElementById('log');el.innerHTML+=`<div class="${cls}">${msg}</div>`;el.scrollTop=el.scrollHeight;}
@@ -54,24 +70,23 @@ async function run(){
   const btn=document.getElementById('btn');
   btn.disabled=true; btn.textContent='Running…';
   document.getElementById('log').innerHTML='';
-  log('Restoring '+DATA.length+' days with 365-day TTL…');
-  let ok=0, fail=0;
+  log('Writing '+DATA.length+' days to KV with 365-day TTL…');
+  let ok=0,fail=0;
   for(const e of DATA){
     const key=encodeURIComponent('manpower:'+e.d);
-    const value=JSON.stringify({...e.mp,enteredBy:'recovery-tool',enteredAt:new Date().toISOString()});
-    // Use ?expiration_ttl= for relative TTL (seconds from now)
+    const value=JSON.stringify({...e.mp,enteredBy:'recovery-ddr',enteredAt:new Date().toISOString()});
     const url=`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/storage/kv/namespaces/${NS}/values/${key}?expiration_ttl=${TTL_365}`;
     try{
       const r=await fetch(url,{method:'PUT',headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'text/plain'},body:value});
       const j=await r.json();
-      if(j.success){log(`✓ ${e.d}  saved (expires in 365 days)  ✓`,'ok');ok++;}
+      if(j.success){log(`✓ ${e.d}  weaving=${e.mp.weaving} finishing=${e.mp.finishing}`,'ok');ok++;}
       else{log(`✗ ${e.d}  ${JSON.stringify(j.errors)}`,'err');fail++;}
     }catch(err){log(`✗ ${e.d}  ${err.message}`,'err');fail++;}
   }
-  log('','info');
-  log(`Done — ${ok} restored, ${fail} failed.`,ok===DATA.length?'ok':'err');
-  log('Remember to re-enter May 14–31 via manpower.html. The daily bot will then keep those values safe forever.','warn');
-  btn.textContent=ok===DATA.length?'✓ Complete':`⚠ ${fail} failed`;
+  log('');
+  log(`Done — ${ok}/31 saved, ${fail} failed.`,ok===31?'ok':'err');
+  if(ok===31) log('All May data is now safe in KV for 365 days. The daily bot will also preserve these in stl_data.js from today.','info');
+  btn.textContent=ok===31?'✓ Complete':`⚠ ${fail} failed`;
   btn.disabled=false;
 }
 </script>
