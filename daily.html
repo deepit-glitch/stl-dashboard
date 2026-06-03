@@ -216,7 +216,7 @@ function Sparkline(props) {
   var dayData = props.dayData;
   var target  = props.target;
   var color   = props.color;
-  var H = 110, W = 320, padT = 18, padB = 6, padL = 36, padR = 28;
+  var H = props.h || 110, W = 320, padT = 18, padB = 6, padL = 36, padR = 28;
 
   var validVals = dayData.filter(function(d){return d.val!==null;}).map(function(d){return d.val;});
   if (validVals.length === 0) {
@@ -401,78 +401,21 @@ function SummaryStrip(props) {
   );
 }
 
-// ── Operations Section: Manpower + Production from stl_data.js ───────────────
+// ── Operations Section: Manpower from stl_data.js ────────────────────────────
 var MK_STL = {"2026-03":"Mar-26","2026-04":"Apr-26","2026-05":"May-26","2026-06":"Jun-26"};
 function getOvData(mk) {
   try { if (typeof DAILY_OV === 'undefined') return null; return DAILY_OV[MK_STL[mk]]||null; }
   catch(e) { return null; }
 }
-var MP_DEPTS = [
-  {mp:"mp_weaving",    prod:"weaving",  label:"Weaving",      accent:"#2563eb"},
-  {mp:"mp_sizing",     prod:"sizing",   label:"Sizing",       accent:"#7c3aed"},
-  {mp:"mp_warping",    prod:"warping",  label:"S/Warping",    accent:"#b45309"},
-  {mp:"mp_yarn",       prod:"yarn",     label:"Yarn Dyeing",  accent:"#0891b2"},
-  {mp:"mp_fabdye",     prod:"fabwash",  label:"Fab. Dyeing",  accent:"#0f766e"},
-  {mp:"mp_finishing",  prod:"fin",      label:"Finishing",    accent:"#7c3aed"},
-  {mp:"mp_fin1",       prod:"fin1",     label:"Finishing-1",  accent:"#9f1239"},
-  {mp:"noida_manpower",prod:"noida_fin",label:"Noida Fin.",   accent:"#dc2626"},
+var NAL_DEPTS = [
+  {mp:"mp_weaving",   label:"Weaving",      accent:"#2563eb"},
+  {mp:"mp_sizing",    label:"Sizing",       accent:"#7c3aed"},
+  {mp:"mp_warping",   label:"S/Warping",    accent:"#b45309"},
+  {mp:"mp_yarn",      label:"Yarn Dyeing",  accent:"#0891b2"},
+  {mp:"mp_fabdye",    label:"Fab. Dyeing",  accent:"#0f766e"},
+  {mp:"mp_finishing", label:"Finishing",    accent:"#059669"},
+  {mp:"mp_fin1",      label:"Finishing-1",  accent:"#9f1239"},
 ];
-
-function MpCard(props) {
-  var dept=props.dept, dates=props.dates, mpVals=props.mpVals, prodVals=props.prodVals;
-  var n=dates.length;
-  var dayData=dates.map(function(d,i){return {day:i+1,val:mpVals[i]>0?mpVals[i]:null};});
-  var latest=null;
-  for(var i=n-1;i>=0;i--){if(dayData[i].val!==null){latest=dayData[i].val;break;}}
-  var latestProd=null;
-  for(var j=n-1;j>=0;j--){if(prodVals[j]>0){latestProd=prodVals[j];break;}}
-  var phOut=latest&&latestProd?Math.round(latestProd/latest):null;
-  var sum=0,cnt=0;
-  dayData.forEach(function(d){if(d.val!==null){sum+=d.val;cnt++;}});
-  var avg=cnt>0?Math.round(sum/cnt):null;
-  return CE("div",{style:{background:"#fff",borderRadius:12,padding:"14px 14px 10px",
-    border:"1.5px solid "+dept.accent+"33",boxShadow:"0 1px 4px rgba(0,0,0,0.05)"}},
-    CE("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}},
-      CE("div",null,
-        CE("div",{style:{fontSize:12,fontWeight:700,color:"#1e293b"}},dept.label),
-        CE("div",{style:{fontSize:9,color:"#94a3b8",marginTop:2}},
-          (avg?"Avg: "+avg+" heads"+(phOut?" · ":""):"")+
-          (phOut?"Per-head: "+phOut+"kg/day":""))
-      ),
-      CE("div",{style:{textAlign:"right"}},
-        CE("span",{style:{fontSize:22,fontWeight:900,color:latest!==null?dept.accent:"#e2e8f0",fontFamily:"monospace"}},
-          latest!==null?String(latest):"-"),
-        CE("div",{style:{fontSize:8,color:"#94a3b8"}},"headcount")
-      )
-    ),
-    CE(Sparkline,{dayData:dayData,target:null,color:latest!==null?dept.accent:"#e2e8f0",uid:"mp_"+dept.mp})
-  );
-}
-
-function ProdCard(props) {
-  var label=props.label, dates=props.dates, vals=props.vals, accent=props.accent, uid=props.uid;
-  var n=dates.length;
-  var dayData=dates.map(function(d,i){return {day:i+1,val:vals[i]>0?vals[i]:null};});
-  var latest=null, total=0;
-  dayData.forEach(function(d){if(d.val!==null){total+=d.val;latest=d.val;}});
-  var fmtK=function(v){return v>=1000?Math.round(v/100)/10+"k":String(Math.round(v));};
-  return CE("div",{style:{background:"#fff",borderRadius:12,padding:"14px 14px 10px",
-    border:"1.5px solid "+accent+"33",boxShadow:"0 1px 4px rgba(0,0,0,0.05)"}},
-    CE("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}},
-      CE("div",null,
-        CE("div",{style:{fontSize:12,fontWeight:700,color:"#1e293b"}},label),
-        CE("div",{style:{fontSize:9,color:"#94a3b8",marginTop:2}},
-          total>0?"MTD: "+fmtK(total)+" kg":"No data yet")
-      ),
-      CE("div",{style:{textAlign:"right"}},
-        CE("span",{style:{fontSize:22,fontWeight:900,color:latest!==null?accent:"#e2e8f0",fontFamily:"monospace"}},
-          latest!==null?fmtK(latest):"-"),
-        CE("div",{style:{fontSize:8,color:"#94a3b8"}},"today kg")
-      )
-    ),
-    CE(Sparkline,{dayData:dayData,target:null,color:latest!==null?accent:"#e2e8f0",uid:uid})
-  );
-}
 
 function OpsSection(props) {
   var mk=props.mk, ov=getOvData(mk);
@@ -482,57 +425,103 @@ function OpsSection(props) {
       "Operations data not available for this month");
   }
   var dates=ov.dates, n=dates.length;
-  var totalMp=dates.map(function(_,i){
-    var s=0; MP_DEPTS.forEach(function(d){var a=ov[d.mp]||[];if(a[i]>0)s+=a[i];}); return s;
+
+  function mkDD(arr) {
+    return dates.map(function(d,i){return {day:i+1,val:(arr&&arr[i]>0)?arr[i]:null};});
+  }
+  function latest(dd) {
+    for(var i=dd.length-1;i>=0;i--){if(dd[i].val!==null)return dd[i].val;} return null;
+  }
+  function avg(dd) {
+    var s=0,c=0; dd.forEach(function(d){if(d.val!==null){s+=d.val;c++;}}); return c?Math.round(s/c):null;
+  }
+
+  // Nalagarh total headcount per day
+  var nalTotalArr=dates.map(function(_,i){
+    var s=0; NAL_DEPTS.forEach(function(d){var a=ov[d.mp]||[];if(a[i]>0)s+=a[i];}); return s;
   });
-  var latestTotal=null;
-  for(var i=n-1;i>=0;i--){if(totalMp[i]>0){latestTotal=totalMp[i];break;}}
+  var nalLatest=null; for(var i=n-1;i>=0;i--){if(nalTotalArr[i]>0){nalLatest=nalTotalArr[i];break;}}
+
+  // Noida
+  var noidaDD=mkDD(ov['noida_manpower']||[]);
+  var noidaLatest=latest(noidaDD), noidaAvg=avg(noidaDD);
 
   return CE("div",null,
-    // — Manpower header
-    CE("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:10,marginTop:28}},
+    // Section header
+    CE("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:14,marginTop:28}},
       CE("div",{style:{height:1,flex:1,background:"#e2e8f0"}}),
-      CE("span",{style:{fontSize:9,fontWeight:800,letterSpacing:2,color:"#4f46e5",background:"#eef2ff",border:"1px solid #c7d2fe",borderRadius:4,padding:"2px 10px"}},"MANPOWER — daily headcount by department"),
+      CE("span",{style:{fontSize:9,fontWeight:800,letterSpacing:2,color:"#4f46e5",background:"#eef2ff",border:"1px solid #c7d2fe",borderRadius:4,padding:"2px 10px"}},"MANPOWER — daily headcount"),
       CE("div",{style:{height:1,flex:1,background:"#e2e8f0"}})
     ),
-    // Total strip
-    CE("div",{style:{background:"#fff",borderRadius:12,padding:"12px 18px",marginBottom:12,
-      border:"1.5px solid #4f46e533",display:"flex",alignItems:"center",
-      justifyContent:"space-between",flexWrap:"wrap",gap:12}},
-      CE("div",null,
-        CE("div",{style:{fontSize:13,fontWeight:700,color:"#1e293b"}},"Total Headcount — All Departments"),
-        CE("div",{style:{fontSize:9,color:"#94a3b8",marginTop:2}},
-          "Weaving · Sizing · Warping · Yarn Dye · Fab Dye · Finishing · Fin-1 · Noida Fin.")
+    // Two cards
+    CE("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(320px,1fr))",gap:16,paddingBottom:32}},
+
+      // ── Nalagarh card ────────────────────────────────────────────────────
+      CE("div",{style:{background:"#fff",borderRadius:14,padding:"18px 18px 14px",
+        border:"1.5px solid #4f46e533",boxShadow:"0 1px 6px rgba(0,0,0,0.06)"}},
+        // Card header
+        CE("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",
+          paddingBottom:12,marginBottom:14,borderBottom:"1px solid #f1f5f9"}},
+          CE("div",null,
+            CE("div",{style:{fontSize:14,fontWeight:800,color:"#1e293b"}},"Nalagarh"),
+            CE("div",{style:{fontSize:9,color:"#94a3b8",marginTop:2}},"7 departments")
+          ),
+          CE("div",{style:{textAlign:"right"}},
+            CE("span",{style:{fontSize:28,fontWeight:900,color:"#4f46e5",fontFamily:"monospace"}},
+              nalLatest!==null?String(nalLatest):"-"),
+            CE("div",{style:{fontSize:8,color:"#94a3b8"}},"total today")
+          )
+        ),
+        // One sparkline per department
+        NAL_DEPTS.map(function(dept,di) {
+          var dd=mkDD(ov[dept.mp]||[]);
+          var lv=latest(dd), av=avg(dd);
+          var clr=lv!==null?dept.accent:"#e2e8f0";
+          return CE("div",{key:dept.mp,style:{marginBottom:di<NAL_DEPTS.length-1?16:0}},
+            CE("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}},
+              CE("div",{style:{display:"flex",alignItems:"center",gap:6}},
+                CE("div",{style:{width:8,height:8,borderRadius:"50%",background:clr,flexShrink:0}}),
+                CE("span",{style:{fontSize:11,fontWeight:700,color:"#1e293b"}},dept.label),
+                av!==null&&CE("span",{style:{fontSize:9,color:"#94a3b8"}},"avg "+av)
+              ),
+              CE("span",{style:{fontSize:18,fontWeight:900,color:clr,fontFamily:"monospace"}},
+                lv!==null?String(lv):"-")
+            ),
+            CE(Sparkline,{dayData:dd,target:null,color:clr,uid:"nal_"+dept.mp,h:72})
+          );
+        })
       ),
-      CE("div",{style:{display:"flex",alignItems:"baseline",gap:6}},
-        CE("span",{style:{fontSize:32,fontWeight:900,color:"#4f46e5",fontFamily:"monospace"}},
-          latestTotal!==null?String(latestTotal):"-"),
-        CE("span",{style:{fontSize:11,color:"#94a3b8"}},"people · latest day")
+
+      // ── Noida card ───────────────────────────────────────────────────────
+      CE("div",{style:{background:"#fff",borderRadius:14,padding:"18px 18px 14px",
+        border:"1.5px solid #dc262633",boxShadow:"0 1px 6px rgba(0,0,0,0.06)"}},
+        // Card header
+        CE("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",
+          paddingBottom:12,marginBottom:14,borderBottom:"1px solid #f1f5f9"}},
+          CE("div",null,
+            CE("div",{style:{fontSize:14,fontWeight:800,color:"#1e293b"}},"Noida"),
+            CE("div",{style:{fontSize:9,color:"#94a3b8",marginTop:2}},"Finishing plant")
+          ),
+          CE("div",{style:{textAlign:"right"}},
+            CE("span",{style:{fontSize:28,fontWeight:900,color:noidaLatest!==null?"#dc2626":"#e2e8f0",fontFamily:"monospace"}},
+              noidaLatest!==null?String(noidaLatest):"-"),
+            CE("div",{style:{fontSize:8,color:"#94a3b8"}},"total today")
+          )
+        ),
+        // Single sparkline
+        CE("div",{style:{marginBottom:3}},
+          CE("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}},
+            CE("div",{style:{display:"flex",alignItems:"center",gap:6}},
+              CE("div",{style:{width:8,height:8,borderRadius:"50%",background:noidaLatest!==null?"#dc2626":"#e2e8f0",flexShrink:0}}),
+              CE("span",{style:{fontSize:11,fontWeight:700,color:"#1e293b"}},"Finishing"),
+              noidaAvg!==null&&CE("span",{style:{fontSize:9,color:"#94a3b8"}},"avg "+noidaAvg)
+            ),
+            CE("span",{style:{fontSize:18,fontWeight:900,color:noidaLatest!==null?"#dc2626":"#e2e8f0",fontFamily:"monospace"}},
+              noidaLatest!==null?String(noidaLatest):"-")
+          ),
+          CE(Sparkline,{dayData:noidaDD,target:null,color:noidaLatest!==null?"#dc2626":"#e2e8f0",uid:"noida_mp"})
+        )
       )
-    ),
-    // Dept manpower cards
-    CE("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:12,marginBottom:28}},
-      MP_DEPTS.map(function(dept){
-        var mpArr=ov[dept.mp]||dates.map(function(){return 0;});
-        var prodArr=ov[dept.prod]||dates.map(function(){return 0;});
-        return CE(MpCard,{key:dept.mp,dept:dept,dates:dates,mpVals:mpArr,prodVals:prodArr});
-      })
-    ),
-    // — Production header
-    CE("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:10}},
-      CE("div",{style:{height:1,flex:1,background:"#e2e8f0"}}),
-      CE("span",{style:{fontSize:9,fontWeight:800,letterSpacing:2,color:"#0369a1",background:"#f0f9ff",border:"1px solid #bae6fd",borderRadius:4,padding:"2px 10px"}},"PRODUCTION — daily output trends (kg)"),
-      CE("div",{style:{height:1,flex:1,background:"#e2e8f0"}})
-    ),
-    // Production charts grid
-    CE("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:12,paddingBottom:32}},
-      CE(ProdCard,{label:"Weaving",              dates:dates,vals:ov.weaving||[],  accent:"#2563eb",uid:"prd_wv"}),
-      CE(ProdCard,{label:"Finishing (Samba)",     dates:dates,vals:ov.fin||[],      accent:"#7c3aed",uid:"prd_fn"}),
-      CE(ProdCard,{label:"Finishing-1",           dates:dates,vals:ov.fin1||[],     accent:"#9f1239",uid:"prd_fn1"}),
-      CE(ProdCard,{label:"Noida Finishing",       dates:dates,vals:ov.noida_fin||[],accent:"#dc2626",uid:"prd_nf"}),
-      CE(ProdCard,{label:"Dispatch",              dates:dates,vals:ov.dispatch||[], accent:"#16a34a",uid:"prd_dp"}),
-      CE(ProdCard,{label:"Yarn Dyeing",           dates:dates,vals:ov.yarn||[],     accent:"#0891b2",uid:"prd_yn"}),
-      CE(ProdCard,{label:"Fab. Dyeing + Washing", dates:dates,vals:ov.fabwash||[],  accent:"#0f766e",uid:"prd_fw"})
     )
   );
 }
