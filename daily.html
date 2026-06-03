@@ -448,7 +448,7 @@ function OpsSection(props) {
 
   return CE("div",null,
     // Section header
-    CE("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:14,marginTop:28}},
+    CE("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:14,marginTop:0}},
       CE("div",{style:{height:1,flex:1,background:"#e2e8f0"}}),
       CE("span",{style:{fontSize:9,fontWeight:800,letterSpacing:2,color:"#4f46e5",background:"#eef2ff",border:"1px solid #c7d2fe",borderRadius:4,padding:"2px 10px"}},"MANPOWER — daily headcount"),
       CE("div",{style:{height:1,flex:1,background:"#e2e8f0"}})
@@ -596,6 +596,7 @@ function App() {
         CE(SummaryStrip,{sts:allSts}),
         CE("div",{style:{fontSize:11,color:"#94a3b8"}},CE("span",{style:{fontWeight:700,color:dept.accent}},dept.label)," - "+month.label+" - auto-refreshes every 60s")
       ),
+      CE(OpsSection,{mk:selMkey}),
       dailyKpis.length>0&&CE("div",null,
         CE("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:10}},
           CE("div",{style:{height:1,flex:1,background:"#e2e8f0"}}),
@@ -615,8 +616,7 @@ function App() {
         CE("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}},
           monthlyKpis.map(function(kpi){return CE(MonthlyCard,{key:kpi.id,kpi:kpi,mkey:selMkey,entries:entries,dept:dept});})
         )
-      ),
-      CE(OpsSection,{mk:selMkey})
+      )
     )
   );
 }
