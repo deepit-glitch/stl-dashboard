@@ -139,6 +139,8 @@ var DEPTS = [
     {id:"cust_cmp",  name:"Customer Complaints",              unit:"count",     hib:false, freq:"monthly", targets:{"2026-04":0,    "2026-05":0,    "2026-06":0}},
     {id:"insp_scr",  name:"Inspector Feedback Score",         unit:"Score 1-5", hib:true,  freq:"monthly", targets:{"2026-04":4,    "2026-05":4.25, "2026-06":4.5}},
   ]},
+  {id:"NAL_MP", label:"Nalagarh", accent:"#4f46e5", kpis:[]},
+  {id:"NOI_MP", label:"Noida",    accent:"#dc2626", kpis:[]},
 ];
 
 var SC  = {g:"#16a34a", w:"#ca8a04", b:"#dc2626", n:"#94a3b8"};
@@ -418,7 +420,7 @@ var NAL_DEPTS = [
 ];
 
 function OpsSection(props) {
-  var mk=props.mk, ov=getOvData(mk);
+  var mk=props.mk, view=props.view||"both", ov=getOvData(mk);
   if (!ov||!ov.dates||!ov.dates.length) {
     return CE("div",{style:{marginTop:24,padding:"20px 24px",background:"#fff",borderRadius:12,
       border:"1px dashed #e2e8f0",textAlign:"center",color:"#94a3b8",fontSize:11}},
@@ -454,10 +456,10 @@ function OpsSection(props) {
       CE("div",{style:{height:1,flex:1,background:"#e2e8f0"}})
     ),
     // Two cards
-    CE("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(320px,1fr))",gap:16,paddingBottom:32}},
+    CE("div",{style:{display:"grid",gridTemplateColumns:view==="both"?"repeat(auto-fit,minmax(320px,1fr))":"1fr",gap:16,paddingBottom:32}},
 
       // ── Nalagarh card ────────────────────────────────────────────────────
-      CE("div",{style:{background:"#fff",borderRadius:14,padding:"18px 18px 14px",
+      view!=="NOI_MP"&&CE("div",{style:{background:"#fff",borderRadius:14,padding:"18px 18px 14px",
         border:"1.5px solid #4f46e533",boxShadow:"0 1px 6px rgba(0,0,0,0.06)"}},
         // Card header
         CE("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",
@@ -493,7 +495,7 @@ function OpsSection(props) {
       ),
 
       // ── Noida card ───────────────────────────────────────────────────────
-      CE("div",{style:{background:"#fff",borderRadius:14,padding:"18px 18px 14px",
+      view!=="NAL_MP"&&CE("div",{style:{background:"#fff",borderRadius:14,padding:"18px 18px 14px",
         border:"1.5px solid #dc262633",boxShadow:"0 1px 6px rgba(0,0,0,0.06)"}},
         // Card header
         CE("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",
@@ -545,6 +547,7 @@ function App() {
 
   var dept  = DEPTS.find(function(d){return d.id===selDeptId;})||DEPTS[0];
   var month = MONTHS.find(function(m){return m.key===selMkey;})||MONTHS[0];
+  var isMPView = selDeptId==="NAL_MP"||selDeptId==="NOI_MP";
 
   useEffect(function(){
     loadData(selDeptId, selMkey).then(function(data){ setEntries(data); });
@@ -592,12 +595,12 @@ function App() {
     ),
     // Content
     CE("div",{style:{maxWidth:1280,margin:"0 auto",padding:"18px 20px"}},
-      CE("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:10}},
+      !isMPView&&CE("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:10}},
         CE(SummaryStrip,{sts:allSts}),
         CE("div",{style:{fontSize:11,color:"#94a3b8"}},CE("span",{style:{fontWeight:700,color:dept.accent}},dept.label)," - "+month.label+" - auto-refreshes every 60s")
       ),
-      CE(OpsSection,{mk:selMkey}),
-      dailyKpis.length>0&&CE("div",null,
+      isMPView&&CE(OpsSection,{mk:selMkey,view:selDeptId}),
+      !isMPView&&dailyKpis.length>0&&CE("div",null,
         CE("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:10}},
           CE("div",{style:{height:1,flex:1,background:"#e2e8f0"}}),
           CE("span",{style:{fontSize:9,fontWeight:800,letterSpacing:2,color:"#16a34a",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:4,padding:"2px 10px"}},"DAILY KPIs - trend by day"),
@@ -607,7 +610,7 @@ function App() {
           dailyKpis.map(function(kpi){return CE(DailyCard,{key:kpi.id,kpi:kpi,mkey:selMkey,entries:entries,dept:dept});})
         )
       ),
-      monthlyKpis.length>0&&CE("div",null,
+      !isMPView&&monthlyKpis.length>0&&CE("div",null,
         CE("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:10}},
           CE("div",{style:{height:1,flex:1,background:"#e2e8f0"}}),
           CE("span",{style:{fontSize:9,fontWeight:800,letterSpacing:2,color:"#ea580c",background:"#fff7ed",border:"1px solid #fed7aa",borderRadius:4,padding:"2px 10px"}},"MONTHLY KPIs - last day of month"),
