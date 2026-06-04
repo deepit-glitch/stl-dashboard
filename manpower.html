@@ -134,16 +134,18 @@ async function loadDate(dateStr){
     });
     const d = await r.json();
     if (d.ok && d.data) {
+      // Worker may return flat {weaving,...} or nested {date, data:{weaving,...}}
+      const mp = (d.data && d.data.data && typeof d.data.data === 'object') ? d.data.data : d.data;
       setState({
         values: {
-          weaving:          String(d.data.weaving          ?? ""),
-          sizing:           String(d.data.sizing           ?? ""),
-          sectionalWarping: String(d.data.sectionalWarping ?? ""),
-          yarnDyeing:       String(d.data.yarnDyeing       ?? ""),
-          fabricDyeing:     String(d.data.fabricDyeing     ?? ""),
-          finishing:        String(d.data.finishing        ?? ""),
-          finishing1:       String(d.data.finishing1       ?? ""),
-          noidaFinishing:   String(d.data.noidaFinishing   ?? ""),
+          weaving:          String(mp.weaving          ?? ""),
+          sizing:           String(mp.sizing           ?? ""),
+          sectionalWarping: String(mp.sectionalWarping ?? ""),
+          yarnDyeing:       String(mp.yarnDyeing       ?? ""),
+          fabricDyeing:     String(mp.fabricDyeing     ?? ""),
+          finishing:        String(mp.finishing        ?? ""),
+          finishing1:       String(mp.finishing1       ?? ""),
+          noidaFinishing:   String(mp.noidaFinishing   ?? ""),
         },
         savedFor: dateStr, existingEntry: true, loading: false,
       });
