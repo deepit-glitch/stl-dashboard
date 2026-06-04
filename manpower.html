@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>STL Manpower Entry</title>
+<script src="stl_data.js?v=20260604"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;min-height:100%}
@@ -101,35 +102,78 @@ function emptyValues(){
 }
 
 /* ── calendar prefetch ───────────────────────────────────── */
-/* ── shared range fetch (public endpoint, works for all roles) ── */
+/* ── stl_data.js helpers (same source as management dashboard) ── */
+// Maps "2026-06" -> "Jun-26"
+function toStlMonthKey(mk){
+  const [y,m] = mk.split('-').map(Number);
+  const mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return mn[m-1]+'-'+String(y).slice(2);
+}
+// Maps dept.id -> DAILY_OV array name
+const DEPT_TO_ARR = {
+  weaving:'mp_weaving', sizing:'mp_sizing', sectionalWarping:'mp_warping',
+  yarnDyeing:'mp_yarn', fabricDyeing:'mp_fabdye', finishing:'mp_finishing',
+  finishing1:'mp_fin1', noidaFinishing:'noida_manpower'
+};
+// Returns {weaving:N, sizing:N, ...} from stl_data.js for a given date, or null
+function readStlDate(dateStr){
+  try {
+    if (typeof DAILY_OV === 'undefined') return null;
+    const md = DAILY_OV[toStlMonthKey(dateStr.slice(0,7))];
+    if (!md || !md.dates) return null;
+    const idx = md.dates.indexOf(dateStr.slice(8,10));
+    if (idx === -1) return null;
+    const out = {};
+    Object.entries(DEPT_TO_ARR).forEach(([id, arr]) => {
+      const v = md[arr] && md[arr][idx];
+      out[id] = (v > 0) ? v : undefined;
+    });
+    return out;
+  } catch(e){ return null; }
+}
+
+/* ── Worker range fallback (for dates not yet in stl_data.js) ── */
 async function fetchRange(monthKey){
   const token = getToken();
-  const r = await fetch(
-    `${WORKER}/manpower-range?start=${monthKey}-01&end=${monthKey}-31`,
-    { headers: token ? {"X-Session-Token": token} : {} }
-  );
-  const d = await r.json();
-  // Build map: dateStr -> data object
-  const map = {};
-  if (d.ok && Array.isArray(d.data)){
-    d.data.forEach(entry => {
-      if (entry.date && entry.data) map[entry.date] = entry.data;
-    });
-  }
-  return map;
+  try {
+    const r = await fetch(
+      `${WORKER}/manpower-range?start=${monthKey}-01&end=${monthKey}-31`,
+      { headers: token ? {"X-Session-Token": token} : {} }
+    );
+    const d = await r.json();
+    const map = {};
+    if (d.ok && Array.isArray(d.data)){
+      d.data.forEach(e => { if (e.date && e.data) map[e.date] = e.data; });
+    }
+    return map;
+  } catch(e){ return {}; }
 }
 
 async function prefetchMonthEntries(monthKey){
   setState({ calLoading: true });
   try {
-    const map = await fetchRange(monthKey);
     const fetched = {};
-    Object.keys(map).forEach(ds => { fetched[ds] = true; });
-    const merged = Object.assign({}, state.monthEntries, fetched);
-    // cache the full data too for loadDate to reuse
+    const depts = getActiveDepts();
+    // 1. Mark dates from stl_data.js
+    const stlKey = toStlMonthKey(monthKey);
+    if (typeof DAILY_OV !== 'undefined' && DAILY_OV[stlKey]) {
+      const md = DAILY_OV[stlKey];
+      (md.dates || []).forEach((day, idx) => {
+        const hasData = depts.some(d => {
+          const arr = md[DEPT_TO_ARR[d.id]];
+          return arr && arr[idx] > 0;
+        });
+        if (hasData) fetched[`${monthKey}-${day}`] = true;
+      });
+    }
+    // 2. Also check Worker for very recent dates not yet in stl_data.js
+    const map = await fetchRange(monthKey);
     state._rangeCache = Object.assign({}, state._rangeCache || {}, map);
-    setState({ monthEntries: merged, calLoading: false });
-  } catch(e) {
+    Object.keys(map).forEach(ds => {
+      if (!fetched[ds] && depts.some(d => map[ds][d.id] != null)) fetched[ds] = true;
+    });
+    setState({ monthEntries: Object.assign({}, state.monthEntries, fetched), calLoading: false });
+  } catch(e){
     setState({ calLoading: false });
   }
 }
@@ -138,16 +182,34 @@ async function prefetchMonthEntries(monthKey){
 async function loadDate(dateStr){
   setState({ loading: true, existingEntry: false });
   try {
-    const monthKey = dateStr.slice(0, 7);
+    const depts = getActiveDepts();
+    // 1. Try stl_data.js first — same source as management dashboard
+    const stl = readStlDate(dateStr);
+    if (stl && depts.some(d => stl[d.id] != null)) {
+      setState({
+        values: {
+          weaving:          String(stl.weaving          ?? ""),
+          sizing:           String(stl.sizing           ?? ""),
+          sectionalWarping: String(stl.sectionalWarping ?? ""),
+          yarnDyeing:       String(stl.yarnDyeing       ?? ""),
+          fabricDyeing:     String(stl.fabricDyeing     ?? ""),
+          finishing:        String(stl.finishing        ?? ""),
+          finishing1:       String(stl.finishing1       ?? ""),
+          noidaFinishing:   String(stl.noidaFinishing   ?? ""),
+        },
+        savedFor: dateStr, existingEntry: true, loading: false,
+      });
+      return;
+    }
+    // 2. Fall back to Worker range (for today / yesterday not yet in stl_data.js)
+    const monthKey = dateStr.slice(0,7);
     let cache = state._rangeCache || {};
     if (!Object.keys(cache).some(k => k.startsWith(monthKey))) {
       cache = await fetchRange(monthKey);
       state._rangeCache = Object.assign({}, state._rangeCache || {}, cache);
     }
     const mp = cache[dateStr] || {};
-    const depts = getActiveDepts();
-    // Only treat as "existing" if at least one of OUR dept fields is present
-    const hasOurData = depts.some(d => mp[d.id] != null && mp[d.id] !== undefined);
+    const hasOurData = depts.some(d => mp[d.id] != null);
     if (hasOurData) {
       setState({
         values: {
@@ -165,7 +227,7 @@ async function loadDate(dateStr){
     } else {
       setState({ values: emptyValues(), savedFor: null, existingEntry: false, loading: false });
     }
-  } catch(e) {
+  } catch(e){
     setState({ loading: false });
     showToast("Failed to load data", "err");
   }
