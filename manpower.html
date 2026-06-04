@@ -101,41 +101,52 @@ function emptyValues(){
 }
 
 /* ── calendar prefetch ───────────────────────────────────── */
+/* ── shared range fetch (public endpoint, works for all roles) ── */
+async function fetchRange(monthKey){
+  const token = getToken();
+  const r = await fetch(
+    `${WORKER}/manpower-range?start=${monthKey}-01&end=${monthKey}-31`,
+    { headers: token ? {"X-Session-Token": token} : {} }
+  );
+  const d = await r.json();
+  // Build map: dateStr -> data object
+  const map = {};
+  if (d.ok && Array.isArray(d.data)){
+    d.data.forEach(entry => {
+      if (entry.date && entry.data) map[entry.date] = entry.data;
+    });
+  }
+  return map;
+}
+
 async function prefetchMonthEntries(monthKey){
   setState({ calLoading: true });
-  const [y, m] = monthKey.split("-").map(Number);
-  const todayStr = todayISOStr();
-  const daysInMonth = new Date(y, m, 0).getDate();
-  const fetched = {};
-  const token = getToken();
-  const promises = [];
-  for (let d = 1; d <= daysInMonth; d++){
-    const ds = `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-    if (ds > todayStr) continue;
-    promises.push(
-      fetch(`${WORKER}/manpower/${ds}`, { headers:{"X-Session-Token": token} })
-        .then(r => r.json())
-        .then(j => { if (j.ok && j.data) fetched[ds] = true; })
-        .catch(()=>{})
-    );
+  try {
+    const map = await fetchRange(monthKey);
+    const fetched = {};
+    Object.keys(map).forEach(ds => { fetched[ds] = true; });
+    const merged = Object.assign({}, state.monthEntries, fetched);
+    // cache the full data too for loadDate to reuse
+    state._rangeCache = Object.assign({}, state._rangeCache || {}, map);
+    setState({ monthEntries: merged, calLoading: false });
+  } catch(e) {
+    setState({ calLoading: false });
   }
-  await Promise.all(promises);
-  // merge into existing (other months may already be cached)
-  const merged = Object.assign({}, state.monthEntries, fetched);
-  setState({ monthEntries: merged, calLoading: false });
 }
 
 /* ── API calls ───────────────────────────────────────────── */
 async function loadDate(dateStr){
   setState({ loading: true, existingEntry: false });
   try {
-    const r = await fetch(`${WORKER}/manpower/${dateStr}`, {
-      headers: { "X-Session-Token": getToken() }
-    });
-    const d = await r.json();
-    if (d.ok && d.data) {
-      // Worker may return flat {weaving,...} or nested {date, data:{weaving,...}}
-      const mp = (d.data && d.data.data && typeof d.data.data === 'object') ? d.data.data : d.data;
+    const monthKey = dateStr.slice(0, 7);
+    // Use cached range data if available, otherwise fetch the month
+    let cache = state._rangeCache || {};
+    if (!Object.keys(cache).some(k => k.startsWith(monthKey))) {
+      cache = await fetchRange(monthKey);
+      state._rangeCache = Object.assign({}, state._rangeCache || {}, cache);
+    }
+    const mp = cache[dateStr];
+    if (mp) {
       setState({
         values: {
           weaving:          String(mp.weaving          ?? ""),
@@ -176,7 +187,8 @@ async function saveData(){
     });
     const resp = await r.json();
     if (resp.ok) {
-      // mark date as saved in calendar
+      // update cache so loadDate sees fresh data without a new network call
+      if (state._rangeCache) state._rangeCache[state.selectedDate] = payload;
       const merged = Object.assign({}, state.monthEntries, {[state.selectedDate]: true});
       setState({ saving: false, savedFor: state.selectedDate, existingEntry: true, monthEntries: merged });
       showToast(`Saved for ${formatDisplay(state.selectedDate)}`, "ok");
