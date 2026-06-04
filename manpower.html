@@ -139,14 +139,16 @@ async function loadDate(dateStr){
   setState({ loading: true, existingEntry: false });
   try {
     const monthKey = dateStr.slice(0, 7);
-    // Use cached range data if available, otherwise fetch the month
     let cache = state._rangeCache || {};
     if (!Object.keys(cache).some(k => k.startsWith(monthKey))) {
       cache = await fetchRange(monthKey);
       state._rangeCache = Object.assign({}, state._rangeCache || {}, cache);
     }
-    const mp = cache[dateStr];
-    if (mp) {
+    const mp = cache[dateStr] || {};
+    const depts = getActiveDepts();
+    // Only treat as "existing" if at least one of OUR dept fields is present
+    const hasOurData = depts.some(d => mp[d.id] != null && mp[d.id] !== undefined);
+    if (hasOurData) {
       setState({
         values: {
           weaving:          String(mp.weaving          ?? ""),
@@ -177,7 +179,12 @@ async function saveData(){
     if (isNaN(v) || v < 0){ showToast(`Please enter a valid number for ${d.label}`, "err"); return; }
   }
   setState({ saving: true });
-  const payload = {};
+  // Merge: start with whatever is already in the Worker for this date (preserves the other
+  // location's fields), strip Worker metadata, then overwrite with our new values.
+  const existing = Object.assign({}, state._rangeCache?.[state.selectedDate] || {});
+  delete existing.enteredBy;
+  delete existing.enteredAt;
+  const payload = Object.assign(existing, {});
   depts.forEach(d => { payload[d.id] = parseInt(vals[d.id]); });
   try {
     const r = await fetch(`${WORKER}/manpower/${state.selectedDate}`, {
@@ -187,8 +194,9 @@ async function saveData(){
     });
     const resp = await r.json();
     if (resp.ok) {
-      // update cache so loadDate sees fresh data without a new network call
-      if (state._rangeCache) state._rangeCache[state.selectedDate] = payload;
+      // Update local cache with the merged payload so loadDate stays consistent
+      if (!state._rangeCache) state._rangeCache = {};
+      state._rangeCache[state.selectedDate] = Object.assign({}, payload);
       const merged = Object.assign({}, state.monthEntries, {[state.selectedDate]: true});
       setState({ saving: false, savedFor: state.selectedDate, existingEntry: true, monthEntries: merged });
       showToast(`Saved for ${formatDisplay(state.selectedDate)}`, "ok");
