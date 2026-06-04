@@ -74,6 +74,8 @@ const DAILY_DJ  = { 'Jun-26': { dates, weaving, dobby, jacquard } } // Dobby/Jac
 | `admin.html` | User management (add/edit/delete users, manage roles) |
 | `discrepancy.html` | Flags mismatches between KPI entries and MIS data |
 | `stl_data.js` | MIS data file — written by bot, never manually edited |
+| `depts.js` | Shared `DEPTS` KPI config — single source loaded by `daily.html` + `monthly.html` |
+| `kpi_months.js` | Shared `MONTHS` quarter config — loaded by `daily.html` + `monthly.html` + `entry.html` |
 | `seed.html` | Dev only — loads test KPI data into Worker KV |
 | `migrate.html` | One-time data migration utility |
 | `mp_recovery.html` | Recovery tool for manpower data |
@@ -112,7 +114,7 @@ Both `daily.html` and `monthly.html` are single-file React apps (no build step, 
 
 ### Department & KPI config
 
-Both dashboards share the same `DEPTS` array definition (copy-pasted between files — a known pain point to refactor). Each dept has:
+Both dashboards share the same `DEPTS` array definition, now extracted into **`depts.js`** (the single source of truth) and loaded via `<script src="depts.js?v=YYYYMMDD">`. `daily.html` uses it as-is; `monthly.html` filters out the manpower-only depts (`NAL_MP`/`NOI_MP`) since it has no manpower renderer. Edit KPIs/targets in `depts.js` only — never re-inline them. Each dept has:
 ```js
 {
   id: "Weaving",
@@ -133,6 +135,8 @@ Both dashboards share the same `DEPTS` array definition (copy-pasted between fil
 
 Departments: `RSB` (Sr. GM Ops), `Weaving`, `Dyeing`, `Finishing`, `Bathrobe`, `Packing`, `Maintenance`, `HR`, `Stores`
 
+> **`entry.html` keeps its own separate `DEPTS`** (not `depts.js`) — by design, for now. It is a *superset*: it carries a `desc` help-text field on every KPI plus **14 KPIs that are entry-only** (collected but not shown on any dashboard): `rsb_ls_dy`, `rsb_ls_gy`, `rsb_wstb`, `rsb_phpr`, `rsb_phyd`, `rsb_phcs`, `rsb_phbr`, `nm_grg`, `gn_cost`, `sct_beam`, `pile_yd`, `gnd_beam`, `ppp_ub`, `smp_appr`. KPI **names and targets are kept in sync** between `entry.html` and `depts.js` for shared KPI ids — if you add/rename a shared KPI or change a target, update both. (A full unification behind a `dash:` flag was considered and deferred.)
+
 ### Month config
 ```js
 var MONTHS = [
@@ -141,7 +145,7 @@ var MONTHS = [
   {key:"2026-06", label:"June 2026",   short:"JUN", days:30},
 ];
 ```
-Current quarter is Q1 FY 2026-27 (April–June 2026). When the quarter rolls over, MONTHS config needs updating in `daily.html`, `monthly.html`, and `entry.html`.
+Current quarter is Q1 FY 2026-27 (April–June 2026). The `MONTHS` array now lives in **`kpi_months.js`** (single source, loaded by `daily.html`, `monthly.html`, and `entry.html`). When the quarter rolls over, edit `kpi_months.js` only. (This is the KPI reporting quarter — distinct from the rolling production-window `MONTHS` in `stl_data.js`.)
 
 ### Worker API endpoints used by dashboards
 - `GET /auth/session` — validate token, get role/name/dept

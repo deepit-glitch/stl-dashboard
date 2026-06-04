@@ -7,6 +7,7 @@
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="kpi_months.js?v=20260604"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body,#root{height:100%;min-height:100%}
@@ -25,11 +26,9 @@ const M = "monthly";
 const W = "weekly";
 const WORKER = "https://square-flower-57b5.deepit.workers.dev";
 
-const MONTHS = [
-  {key:"2026-04", label:"April 2026",  short:"APR", days:30},
-  {key:"2026-05", label:"May 2026",    short:"MAY", days:31},
-  {key:"2026-06", label:"June 2026",   short:"JUN", days:30},
-];
+// Quarter config comes from kpi_months.js (loaded before this script) as the
+// global STL_KPI_MONTHS. Alias it locally so the rest of this file uses MONTHS.
+const MONTHS = window.STL_KPI_MONTHS;
 
 function lastDay(mk){ return (MONTHS.find(m=>m.key===mk)||MONTHS[0]).days; }
 
@@ -118,7 +117,7 @@ const DEPTS = [
   ]},
   {id:"Bathrobe", label:"Bathrobe", accent:"#9f1239", kpis:[
     {id:"wst_br",    name:"Wastage % - Bathrobe + Madeups",      unit:"%",        hib:false, freq:M, desc:"Monthly total wastage % across bathrobe and made-up garments. Includes cutting waste, jersey wastage and processing losses.",          targets:{"2026-04":10,    "2026-05":9,     "2026-06":8}},
-    {id:"wst_jsy",   name:"Wastage % - Jersey",                  unit:"%",        hib:false, freq:M, desc:"Monthly jersey fabric wastage % in bathrobe production. Pattern sizing, consumption control and width control from dyeing.",           targets:{"2026-04":null,  "2026-05":null,  "2026-06":null}},
+    {id:"wst_jsy",   name:"Wastage % - Jersey",                  unit:"%",        hib:false, freq:M, desc:"Monthly jersey fabric wastage % in bathrobe production. Pattern sizing, consumption control and width control from dyeing.",           targets:{"2026-04":10,  "2026-05":10,  "2026-06":10}},
     {id:"nm_wip",    name:"Non-Moving WIP (Finishing Floor 1)",  unit:"Tons",     hib:false, freq:M, desc:"Net non-moving WIP on Finishing Floor 1 (bathrobe). Segregated by size, colour, GSM and quality. Reduces 1.5T Apr, 2.5T May, 3T Jun.", targets:{"2026-04":13.3, "2026-05":10.8,  "2026-06":7.8}},
   ]},
   {id:"Quality", label:"Quality", accent:"#059669", kpis:[

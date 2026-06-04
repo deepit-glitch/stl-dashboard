@@ -55,7 +55,7 @@
   <div class="hdr">
     <div class="hdr-left">
       <h1>Sara Textiles Ltd — Operations MIS Dashboard</h1>
-      <p>Nalagarh Plant &nbsp;·&nbsp; Dec 2025 – Mar 2026 · rolling 3-month window</p>
+      <p id="hdr-sub">Nalagarh Plant</p>
     </div>
     <span class="badge" id="hdr-badge">Updated As On: --</span>
   </div>
@@ -80,7 +80,7 @@
     </div>
     <div id="ov-monthly">
       <div class="kg3" id="ov-kpis"></div>
-      <div class="warn" id="ov-warn">Industry benchmark: 65–70% loom efficiency &nbsp;|&nbsp; STL avg (4 months): 53.4% &nbsp;|&nbsp; Gap ≈ ₹8–10 Cr/year</div>
+      <div class="warn" id="ov-warn">Industry benchmark: 65–70% loom efficiency</div>
 
 
 
@@ -335,6 +335,9 @@ function fmtT(v){return (v/1000).toFixed(0)+'T';}
 const gc='rgba(255,255,255,0.06)', tc='#7c8299';
 const base={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:tc,font:{size:11}}},y:{grid:{color:gc},ticks:{color:tc,font:{size:11}}}}};
 function getIdx(m){return MONTHS.indexOf(m);}
+// 'May-26' -> 'May 2026'  (full=true -> 'May 2026' with full month name)
+var _MFULL={Jan:'January',Feb:'February',Mar:'March',Apr:'April',May:'May',Jun:'June',Jul:'July',Aug:'August',Sep:'September',Oct:'October',Nov:'November',Dec:'December'};
+function monthLabel(mk,full){var p=mk.split('-');return (full?(_MFULL[p[0]]||p[0]):p[0])+' 20'+p[1];}
 
 function getDailyDobbyJaq(m){
   const dj=DAILY_DJ[m];
@@ -363,7 +366,7 @@ function updateOverview(){
   if(v==='current'&&!CHARTS['c-cur-line-wv'])initCurrentMonth();
 }
 function buildOvKPIs(){
-  // Monthly comparison KPIs — show last full month (Feb-26, index 2)
+  // Monthly comparison KPIs — show last full month (second-to-last in MONTHS)
   const li = MONTHS.length - 2; // last full month index
   const ci = MONTHS.length - 1; // current month index
   const lm = MONTHS[li];
@@ -394,13 +397,12 @@ function buildOvKPIs(){
   // Update warn bar with dynamic avg
   const avg = (MONTHLY.loom_eff.slice(0,-1).reduce((a,b)=>a+b,0) / (MONTHLY.loom_eff.length-1)).toFixed(1);
   const el = document.getElementById('ov-warn');
-  if (el) el.innerHTML = `Industry benchmark: 65–70% loom efficiency &nbsp;|&nbsp; STL avg (${MONTHS.length-1} full months): ${avg}% &nbsp;|&nbsp; Gap ≈ ₹8–10 Cr/year`;
+  if (el) el.innerHTML = `Industry benchmark: 65–70% loom efficiency &nbsp;|&nbsp; STL avg (${MONTHS.length-1} full months): ${avg}%`;
 
   // Partial month label
   const partialEl = document.getElementById('ov-partial');
   if (partialEl) {
-    const monthNames = {'Jan-26':'December 2025','Jan-26':'January 2026','Feb-26':'February 2026','Mar-26':'March 2026','Apr-26':'April 2026','May-26':'May 2026','Jun-26':'June 2026'};
-    partialEl.innerHTML = `${monthNames[cm] || cm} — ${CURRENT_DAYS} days MTD (data as of ${LAST_UPDATED})`;
+    partialEl.innerHTML = `${monthLabel(cm,true)} — ${CURRENT_DAYS} days MTD (data as of ${LAST_UPDATED})`;
   }
 
   // Current month MTD KPIs
@@ -445,8 +447,7 @@ function initMonthDropdowns() {
   // Update overview current month label
   const ovSel = document.getElementById('ov-view');
   if (ovSel && typeof CURRENT_MONTH !== 'undefined') {
-    const monthMap = {'Jan-26':'Jan 2026','Feb-26':'Feb 2026','Mar-26':'Mar 2026','Apr-26':'Apr 2026','May-26':'May 2026','Jun-26':'Jun 2026','Jul-26':'Jul 2026','Aug-26':'Aug 2026','Sep-26':'Sep 2026','Oct-26':'Oct 2026','Nov-26':'Nov 2026','Dec-26':'Dec 2026'};
-    const lbl = monthMap[CURRENT_MONTH] || CURRENT_MONTH;
+    const lbl = monthLabel(CURRENT_MONTH);
     [...ovSel.options].forEach(o => {
       if (o.value === 'current') o.text = 'Current month — ' + lbl + ' (MTD)';
     });
@@ -702,6 +703,12 @@ var _b = document.getElementById('hdr-badge');
 var _f = document.getElementById('footer-date');
 if (_b) _b.textContent = 'Updated As On: ' + LAST_UPDATED;
 if (_f) _f.textContent = 'Updated As On: ' + LAST_UPDATED;
+
+// Header subtitle — self-updating from MONTHS so it never goes stale
+var _sub = document.getElementById('hdr-sub');
+if (_sub && typeof MONTHS !== 'undefined' && MONTHS.length) {
+  _sub.innerHTML = 'Nalagarh Plant &nbsp;·&nbsp; ' + monthLabel(MONTHS[0]) + ' – ' + monthLabel(MONTHS[MONTHS.length-1]) + ' · rolling ' + MONTHS.length + '-month window';
+}
 
 
 // ── MANPOWER PRODUCTIVITY TAB ─────────────────────────────────────────────
