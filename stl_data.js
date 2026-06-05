@@ -3,7 +3,7 @@ const MONTHS = ['Mar-26','Apr-26','May-26','Jun-26'];
 const CURRENT_MONTH  = 'Jun-26'; // always MONTHS[3]
 const LAST_MONTH = 'May-26'; // always MONTHS[2] - last full month for KPIs
 const CURRENT_DAYS = 3; // days elapsed in current month
-const LAST_UPDATED = '4 Jun 2026';
+const LAST_UPDATED = '5 Jun 2026';
 // -----------------------------------------------------------------------------
 const MONTHLY = {weaving:[309688,323898,327038.66,36181.4],dispatch:[214117,308846,316791.84,6960.35],loom_eff:[54.15,54.21,54.09,54.86],dobby_inst:[54.68,54.74,54.05,53.08],jaq_inst:[52.23,52.29,54.31,59.65],dobby_op:[55.8,58.66,55.36,54.46],jaq_op:[53.86,57.59,57.21,62.2],dobby_prod:[255200,268620,291590.99,27166.38],jaq_prod:[54489,55277,35447.67,9015.02],yarn_dye:[99416,102871,87250.95,9892.87],fab_dye:[167092,201399,231002.39,12877.31],finishing:[232421,228847,268305.85,18862.16],stock:[218198,299561,246378.42,239600.89],days:[31,30,31,3]};
 const DAILY_OV = {
