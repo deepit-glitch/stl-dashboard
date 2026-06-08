@@ -90,7 +90,13 @@ Auth is handled entirely by the Cloudflare Worker. No server-side session; a tok
 **Roles:**
 - `admin` — full access to all dashboards + admin panel
 - `management` — read access to all KPI dashboards; no data entry
-- `dept` — can only enter KPIs for their own department (scoped by `STL_DEPT`)
+- `dept` — per-department KPI entry role (`weaving`, `dyeing`, `finishing`, `prep`, `gm_tech`, `ppc`, `bathrobe`, `quality`, `rsb`); scoped by `STL_DEPT`
+- `hr` — Nalagarh manpower headcount entry → `manpower.html`
+- `hr_noida` — **Noida** manpower headcount entry → `manpower.html` (renders Noida mode, plant 1600)
+
+**Post-login routing (by role):** `login.html` sends `admin`→`admin.html`, `management`→`daily.html`, `hr`/`hr_noida`→`manpower.html`, everything else→`entry.html`.
+
+> ⚠️ **`hr_noida` must be handled wherever `hr` is.** They are two separate roles but both go to `manpower.html`. A past bug (fixed Jun 2026) routed only `hr`, so `hr_noida` fell through to `entry.html`, where `DEPTS.find(role)` returned `undefined` and the React app crashed to a **blank white screen**. When adding any role-based branch (routing, redirects, gates), treat `hr_noida` the same as `hr` unless you specifically mean Nalagarh-only. `entry.html` now also guards against an unmapped role (shows a message instead of blanking).
 
 **Session guard pattern** (used in `daily.html`, `monthly.html`, `entry.html`):
 ```js
