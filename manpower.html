@@ -406,6 +406,17 @@ function renderCalendar(){
 
 /* ── session check ───────────────────────────────────────── */
 async function init(){
+  // Demo mode bypass — skip the Worker entirely (parity with daily/monthly/entry).
+  // Set stl_demo='true' + stl_token='demo' + stl_role (e.g. 'hr' or 'hr_noida').
+  if (localStorage.getItem("stl_demo") === "true" && getToken() === "demo"){
+    state.userName = localStorage.getItem("stl_name") || "Demo User";
+    state.userRole = localStorage.getItem("stl_role") || "hr";
+    state.screen   = "entry";
+    render();
+    loadDate(state.selectedDate);
+    prefetchMonthEntries(state.calMonth.key);
+    return;
+  }
   const token = getToken();
   if (!token){ window.location.href = "login.html"; return; }
   try {

@@ -973,7 +973,7 @@ function HoldingScreen({msg, sub, onLogout}) {
 function App() {
   // Redirect HR users to manpower.html
   const _hrCheck = localStorage.getItem("stl_role");
-  if (_hrCheck === "hr") { window.location.href = "manpower.html"; return null; }
+  if (_hrCheck === "hr" || _hrCheck === "hr_noida") { window.location.href = "manpower.html"; return null; }
 
   // Check if user arrived via OTP login — if so, skip PIN screen entirely
   const otpRole = localStorage.getItem("stl_role");
@@ -1021,7 +1021,9 @@ function App() {
   if (screen === "entry") {
     if (wd0.beforeQ1) return <HoldingScreen msg="Q1 hasn't started yet" sub="Data entry opens on 2 April 2026 — come back then to enter 1 April data." onLogout={logout}/>;
     if (wd0.afterQ1)  return <HoldingScreen msg="Q1 has ended" sub="The Q1 tracker covered April–June 2026. Contact Deepit for the next tracker." onLogout={logout}/>;
-    return <EntryScreen dept={DEPTS.find(d => d.id === role)} onLogout={logout}/>;
+    const _dept = DEPTS.find(d => d.id === role);
+    if (!_dept) return <HoldingScreen msg="Account not set up for data entry" sub="Your login isn't mapped to a department. If you handle Noida/Nalagarh manpower use the manpower screen, otherwise contact Deepit." onLogout={logout}/>;
+    return <EntryScreen dept={_dept} onLogout={logout}/>;
   }
   if (screen === "admin") {
     if (wd0.beforeQ1)    return <HoldingScreen msg="Q1 hasn't started yet" sub="Data entry opens 2 April 2026. Seed data is still available for demos." onLogout={logout}/>;
