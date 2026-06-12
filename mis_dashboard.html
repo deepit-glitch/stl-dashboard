@@ -795,6 +795,9 @@ async function initMPTab(){
         });
       });
     });
+    // Object.keys(DAILY_OV).sort() is alphabetical (Jun-26 < May-26), so rows
+    // arrive month-jumbled — sort by ISO date so "latest day" and charts are correct
+    rows.sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:0;});
     renderMPTab(rows);
     document.getElementById('mp-loading').style.display='none';
     document.getElementById('mp-content').style.display='block';
