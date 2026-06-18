@@ -208,7 +208,7 @@ What the bot does:
 
 6. **Array length parity**: Every array inside a `DAILY_OV` month block must be the same length as `dates`. This is non-negotiable — a mismatch silently breaks every chart for that month.
 
----
+7. **Pin every CDN dependency to an exact version**: never load a `<script src>` from a CDN without a version (e.g. `@babel/standalone@7.26.4`, not `@babel/standalone`). Unpinned = "latest", which auto-upgrades across breaking majors with zero repo change. In Jun 2026 `entry.html`'s unpinned `@babel/standalone` jumped to 8.0.1 and blanked the page for every department user (login + the React-only management dashboards were unaffected because only `entry.html` uses Babel). `react`/`react-dom` are pinned to `@18`. **Debugging cue:** if a page goes blank with no recent commit touching it, suspect an unpinned CDN dep before the code.
 
 ## Development Workflow
 
