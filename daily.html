@@ -6,12 +6,12 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>STL Daily Dashboard - Q1 FY 2026-27</title>
+<title>STL Daily Dashboard</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="stl_data.js?v=2026070203"></script>
 <script src="depts.js?v=20260604"></script>
-<script src="kpi_months.js?v=20260604"></script>
+<script src="kpi_months.js?v=20260702"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body,#root{height:100%;min-height:100%}
@@ -228,7 +228,7 @@ function Sparkline(props) {
 function DailyCard(props) {
   var kpi=props.kpi, mkey=props.mkey, entries=props.entries, dept=props.dept;
   var month = MONTHS.find(function(m){return m.key===mkey;})||MONTHS[0];
-  var target = kpi.targets[mkey];
+  var target = stlKpiTarget(kpi, mkey);
 
   var dayData = [];
   for(var d=1;d<=month.days;d++){
@@ -270,7 +270,7 @@ function DailyCard(props) {
 function MonthlyCard(props) {
   var kpi=props.kpi, mkey=props.mkey, entries=props.entries, dept=props.dept;
   var month=MONTHS.find(function(m){return m.key===mkey;})||MONTHS[0];
-  var target=kpi.targets[mkey];
+  var target=stlKpiTarget(kpi, mkey);
   var raw=entries[month.days]?entries[month.days][kpi.id]:undefined;
   var val=(raw!==undefined&&raw!=="")?+raw:null;
   var st=getStatus(val,target,kpi.hib);
@@ -479,9 +479,9 @@ function App() {
   var monthlyKpis = dept.kpis.filter(function(k){return k.freq==="monthly";});
 
   var allSts=dept.kpis.map(function(kpi){
-    if(kpi.freq==="monthly"){var v=entries[month.days]?entries[month.days][kpi.id]:undefined;return getStatus(v!==undefined&&v!==""?+v:null,kpi.targets[selMkey],kpi.hib);}
+    if(kpi.freq==="monthly"){var v=entries[month.days]?entries[month.days][kpi.id]:undefined;return getStatus(v!==undefined&&v!==""?+v:null,stlKpiTarget(kpi,selMkey),kpi.hib);}
     var lv=null;for(var d=month.days;d>=1;d--){var vd=entries[d]?entries[d][kpi.id]:undefined;if(vd!==undefined&&vd!==""){lv=+vd;break;}}
-    return getStatus(lv,kpi.targets[selMkey],kpi.hib);
+    return getStatus(lv,stlKpiTarget(kpi,selMkey),kpi.hib);
   });
 
   return CE("div",{style:{minHeight:"100vh",background:"#f0f4f8"}},
@@ -507,8 +507,11 @@ function App() {
     CE("div",{style:{background:"#fff",borderBottom:"1px solid #e2e8f0",padding:"9px 20px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}},
       CE("span",{style:{fontSize:9,fontWeight:700,color:"#94a3b8",letterSpacing:1.5,marginRight:2}},"DEPT"),
       DEPTS.map(function(d){return CE("button",{key:d.id,onClick:function(){setSelDeptId(d.id);},style:{padding:"4px 13px",borderRadius:20,cursor:"pointer",fontWeight:600,fontSize:11,border:"2px solid "+(d.id===selDeptId?d.accent:"#f1f5f9"),background:d.id===selDeptId?d.accent:"#f8fafc",color:d.id===selDeptId?"#fff":"#64748b",transition:"all 0.15s"}},d.label);}),
-      CE("div",{style:{marginLeft:"auto",display:"flex",gap:6}},
-        MONTHS.map(function(m){return CE("button",{key:m.key,onClick:function(){setSelMkey(m.key);},style:{padding:"4px 14px",borderRadius:6,cursor:"pointer",fontWeight:700,fontSize:11,fontFamily:"monospace",border:"2px solid "+(m.key===selMkey?"#0f172a":"#f1f5f9"),background:m.key===selMkey?"#0f172a":"#f8fafc",color:m.key===selMkey?"#fff":"#64748b",transition:"all 0.15s"}},m.short);})
+      CE("div",{style:{marginLeft:"auto",display:"flex",alignItems:"center",gap:6}},
+        CE("span",{style:{fontSize:9,fontWeight:700,color:"#94a3b8",letterSpacing:1.5}},"MONTH"),
+        CE("select",{value:selMkey,onChange:function(e){setSelMkey(e.target.value);},style:{padding:"5px 10px",borderRadius:6,border:"2px solid #0f172a",background:"#0f172a",color:"#fff",fontWeight:700,fontSize:11,fontFamily:"monospace",cursor:"pointer"}},
+          MONTHS.map(function(m){return CE("option",{key:m.key,value:m.key},m.label);})
+        )
       )
     ),
     // Content

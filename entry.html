@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>STL Data Entry - Q1 FY 2026-27</title>
+<title>STL Data Entry</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <!-- Pinned to 7.x: unpinned @babel/standalone auto-upgraded to 8.0.1 (Jun 2026) and broke the in-browser JSX transform, blanking this page. Do not remove the version pin. -->
 <script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
-<script src="kpi_months.js?v=20260604"></script>
+<script src="kpi_months.js?v=20260702"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body,#root{height:100%;min-height:100%}
@@ -283,7 +283,7 @@ function LoginScreen({pins, onLogin}) {
             <div style={{fontFamily:"monospace", fontSize:26, fontWeight:900, color:"#f1f5f9", letterSpacing:5}}>STL</div>
           </div>
           <div style={{fontSize:12, color:"#64748b", fontWeight:600, letterSpacing:2}}>PERFORMANCE TRACKER</div>
-          <div style={{fontSize:11, color:"#374151", marginTop:4}}>Data Entry Portal - Q1 FY 2026-27</div>
+          <div style={{fontSize:11, color:"#374151", marginTop:4}}>Data Entry Portal</div>
         </div>
 
         <div style={{background:"#fff", borderRadius:22, padding:"24px 22px", boxShadow:"0 28px 70px rgba(0,0,0,0.4)"}}>
@@ -318,7 +318,7 @@ function LoginScreen({pins, onLogin}) {
 
 // -- KPI ROW ------------------------------------------------------
 function KpiRow({kpi, mkey, value, onChange, locked, accent}) {
-  const t   = kpi.targets[mkey];
+  const t   = stlKpiTarget(kpi, mkey);
   const val = value == null ? "" : value;
   const st  = getStatus(val, t, kpi.hib);
   const fld = val !== "";
@@ -397,7 +397,7 @@ function KpiForm({dept, inputs, onChange, mkey, isAdmin, onSave, saving, flash, 
     if (k.freq === M && !canFillMonthly) return false;
     return inputs[k.id] !== undefined && inputs[k.id] !== "";
   }).length;
-  const onTgt = dept.kpis.filter(k => getStatus(inputs[k.id], k.targets[mkey], k.hib) === "g").length;
+  const onTgt = dept.kpis.filter(k => getStatus(inputs[k.id], stlKpiTarget(k, mkey), k.hib) === "g").length;
   const pct = totalFillable > 0 ? Math.round(totalFilled / totalFillable * 100) : 0;
 
   function SectionDivider({label, color, bg, border}) {
@@ -488,7 +488,7 @@ function DayPicker({month, selDay, entries, onSelect, accent, todayDay}) {
 
   return (
     <div style={{background:"#fff", borderRadius:12, padding:14, border:"1px solid #e2e8f0", boxShadow:"0 1px 4px rgba(0,0,0,0.05)"}}>
-      <div style={{fontSize:9, fontWeight:700, color:"#94a3b8", letterSpacing:2, marginBottom:10, fontFamily:"monospace"}}>{month.label.toUpperCase()}</div>
+      <div style={{fontSize:9, fontWeight:700, color:"#94a3b8", letterSpacing:2, marginBottom:10, fontFamily:"monospace"}}>{(month.full||month.label).toUpperCase()}</div>
       <div style={{display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3, marginBottom:8}}>
         {["S","M","T","W","T","F","S"].map((d,i) => <div key={i} style={{fontSize:9, textAlign:"center", color:"#cbd5e1", fontWeight:700, paddingBottom:4}}>{d}</div>)}
         {Array.from({length:offset}).map((_,i) => <div key={"o"+i}/>)}
@@ -646,16 +646,11 @@ function EntryScreen({dept, onLogout}) {
         </div>
 
         <div style={{display:"flex", gap:7, marginBottom:14, flexWrap:"wrap"}}>
-          {MONTHS.map(mm => (
-            <div key={mm.key} style={{
-              padding:"4px 14px", borderRadius:6,
-              fontFamily:"monospace", fontSize:11, fontWeight:700,
-              background: mm.key === month.key ? "#0f172a" : "transparent",
-              color: mm.key === month.key ? "#fff" : "#94a3b8",
-              border: "1.5px solid " + (mm.key === month.key ? "#0f172a" : "#e2e8f0"),
-              opacity: mm.key === month.key ? 1 : 0.4
-            }}>{mm.short}</div>
-          ))}
+          <div style={{
+            padding:"4px 14px", borderRadius:6,
+            fontFamily:"monospace", fontSize:11, fontWeight:700,
+            background:"#0f172a", color:"#fff", border:"1.5px solid #0f172a"
+          }}>{month.label}</div>
         </div>
 
         <KpiForm dept={dept} inputs={inputs} onChange={handleChange} mkey={month.key}
@@ -856,16 +851,16 @@ function AdminScreen({pins, onUpdatePins, onLogout}) {
                     transition:"all 0.15s"
                   }}>{d.label}</button>
                 ))}
-                <div style={{marginLeft:"auto", display:"flex", gap:6}}>
-                  {MONTHS.map(m => (
-                    <button key={m.key} onClick={() => { setSelMonth(m); setSelDay(m.key === wd.mk ? wd.d : 1); }} style={{
-                      padding:"4px 14px", borderRadius:6, cursor:"pointer", fontWeight:700, fontSize:11, fontFamily:"monospace",
-                      border: "2px solid " + (m.key === selMonth.key ? "#0f172a" : "#f1f5f9"),
-                      background: m.key === selMonth.key ? "#0f172a" : "#f8fafc",
-                      color: m.key === selMonth.key ? "#fff" : "#64748b",
-                      transition:"all 0.15s"
-                    }}>{m.short}</button>
-                  ))}
+                <div style={{marginLeft:"auto", display:"flex", alignItems:"center", gap:6}}>
+                  <span style={{fontSize:9, fontWeight:700, color:"#94a3b8", letterSpacing:1.5}}>MONTH</span>
+                  <select value={selMonth.key}
+                    onChange={e => { const m = MONTHS.find(x => x.key === e.target.value) || MONTHS[0]; setSelMonth(m); setSelDay(m.key === wd.mk ? wd.d : 1); }}
+                    style={{padding:"5px 10px", borderRadius:6, cursor:"pointer", fontWeight:700, fontSize:11, fontFamily:"monospace",
+                      border:"2px solid #0f172a", background:"#0f172a", color:"#fff"}}>
+                    {MONTHS.slice().reverse().map(m => (
+                      <option key={m.key} value={m.key}>{m.label}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>
