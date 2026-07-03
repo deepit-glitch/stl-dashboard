@@ -75,7 +75,7 @@ const DAILY_DJ  = { 'Jun-26': { dates, weaving, dobby, jacquard } } // Dobby/Jac
 | `discrepancy.html` | Flags mismatches between KPI entries and MIS data |
 | `stl_data.js` | MIS data file — written by bot, never manually edited |
 | `depts.js` | Shared `DEPTS` KPI config — single source loaded by `daily.html` + `monthly.html` |
-| `kpi_months.js` | Shared `MONTHS` quarter config — loaded by `daily.html` + `monthly.html` + `entry.html` |
+| `kpi_months.js` | Shared **auto-generating** month list (`STL_KPI_MONTHS`, Apr 2026 → current month) + `stlKpiTarget()` — loaded by `daily.html`, `monthly.html`, `entry.html`, `manpower.html` |
 | `seed.html` | Dev only — loads test KPI data into Worker KV |
 | `migrate.html` | One-time data migration utility |
 | `mp_recovery.html` | Recovery tool for manpower data |
@@ -151,7 +151,11 @@ var MONTHS = [
   {key:"2026-06", label:"June 2026",   short:"JUN", days:30},
 ];
 ```
-Current quarter is Q1 FY 2026-27 (April–June 2026). The `MONTHS` array now lives in **`kpi_months.js`** (single source, loaded by `daily.html`, `monthly.html`, and `entry.html`). When the quarter rolls over, edit `kpi_months.js` only. (This is the KPI reporting quarter — distinct from the rolling production-window `MONTHS` in `stl_data.js`.)
+Monitoring is **ongoing** (started as a 3-month pilot, Apr–Jun 2026). The month list lives in **`kpi_months.js`** and is **auto-generated** from `STL_KPI_START` (`2026-04`) through the current month (IST) — it self-extends each month, so **do not hand-edit the list** (hardcoding is what lapsed the dashboards at July 2026). All screens (`daily.html`, `monthly.html`, `entry.html`, `manpower.html`) alias `MONTHS = window.STL_KPI_MONTHS`.
+- `key` = `"YYYY-MM"` (Worker KV key — never change the format), `label` = `"MM-YYYY"` (dropdown display), `full` = `"July 2026"`, `days` = days in month.
+- **Targets** are still defined per KPI for `2026-04/05/06` only. Use `stlKpiTarget(kpi, mkey)` (not `kpi.targets[mkey]`) everywhere — it carries forward the last defined target for months past the pilot. To set new targets, add them to the KPI's `targets` in `depts.js` (and `entry.html`'s own DEPTS).
+- `monthly.html` shows a **rolling 3-month window** via an "UP TO" end-month dropdown; its column colours are position-based (`MCOL_SEQ`), not keyed by month.
+- Distinct from the rolling production-window `MONTHS` in `stl_data.js` (bot-managed, MIS side).
 
 ### Worker API endpoints used by dashboards
 - `GET /auth/session` — validate token, get role/name/dept
