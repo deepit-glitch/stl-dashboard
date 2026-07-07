@@ -713,7 +713,14 @@ if (_sub && typeof MONTHS !== 'undefined' && MONTHS.length) {
 
 // ── MANPOWER PRODUCTIVITY TAB ─────────────────────────────────────────────
 const MP_WORKER = 'https://square-flower-57b5.deepit.workers.dev';
-const MONTH_MAP = {'Feb-26':'2026-02','Mar-26':'2026-03','Apr-26':'2026-04','May-26':'2026-05','Jun-26':'2026-06'};
+// Converts a DAILY_OV month key ('Jul-26') to a date prefix ('2026-07').
+// Was a hardcoded MONTH_MAP that stopped at Jun-26, silently dropping every
+// later month from this tab -- compute it so it never has a ceiling again.
+function mkeyToPrefix(mk){
+  var MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var p=String(mk).split('-'); var mi=MN.indexOf(p[0]);
+  return (mi<0||!p[1]) ? null : '20'+p[1]+'-'+String(mi+1).padStart(2,'0');
+}
 const MP_DEPTS = [
   {id:'weaving',         label:'Weaving',         color:'#2563eb'},
   {id:'sizing',          label:'Sizing',           color:'#7c3aed'},
@@ -731,7 +738,7 @@ function buildProdLookup(){
   var lk={};
   if(typeof DAILY_OV==='undefined') return lk;
   Object.keys(DAILY_OV).forEach(function(mk){
-    var pfx=MONTH_MAP[mk]; if(!pfx) return;
+    var pfx=mkeyToPrefix(mk); if(!pfx) return;
     var d=DAILY_OV[mk];
     (d.dates||[]).forEach(function(day,i){
       lk[pfx+'-'+day]={
@@ -776,7 +783,7 @@ async function initMPTab(){
     // Build from stl_data.js DAILY_OV — permanent, never expires at month-end
     var cutoffMs=new Date("2026-05-01").getTime();
     Object.keys(DAILY_OV).sort().forEach(function(mk){
-      var pfx=MONTH_MAP[mk]; if(!pfx) return;
+      var pfx=mkeyToPrefix(mk); if(!pfx) return;
       var d=DAILY_OV[mk];
       (d.dates||[]).forEach(function(day,i){
         var dateStr=pfx+'-'+day;
