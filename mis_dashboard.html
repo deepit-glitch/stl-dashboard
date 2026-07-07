@@ -780,13 +780,11 @@ async function initMPTab(){
     var prodLk=buildProdLookup();
     var rows=[];
     // Build from stl_data.js DAILY_OV — permanent, never expires at month-end
-    var cutoffMs=new Date("2026-05-01").getTime();
     Object.keys(DAILY_OV).sort().forEach(function(mk){
       var pfx=mkeyToPrefix(mk); if(!pfx) return;
       var d=DAILY_OV[mk];
       (d.dates||[]).forEach(function(day,i){
         var dateStr=pfx+'-'+day;
-        if(new Date(dateStr).getTime()<cutoffMs) return;
         var pr=prodLk[dateStr]||{};
         rows.push({
           date:dateStr,
@@ -802,8 +800,15 @@ async function initMPTab(){
       });
     });
     // Object.keys(DAILY_OV).sort() is alphabetical (Jun-26 < May-26), so rows
-    // arrive month-jumbled — sort by ISO date so "latest day" and charts are correct
+    // arrive month-jumbled — sort by ISO date ascending so charts + latest-day are correct
     rows.sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:0;});
+    // Rolling last 90 days: keep only days with at least one manpower reading
+    // (drops pre-May-2026 empty days), then take the 90 most recent.
+    rows=rows.filter(function(r){
+      return r.weaving!=null||r.sizing!=null||r.sectionalWarping!=null||r.yarnDyeing!=null||
+             r.fabricDyeing!=null||r.finishing!=null||r.finishing1!=null||r.noidaFinishing!=null;
+    });
+    rows=rows.slice(-90);
     renderMPTab(rows);
     document.getElementById('mp-loading').style.display='none';
     document.getElementById('mp-content').style.display='block';
