@@ -556,14 +556,13 @@ function trimTopBottom(arr,n){
 
 // ── COSTS — 90-DAY ROLLING ─────────────────────────────────────────────────
 function build90DayCosts(){
-  var MK={'Feb-26':'2026-02','Mar-26':'2026-03','Apr-26':'2026-04','May-26':'2026-05',
-          'Jun-26':'2026-06','Jul-26':'2026-07','Aug-26':'2026-08','Sep-26':'2026-09',
-          'Oct-26':'2026-10','Nov-26':'2026-11','Dec-26':'2026-12'};
+  // month key -> date prefix, computed (was a hardcoded MK map that stopped at
+  // Dec-26 and would have dropped Jan-2027 costs). See mkeyToPrefix().
   var MS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var all=[];
   MONTHS.forEach(function(mk){
     var cp=CONSUMPTION_PARAMS[mk]; if(!cp) return;
-    var pfx=MK[mk]; if(!pfx) return;
+    var pfx=mkeyToPrefix(mk); if(!pfx) return;
     var mo=parseInt(pfx.slice(5,7));
     cp.dates.forEach(function(d,i){
       var ds=pfx+'-'+String(d).padStart(2,'0');
