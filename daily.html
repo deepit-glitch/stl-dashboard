@@ -322,9 +322,16 @@ function SummaryStrip(props) {
 }
 
 // ── Operations Section: Manpower from stl_data.js ────────────────────────────
-var MK_STL = {"2026-03":"Mar-26","2026-04":"Apr-26","2026-05":"May-26","2026-06":"Jun-26"};
+// mk "2026-07" -> DAILY_OV key "Jul-26", computed (was a hardcoded MK_STL map
+// that stopped at Jun-26 and silently blanked the Nalagarh/Noida ops tabs for
+// every later month -- "Operations data not available for this month").
+function mkToStlKey(mk){
+  var mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var p=String(mk).split('-'), mo=parseInt(p[1],10);
+  return (!p[1]||isNaN(mo)) ? null : mn[mo-1]+'-'+String(p[0]).slice(2);
+}
 function getOvData(mk) {
-  try { if (typeof DAILY_OV === 'undefined') return null; return DAILY_OV[MK_STL[mk]]||null; }
+  try { if (typeof DAILY_OV === 'undefined') return null; var k=mkToStlKey(mk); return k?(DAILY_OV[k]||null):null; }
   catch(e) { return null; }
 }
 var NAL_DEPTS = [
