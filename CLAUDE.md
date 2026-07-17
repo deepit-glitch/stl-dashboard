@@ -52,6 +52,10 @@ const DAILY_DJ  = { 'Jun-26': { dates, weaving, dobby, jacquard } } // Dobby/Jac
 ```
 
 ### Source 2 — Cloudflare Worker KV (KPI data)
+- **Source lives in `worker/`** — see `worker/README.md`. Deploy with `npx wrangler deploy` from
+  that directory. **Never edit the Worker in the Cloudflare dashboard**: it was dashboard-only
+  until Jul 2026 (no source anywhere, on any machine), and any dashboard edit will now be
+  silently overwritten by the next `wrangler deploy`.
 - Worker URL: `https://square-flower-57b5.deepit.workers.dev`
 - Department KPI entries are stored in KV, keyed by dept + month + day.
 - Manpower headcounts (Nalagarh departments) stored separately under `/manpower/{date}`.
@@ -80,6 +84,7 @@ const DAILY_DJ  = { 'Jun-26': { dates, weaving, dobby, jacquard } } // Dobby/Jac
 | `migrate.html` | One-time data migration utility |
 | `mp_recovery.html` | Recovery tool for manpower data |
 | `demo_login.html` | Demo mode login (sets demo flag, bypasses Worker auth) |
+| `worker/` | **Cloudflare Worker source** — the auth/KV backend for every page above. Deploy from here (`npx wrangler deploy`); secrets via `wrangler secret put`. See `worker/README.md` |
 
 ---
 
@@ -215,6 +220,18 @@ What the bot does:
 7. **Pin every CDN dependency to an exact version**: never load a `<script src>` from a CDN without a version (e.g. `@babel/standalone@7.26.4`, not `@babel/standalone`). Unpinned = "latest", which auto-upgrades across breaking majors with zero repo change. In Jun 2026 `entry.html`'s unpinned `@babel/standalone` jumped to 8.0.1 and blanked the page for every department user (login + the React-only management dashboards were unaffected because only `entry.html` uses Babel). `react`/`react-dom` are pinned to `@18`. **Debugging cue:** if a page goes blank with no recent commit touching it, suspect an unpinned CDN dep before the code.
 
 8. **Never hardcode a month list or month→value map — compute it**: the codebase has repeatedly broken when a hardcoded list of months stopped at a fixed ceiling and silently dropped newer months as the rolling window advanced. Fixed so far: `STL_KPI_MONTHS` (auto-generated in `kpi_months.js`), `MANPOWER_MONTHS` (reuses it), the KPI-dashboard month pickers, and — Jul 2026 — `mis_dashboard.html`'s `MONTH_MAP`/`MK` (`'Jun-26'`/`'Dec-26'` ceilings that froze the Manpower and would have frozen the Costs tab) and `daily.html`'s `MK_STL` (`'2026-06'` ceiling that blanked the Nalagarh/Noida ops tabs in the *management* view for July — "Operations data not available for this month" — while admin/HR were fine because `manpower.html` uses a computed converter), all replaced by computed converters (`mkeyToPrefix`, `mkToStlKey`, `toStlMonthKey`). **Rule:** any month-keyed lookup must be derived from the key (parse `'Mon-YY'` / `'YYYY-MM'`), never enumerated. **Debugging cue:** if one tab/list stops updating at a month boundary while others keep going, look for a hardcoded month map with a ceiling. (Per-KPI `targets` keyed by `2026-04/05/06` in `depts.js` are exempt — carry-forward is handled by `stlKpiTarget()`.)
+
+9. **This repo is PUBLIC — no secrets, ever.** Anything committed here is world-readable. The
+   2Factor API key sat hardcoded in the Worker for months and would have leaked the moment the
+   Worker was first committed (Jul 2026); it now lives in a Worker secret (`TWOFACTOR_KEY`).
+   Credentials go in `wrangler secret put`, never in a file. **Debugging cue:** if every login
+   suddenly fails with "SMS failed - please retry", suspect a missing/rotated `TWOFACTOR_KEY`
+   before the code.
+
+10. **One-time migration endpoints must be deleted after use, and must never be unauthenticated.**
+    `/backfill-may` and `/backfill2` sat live and auth-free for months; anyone who knew the path
+    could overwrite May 2026 manpower KV. Removed Jul 2026. If you add a backfill, guard it with
+    `requireAdmin` and delete it in the same week.
 
 ## Development Workflow
 
