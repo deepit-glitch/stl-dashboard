@@ -1,0 +1,12 @@
+name = "square-flower-57b5"
+main = "worker.js"
+# Pinned to the compatibility_date of the dashboard-deployed script recovered on 2026-07-17.
+# Do not bump without testing auth end-to-end — every dashboard depends on this Worker.
+compatibility_date = "2026-03-26"
+
+[[kv_namespaces]]
+binding = "AUTH_KV"
+id = "6a9d1e6415a84bd7b96ec22ab1faa98c"   # STL_AUTH
+
+# Secrets (NOT in this file — set with `wrangler secret put`):
+#   TWOFACTOR_KEY   2Factor.in API key, used by sendOTP()
