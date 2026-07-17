@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Register Inspection Visit</title>
+<link rel="stylesheet" href="style.css?v=20260717">
+</head>
+<body>
+<div class="card wide" style="margin:0 auto">
+  <div class="topbar">
+    <div>
+      <h1>Register Inspection Visit</h1>
+      <div class="who" id="who"></div>
+    </div>
+    <div style="display:flex;gap:4px">
+      <button class="linkbtn" onclick="location.href='qr.html'">QR card</button>
+      <button class="linkbtn" onclick="location.href='report.html'">Report</button>
+      <button class="linkbtn" onclick="logout()">Log out</button>
+    </div>
+  </div>
+
+  <div class="sec-title">Inspector details</div>
+  <div class="sec-sub">Enter the inspector's mobile first &mdash; if they have visited before, the rest fills in automatically.</div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px">
+    <div class="field">
+      <label>Inspector Mobile (10 digits)</label>
+      <input type="tel" id="mobile" maxlength="10" placeholder="9XXXXXXXXX" oninput="onMobileInput()">
+      <div class="hint left" id="lookupHint" style="min-height:14px"></div>
+    </div>
+    <div class="field">
+      <label>Inspector Name</label>
+      <input type="text" id="name" placeholder="Full name">
+    </div>
+    <div class="field">
+      <label>Company</label>
+      <input type="text" id="company" placeholder="e.g. SGS, Intertek, buyer's own QA">
+    </div>
+    <div class="field">
+      <label>Email (optional)</label>
+      <input type="email" id="email" placeholder="name@company.com">
+    </div>
+    <div class="field">
+      <label>Buyer</label>
+      <input type="text" id="buyer" placeholder="Which buyer is this inspection for">
+    </div>
+    <div class="field">
+      <label>PO / Order No. (optional)</label>
+      <input type="text" id="po" placeholder="e.g. PO-4471">
+    </div>
+  </div>
+
+  <button class="btn" id="saveBtn" onclick="register()">Register Visit &amp; Show QR</button>
+  <div class="err" id="err"></div>
+  <div class="ok-msg" id="ok"></div>
+
+  <div style="margin-top:34px">
+    <div class="topbar" style="margin-bottom:14px">
+      <div>
+        <div class="sec-title">Today's visits</div>
+        <div class="sec-sub" id="todayLabel" style="margin:0"></div>
+      </div>
+      <button class="linkbtn" onclick="loadToday()">Refresh</button>
+    </div>
+    <div id="todayWrap"><div class="empty">Loading...</div></div>
+  </div>
+</div>
+
+<script src="config.js?v=20260717"></script>
+<script src="questions.js?v=20260717"></script>
+<script>
+const WORKER = window.INSPECT_WORKER;
+const SURVEY_URL = "https://dashboards.saratextiles.com/inspect/s.html";
+const ALLOWED = ["quality","admin"];
+let ME = null;
+
+function token(){ return localStorage.getItem("insp_token"); }
+function logout(){
+  const t = token();
+  ["insp_token","insp_role","insp_name"].forEach(k => localStorage.removeItem(k));
+  if (t) fetch(WORKER+"/auth/logout",{method:"POST",headers:{"X-Session-Token":t}}).catch(()=>{});
+  location.href = "index.html";
+}
+function showErr(m){ const e=document.getElementById("err"); e.textContent=m; e.classList.add("show"); document.getElementById("ok").classList.remove("show"); }
+function showOk(m){ const e=document.getElementById("ok"); e.innerHTML=m; e.classList.add("show"); document.getElementById("err").classList.remove("show"); }
+function clearMsg(){ document.getElementById("err").classList.remove("show"); document.getElementById("ok").classList.remove("show"); }
+function esc(s){ const d=document.createElement("div"); d.textContent = s==null?"":String(s); return d.innerHTML; }
+// IST is UTC+5:30 and never shifts. The factory day is the IST day.
+function istToday(){ return new Date(Date.now()+19800000).toISOString().slice(0,10); }
+function fmtDate(d){ const p=d.split("-"); return p[2]+"/"+p[1]+"/"+p[0]; }
+
+let lookupTimer;
+function onMobileInput(){
+  const m = document.getElementById("mobile").value.replace(/\D/g,"");
+  document.getElementById("lookupHint").textContent = "";
+  clearTimeout(lookupTimer);
+  if (!/^[6-9]\d{9}$/.test(m)) return;
+  lookupTimer = setTimeout(() => lookup(m), 300);
+}
+
+// A returning inspector should never be re-typed: pull his details and prefill.
+async function lookup(m){
+  try {
+    const r = await fetch(WORKER+"/survey/inspectors?mobile="+m, {headers:{"X-Session-Token":token()}});
+    const d = await r.json();
+    if (!d.ok) return;
+    const hint = document.getElementById("lookupHint");
+    if (d.hasOpenVisit) {
+      hint.innerHTML = '<span style="color:#b45309;font-weight:700">A survey is already open for this inspector.</span>';
+      return;
+    }
+    if (d.inspector) {
+      document.getElementById("name").value = d.inspector.name || "";
+      document.getElementById("company").value = d.inspector.company || "";
+      document.getElementById("email").value = d.inspector.email || "";
+      hint.innerHTML = '<span style="color:#15803d;font-weight:700">Known inspector &mdash; visit '+((d.inspector.visitCount||0)+1)+'. Details filled in.</span>';
+    }
+  } catch(e) { /* lookup is a convenience; let the QC type it manually */ }
+}
+
+async function register(){
+  clearMsg();
+  const body = {
+    mobile:  document.getElementById("mobile").value.replace(/\D/g,""),
+    name:    document.getElementById("name").value.trim(),
+    company: document.getElementById("company").value.trim(),
+    email:   document.getElementById("email").value.trim(),
+    buyer:   document.getElementById("buyer").value.trim(),
+    po:      document.getElementById("po").value.trim(),
+    visitDate: istToday()
+  };
+  if (!/^[6-9]\d{9}$/.test(body.mobile)) { showErr("Enter a valid 10-digit mobile number."); return; }
+  if (!body.name || !body.company || !body.buyer) { showErr("Name, company and buyer are required."); return; }
+  const btn = document.getElementById("saveBtn");
+  btn.innerHTML = '<span class="loader"></span>Registering...'; btn.disabled = true;
+  try {
+    const r = await fetch(WORKER+"/survey/visits", {
+      method:"POST", headers:{"Content-Type":"application/json","X-Session-Token":token()}, body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (!d.ok) { showErr(d.error || "Could not register the visit."); btn.innerHTML="Register Visit &amp; Show QR"; btn.disabled=false; return; }
+    showOk('Visit registered for <b>'+esc(body.name)+'</b>. Ask them to scan the QR card and complete the survey <b>before they leave</b> &mdash; the link expires in 72 hours and there is no reminder. <button class="linkbtn" style="padding:2px 6px" onclick="location.href=\'qr.html\'">Open QR card</button>');
+    ["mobile","name","company","email","buyer","po"].forEach(id => document.getElementById(id).value = "");
+    document.getElementById("lookupHint").textContent = "";
+    loadToday();
+  } catch(e) { showErr("Network error - please try again."); }
+  btn.innerHTML = "Register Visit &amp; Show QR"; btn.disabled = false;
+}
+
+function statusPill(v){
+  if (v.status === "submitted") return '<span class="pill p-done">Submitted</span>';
+  // A visit stays "open" in KV for 72h; past that the inspector can no longer log in.
+  const age = Date.now() - new Date(v.registeredAt).getTime();
+  if (age > 72*3600*1000) return '<span class="pill p-exp">Expired</span>';
+  return '<span class="pill p-open">Awaiting</span>';
+}
+
+async function loadToday(){
+  const wrap = document.getElementById("todayWrap");
+  const today = istToday();
+  document.getElementById("todayLabel").textContent = fmtDate(today);
+  try {
+    const r = await fetch(WORKER+"/survey/visits?date="+today, {headers:{"X-Session-Token":token()}});
+    const d = await r.json();
+    if (!d.ok) { wrap.innerHTML = '<div class="empty">Could not load today\'s visits.</div>'; return; }
+    if (!d.visits.length) { wrap.innerHTML = '<div class="empty">No visits registered today.</div>'; return; }
+    const rows = d.visits.map(v => '<tr>'
+      + '<td><b>'+esc(v.name)+'</b><div class="muted" style="font-size:11px">'+esc(v.company)+'</div></td>'
+      + '<td style="font-family:monospace">+91 '+esc(v.mobile)+'</td>'
+      + '<td>'+esc(v.buyer)+'<div class="muted" style="font-size:11px">'+esc(v.po||"-")+'</div></td>'
+      + '<td>'+statusPill(v)+'</td>'
+      + '<td class="muted" style="font-size:11px">'+esc(v.registeredByName||"")+'</td>'
+      + '</tr>').join("");
+    const done = d.visits.filter(v => v.status === "submitted").length;
+    wrap.innerHTML = '<table><thead><tr><th>Inspector</th><th>Mobile</th><th>Buyer / PO</th><th>Survey</th><th>Registered by</th></tr></thead><tbody>'
+      + rows + '</tbody></table>'
+      + '<div class="hint left" style="margin-top:10px">'+done+' of '+d.visits.length+' submitted today. Anyone still "Awaiting" should be asked before they leave the factory.</div>';
+  } catch(e) { wrap.innerHTML = '<div class="empty">Network error.</div>'; }
+}
+
+// Session guard. Role is checked at render time, after the session resolves — never at load time.
+(async () => {
+  const t = token();
+  if (!t) { location.href = "index.html"; return; }
+  try {
+    const r = await fetch(WORKER+"/auth/session", {headers:{"X-Session-Token":t}});
+    const d = await r.json();
+    if (!d.ok) { location.href = "index.html"; return; }
+    if (ALLOWED.indexOf(d.role) === -1) {
+      // Management can read the report but has no visits to register.
+      location.href = d.role === "management" ? "report.html" : "index.html";
+      return;
+    }
+    ME = d;
+    document.getElementById("who").textContent = d.name + " · " + (d.dept || d.role);
+    loadToday();
+  } catch(e) { location.href = "index.html"; }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inspector Survey - Monthly Report</title>
+<link rel="stylesheet" href="style.css?v=20260717">
+<style>
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:28px}
+.stat{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px}
+.stat-n{font-size:26px;font-weight:800;letter-spacing:-1px;line-height:1.1}
+.stat-l{font-size:10px;color:#94a3b8;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-top:5px}
+.stat-sub{font-size:11px;color:#94a3b8;margin-top:4px}
+.stat.lead{background:#0f172a;border-color:#0f172a}
+.stat.lead .stat-n{color:#fff}
+.stat.lead .stat-l,.stat.lead .stat-sub{color:#94a3b8}
+.cmt{border-left:3px solid #e2e8f0;padding:2px 0 2px 14px;margin-bottom:20px}
+.cmt.bad{border-left-color:#dc2626}
+.cmt-txt{font-size:14px;line-height:1.6;color:#0f172a}
+.cmt-meta{font-size:11px;color:#94a3b8;margin-top:7px}
+.cmt-meta b{color:#475569}
+.bar{height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden;margin-top:5px;max-width:120px}
+.bar span{display:block;height:100%;background:#6366f1;border-radius:3px}
+.block-h{font-size:11px;font-weight:800;color:#6366f1;letter-spacing:1.5px;text-transform:uppercase;margin:22px 0 2px}
+.block-s{font-size:11px;color:#94a3b8;margin-bottom:10px}
+.avg{font-size:17px;font-weight:800}
+.small{font-size:11px;color:#94a3b8}
+.note{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;font-size:11.5px;color:#92400e;line-height:1.6;margin-bottom:22px}
+select{width:auto;padding:8px 12px;font-size:13px;font-weight:700}
+</style>
+</head>
+<body>
+<div class="card wide" style="margin:0 auto">
+  <div class="topbar">
+    <div>
+      <h1>Inspector Survey &mdash; Monthly Report</h1>
+      <div class="who" id="who"></div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="monthSel" onchange="load()"></select>
+      <button class="linkbtn" id="backBtn" onclick="location.href='invite.html'">Register visit</button>
+      <button class="linkbtn" onclick="logout()">Log out</button>
+    </div>
+  </div>
+  <div id="body"><div class="empty">Loading...</div></div>
+</div>
+
+<script src="config.js?v=20260717"></script>
+<script src="questions.js?v=20260717"></script>
+<script>
+const WORKER = window.INSPECT_WORKER;
+const ALLOWED = ["quality","admin","management"];
+// First month the survey existed. The list is COMPUTED from here to the current IST month — never
+// hardcode a month list; a fixed ceiling silently drops new months as time moves on.
+const INSPECT_START = "2026-07";
+
+function token(){ return localStorage.getItem("insp_token"); }
+function logout(){
+  const t = token();
+  ["insp_token","insp_role","insp_name"].forEach(k => localStorage.removeItem(k));
+  if (t) fetch(WORKER+"/auth/logout",{method:"POST",headers:{"X-Session-Token":t}}).catch(()=>{});
+  location.href = "index.html";
+}
+function esc(s){ const d=document.createElement("div"); d.textContent = s==null?"":String(s); return d.innerHTML; }
+function istNow(){ return new Date(Date.now()+19800000); }
+function mkLabel(mk){
+  const p = mk.split("-"), names = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  return names[parseInt(p[1],10)-1] + " " + p[0];
+}
+// Derive the previous month from the key itself rather than enumerating months.
+function prevMk(mk){
+  let y = parseInt(mk.slice(0,4),10), m = parseInt(mk.slice(5,7),10) - 1;
+  if (m === 0) { m = 12; y--; }
+  return y + "-" + String(m).padStart(2,"0");
+}
+function monthList(){
+  const now = istNow();
+  const cur = now.getUTCFullYear() + "-" + String(now.getUTCMonth()+1).padStart(2,"0");
+  const out = []; let mk = cur;
+  while (mk >= INSPECT_START && out.length < 60) { out.push(mk); mk = prevMk(mk); }
+  return out;
+}
+function avg(a){ return a.length ? a.reduce((x,y)=>x+y,0)/a.length : null; }
+function fmt(n,d){ return n==null ? "&mdash;" : n.toFixed(d==null?2:d); }
+
+async function fetchMonth(mk){
+  try {
+    const r = await fetch(WORKER+"/survey/report/"+mk, {headers:{"X-Session-Token":token()}});
+    const d = await r.json();
+    return d.ok ? d.rows : [];
+  } catch(e) { return []; }
+}
+
+async function load(){
+  const body = document.getElementById("body");
+  body.innerHTML = '<div class="empty">Loading...</div>';
+  const mk = document.getElementById("monthSel").value;
+  // Rolling 3-month window: this month and the two before it.
+  const m1 = prevMk(mk), m2 = prevMk(m1);
+  const [cur, p1, p2] = await Promise.all([fetchMonth(mk), fetchMonth(m1), fetchMonth(m2)]);
+  render(mk, cur, cur.concat(p1, p2));
+}
+
+function render(mk, rows, rolling){
+  const Q = INSPECT_QUESTIONS;
+  const done   = rows.filter(r => r.response);
+  const respRate = rows.length ? Math.round(done.length / rows.length * 100) : null;
+  const passed = done.filter(r => r.response.result === "passed").length;
+  const passRate = done.length ? Math.round(passed / done.length * 100) : null;
+
+  const rollDone = rolling.filter(r => r.response);
+
+  // Every number carries n=. At ~20 responses a month a bare average invites over-reading.
+  let h = '<div class="stats">'
+    + stat("lead", passRate==null?"&mdash;":passRate+"%", "Pass rate", done.length ? passed+" of "+done.length+" inspections passed" : "no responses yet")
+    + stat("", respRate==null?"&mdash;":respRate+"%", "Response rate", done.length+" of "+rows.length+" registered visits")
+    + stat("", String(rows.length), "Visits registered", mkLabel(mk))
+    + stat("", String(done.length), "Surveys submitted", "n="+done.length+" this month")
+    + '</div>';
+
+  if (done.length && done.length < 10) {
+    h += '<div class="note"><b>Only '+done.length+' response'+(done.length===1?"":"s")+' this month.</b> '
+      + 'Month-to-month movement in the averages below is mostly noise at this sample size &mdash; read the rolling 3-month column and the comments, not the single-month swing.</div>';
+  }
+
+  // Comments first and verbatim: at this volume one inspector explaining a low score is worth more
+  // than every average on the page.
+  const withC = done.filter(r => r.response.comment);
+  h += '<div class="sec-title">What inspectors said</div>'
+     + '<div class="sec-sub">'+withC.length+' of '+done.length+' responses left a comment. Verbatim, unedited.</div>';
+  if (!withC.length) {
+    h += '<div class="empty">No comments this month.</div>';
+  } else {
+    h += withC.map(r => {
+      const lows = Q.dims.filter(d => r.response.ratings[d.id] <= Q.lowRating);
+      return '<div class="cmt'+(lows.length?" bad":"")+'">'
+        + '<div class="cmt-txt">&ldquo;'+esc(r.response.comment)+'&rdquo;</div>'
+        + '<div class="cmt-meta"><b>'+esc(r.visit.name)+'</b>, '+esc(r.visit.company)
+        + ' &middot; buyer <b>'+esc(r.visit.buyer)+'</b>'
+        + (r.visit.po ? ' &middot; PO '+esc(r.visit.po) : '')
+        + ' &middot; '+esc(r.visit.visitDate.split("-").reverse().join("/"))
+        + ' &middot; <span class="pill '+(r.response.result==="passed"?"p-pass":"p-fail")+'">'+r.response.result+'</span>'
+        + (lows.length ? ' &middot; low: '+lows.map(d=>esc(d.label)).join(", ") : '')
+        + '</div></div>';
+    }).join("");
+  }
+
+  // Ratings, split by owner. Segmented by pass/fail: an inspector who just failed the goods will
+  // rate workmanship low, so pooling the two makes a bad-quality month look like a service collapse.
+  h += '<div style="margin-top:30px"></div>';
+  Q.blocks.forEach(b => {
+    h += '<div class="block-h">'+esc(b.label)+'</div><div class="block-s">'+esc(b.hint)+'</div>'
+      + '<table><thead><tr><th style="width:30%">Question</th>'
+      + '<th>Rolling 3 months</th><th>'+esc(mkLabel(mk))+'</th>'
+      + '<th>When passed</th><th>When failed</th></tr></thead><tbody>';
+    b.dims.forEach(d => {
+      const rollV = rolling.filter(r=>r.response).map(r => r.response.ratings[d.id]).filter(v=>v);
+      const curV  = rows.filter(r=>r.response).map(r => r.response.ratings[d.id]).filter(v=>v);
+      const passV = rows.filter(r=>r.response&&r.response.result==="passed").map(r=>r.response.ratings[d.id]).filter(v=>v);
+      const failV = rows.filter(r=>r.response&&r.response.result==="failed").map(r=>r.response.ratings[d.id]).filter(v=>v);
+      const a = avg(rollV);
+      h += '<tr><td><b>'+esc(d.label)+'</b><div class="small">'+esc(d.desc)+'</div></td>'
+        + '<td><span class="avg">'+fmt(a)+'</span> <span class="small">n='+rollV.length+'</span>'
+        + (a!=null?'<div class="bar"><span style="width:'+(a/5*100)+'%"></span></div>':'')+'</td>'
+        + '<td><span class="avg">'+fmt(avg(curV))+'</span> <span class="small">n='+curV.length+'</span></td>'
+        + '<td>'+fmt(avg(passV))+' <span class="small">n='+passV.length+'</span></td>'
+        + '<td>'+fmt(avg(failV))+' <span class="small">n='+failV.length+'</span></td></tr>';
+    });
+    h += '</tbody></table>';
+  });
+
+  // The denominator: who never answered. This is the list QC has to act on.
+  const missing = rows.filter(r => !r.response);
+  h += '<div style="margin-top:30px"></div><div class="sec-title">Visits with no response</div>'
+     + '<div class="sec-sub">Registered but never submitted. These are the gap in the response rate above.</div>';
+  h += missing.length
+    ? '<table><thead><tr><th>Inspector</th><th>Company</th><th>Buyer / PO</th><th>Date</th><th>Registered by</th></tr></thead><tbody>'
+      + missing.map(r => '<tr><td><b>'+esc(r.visit.name)+'</b></td><td>'+esc(r.visit.company)+'</td>'
+        + '<td>'+esc(r.visit.buyer)+' <span class="small">'+esc(r.visit.po||"")+'</span></td>'
+        + '<td>'+esc(r.visit.visitDate.split("-").reverse().join("/"))+'</td>'
+        + '<td class="small">'+esc(r.visit.registeredByName||"")+'</td></tr>').join("")
+      + '</tbody></table>'
+    : '<div class="empty">Every registered visit was answered.</div>';
+
+  h += '<div class="hint left" style="margin-top:24px">Question set v'+Q.v+'. '
+     + 'Results are self-reported by the external inspector and are not independently verified &mdash; '
+     + 'reconcile against the gate/visitor register.</div>';
+
+  document.getElementById("body").innerHTML = h;
+}
+
+function stat(cls, n, l, sub){
+  return '<div class="stat '+cls+'"><div class="stat-n">'+n+'</div><div class="stat-l">'+l+'</div><div class="stat-sub">'+sub+'</div></div>';
+}
+
+(async () => {
+  const t = token();
+  if (!t) { location.href = "index.html"; return; }
+  try {
+    const r = await fetch(WORKER+"/auth/session", {headers:{"X-Session-Token":t}});
+    const d = await r.json();
+    if (!d.ok || ALLOWED.indexOf(d.role) === -1) { location.href = "index.html"; return; }
+    document.getElementById("who").textContent = d.name + " · " + (d.dept || d.role);
+    // Management has no visits to register; hide the button rather than bounce them.
+    if (d.role === "management") document.getElementById("backBtn").style.display = "none";
+    const sel = document.getElementById("monthSel");
+    sel.innerHTML = monthList().map(mk => '<option value="'+mk+'">'+mkLabel(mk)+'</option>').join("");
+    load();
+  } catch(e) { location.href = "index.html"; }
+})();
+</script>
+</body>
+</html>

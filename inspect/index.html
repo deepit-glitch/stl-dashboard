@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inspector Survey - Login</title>
+<link rel="stylesheet" href="style.css?v=20260717">
+</head>
+<body class="center">
+<div class="card">
+  <div class="brand">
+    <div class="brand-logo-wrap"><img src="https://www.saratextiles.com/wp-content/uploads/2017/11/logo-Sara-white-150X50-1.png" alt="Sara Textiles Limited"></div>
+    <div class="sub">INSPECTOR SURVEY &nbsp;&bull;&nbsp; SARA TEXTILES LIMITED</div>
+  </div>
+
+  <!-- Step 1: mobile -->
+  <div class="step active" id="step1">
+    <label>Your Mobile Number</label>
+    <input type="tel" id="mobile" maxlength="10" placeholder="10-digit mobile number" autocomplete="tel">
+    <button class="btn" id="sendBtn" onclick="sendOTP()">Send OTP</button>
+    <div class="err" id="err1"></div>
+    <div class="hint">Sara Textiles quality team only. External inspectors do not log in here.</div>
+  </div>
+
+  <!-- Step 2: OTP -->
+  <div class="step" id="step2">
+    <label>Enter OTP</label>
+    <div class="hint left" style="margin-bottom:12px">Sent to +91 <span id="dispMobile"></span></div>
+    <div class="otp-box">
+      <input type="text" inputmode="numeric" maxlength="1" id="o0" oninput="otpInput(0)" onkeydown="otpKey(event,0)">
+      <input type="text" inputmode="numeric" maxlength="1" id="o1" oninput="otpInput(1)" onkeydown="otpKey(event,1)">
+      <input type="text" inputmode="numeric" maxlength="1" id="o2" oninput="otpInput(2)" onkeydown="otpKey(event,2)">
+      <input type="text" inputmode="numeric" maxlength="1" id="o3" oninput="otpInput(3)" onkeydown="otpKey(event,3)">
+      <input type="text" inputmode="numeric" maxlength="1" id="o4" oninput="otpInput(4)" onkeydown="otpKey(event,4)">
+      <input type="text" inputmode="numeric" maxlength="1" id="o5" oninput="otpInput(5)" onkeydown="otpKey(event,5)">
+    </div>
+    <button class="btn" id="verifyBtn" onclick="verifyOTP()" disabled>Verify OTP</button>
+    <div class="err" id="err2"></div>
+    <div style="text-align:center">
+      <button class="resend" id="resendBtn" onclick="resendOTP()" disabled>Resend OTP (<span id="timer">30</span>s)</button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js?v=20260717"></script>
+<script>
+const WORKER = window.INSPECT_WORKER;
+// Roles allowed into the survey app at all. The Worker enforces this again on every endpoint —
+// this check is UX, not security. A client-side gate stops nobody who can use curl.
+const ALLOWED = ["quality","admin","management"];
+let mobile = "", timerInterval;
+
+function showErr(id,msg){ const e=document.getElementById(id); e.textContent=msg; e.classList.add("show"); }
+function clearErr(id){ document.getElementById(id).classList.remove("show"); }
+function step(n){ document.querySelectorAll(".step").forEach(s=>s.classList.remove("active")); document.getElementById("step"+n).classList.add("active"); }
+
+// Management have no visits to register, so they land on the report; quality/admin land on invite.
+function landingFor(role){ return role === "management" ? "report.html" : "invite.html"; }
+
+async function sendOTP() {
+  clearErr("err1");
+  mobile = document.getElementById("mobile").value.replace(/\D/g,"");
+  if (!/^[6-9]\d{9}$/.test(mobile)) { showErr("err1","Enter a valid 10-digit Indian mobile number."); return; }
+  const btn = document.getElementById("sendBtn");
+  btn.innerHTML = '<span class="loader"></span>Sending...'; btn.disabled = true;
+  try {
+    const resp = await fetch(WORKER + "/auth/send-otp", {
+      method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({mobile})
+    });
+    const data = await resp.json();
+    if (!data.ok) { showErr("err1", data.error || "Failed to send OTP"); btn.innerHTML="Send OTP"; btn.disabled=false; return; }
+    document.getElementById("dispMobile").textContent = mobile;
+    step(2); startTimer();
+    document.getElementById("o0").focus();
+  } catch(e) { showErr("err1","Network error - please try again."); }
+  btn.innerHTML="Send OTP"; btn.disabled=false;
+}
+
+function otpInput(i){ const el=document.getElementById("o"+i); el.value=el.value.replace(/\D/g,""); if(el.value&&i<5)document.getElementById("o"+(i+1)).focus(); checkFilled(); }
+function otpKey(e,i){ if(e.key==="Backspace"&&!document.getElementById("o"+i).value&&i>0)document.getElementById("o"+(i-1)).focus(); }
+function readOTP(){ return Array.from({length:6},(_,i)=>document.getElementById("o"+i).value).join(""); }
+function checkFilled(){ const o=readOTP(); document.getElementById("verifyBtn").disabled = o.length!==6; if(o.length===6) verifyOTP(); }
+
+async function verifyOTP() {
+  clearErr("err2");
+  const otp = readOTP();
+  if (otp.length !== 6) return;
+  const btn = document.getElementById("verifyBtn");
+  btn.innerHTML = '<span class="loader"></span>Verifying...'; btn.disabled = true;
+  try {
+    const resp = await fetch(WORKER + "/auth/verify-otp", {
+      method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({mobile, otp})
+    });
+    const data = await resp.json();
+    if (!data.ok) { showErr("err2", data.error || "Incorrect OTP"); btn.innerHTML="Verify OTP"; btn.disabled=false; return; }
+    if (ALLOWED.indexOf(data.role) === -1) {
+      showErr("err2", "This login is for the quality team only. Your account does not have access to the inspector survey.");
+      btn.innerHTML="Verify OTP"; btn.disabled=false;
+      return;
+    }
+    // Deliberately NOT stl_token: a survey login must not become a KPI dashboard session.
+    localStorage.setItem("insp_token", data.token);
+    localStorage.setItem("insp_role", data.role);
+    localStorage.setItem("insp_name", data.name || "");
+    window.location.href = landingFor(data.role);
+  } catch(e) { showErr("err2","Network error - please try again."); btn.innerHTML="Verify OTP"; btn.disabled=false; }
+}
+
+function startTimer(){
+  let t = 30;
+  const btn = document.getElementById("resendBtn"), span = document.getElementById("timer");
+  btn.disabled = true; btn.innerHTML = 'Resend OTP (<span id="timer">30</span>s)';
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    t--;
+    const s = document.getElementById("timer");
+    if (s) s.textContent = t;
+    if (t <= 0) { clearInterval(timerInterval); btn.disabled = false; btn.textContent = "Resend OTP"; }
+  }, 1000);
+}
+
+async function resendOTP(){
+  clearErr("err2");
+  const btn = document.getElementById("resendBtn"); btn.disabled = true;
+  try {
+    const resp = await fetch(WORKER + "/auth/send-otp", {
+      method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({mobile})
+    });
+    const data = await resp.json();
+    if (!data.ok) { showErr("err2", data.error || "Failed to resend"); btn.disabled = false; return; }
+    startTimer();
+  } catch(e) { showErr("err2","Network error - please try again."); btn.disabled = false; }
+}
+
+document.getElementById("mobile").addEventListener("keydown", e => { if (e.key === "Enter") sendOTP(); });
+
+// Already signed in? Skip the login.
+(async () => {
+  const token = localStorage.getItem("insp_token");
+  if (!token) return;
+  try {
+    const resp = await fetch(WORKER + "/auth/session", { headers: {"X-Session-Token": token} });
+    const d = await resp.json();
+    if (d.ok && ALLOWED.indexOf(d.role) !== -1) window.location.href = landingFor(d.role);
+  } catch(e) { /* offline - just show the login */ }
+})();
+</script>
+</body>
+</html>

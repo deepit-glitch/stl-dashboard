@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inspector Survey - QR Card</title>
+<link rel="stylesheet" href="style.css?v=20260717">
+<style>
+/* This card is the ONLY way an external inspector discovers the survey — there is no SMS link.
+   Print a few, keep them at the QC desk, hand one over before the inspector leaves. */
+.qr-card{background:#fff;border:2px solid #0f172a;border-radius:18px;padding:30px;text-align:center;max-width:380px;margin:0 auto}
+.qr-card img{width:100%;max-width:260px;height:auto;display:block;margin:0 auto 18px}
+.qr-title{font-size:17px;font-weight:800;margin-bottom:6px}
+.qr-body{font-size:12px;color:#475569;line-height:1.6}
+.qr-url{font-family:monospace;font-size:11px;color:#94a3b8;margin-top:14px;word-break:break-all}
+.noprint{margin-top:22px}
+@media print{
+  body{background:#fff;padding:0;display:block}
+  .card{box-shadow:none;padding:0;max-width:none}
+  .noprint,.topbar{display:none !important}
+  .qr-card{border-color:#000;page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="card wide" style="margin:0 auto">
+  <div class="topbar noprint">
+    <div>
+      <h1>QR Card</h1>
+      <div class="who">Print this and keep it at the QC desk</div>
+    </div>
+    <div style="display:flex;gap:4px">
+      <button class="linkbtn" onclick="location.href='invite.html'">Register visit</button>
+      <button class="linkbtn" onclick="window.print()">Print</button>
+    </div>
+  </div>
+
+  <div class="qr-card">
+    <img src="qr.svg?v=20260717" alt="QR code linking to the Sara Textiles inspection feedback survey">
+    <div class="qr-title">How was your inspection?</div>
+    <div class="qr-body">
+      Scan this code on your phone and log in with the mobile number you gave our quality team.<br><br>
+      Your feedback goes directly to Sara Textiles management.
+    </div>
+    <div class="qr-url">dashboards.saratextiles.com/inspect/s.html</div>
+  </div>
+
+  <div class="noprint" style="max-width:380px;margin:22px auto 0">
+    <div class="note" style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;font-size:11.5px;color:#92400e;line-height:1.6">
+      <b>The inspector must fill this in before they leave.</b> There is no reminder SMS &mdash; once they
+      are out of the gate they have no link and will almost certainly never complete it. Hand them the
+      card and ask them to do it while they are still with you. The survey stays open for 72 hours.
+    </div>
+  </div>
+</div>
+</body>
+</html>
