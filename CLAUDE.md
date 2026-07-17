@@ -84,6 +84,7 @@ const DAILY_DJ  = { 'Jun-26': { dates, weaving, dobby, jacquard } } // Dobby/Jac
 | `migrate.html` | One-time data migration utility |
 | `mp_recovery.html` | Recovery tool for manpower data |
 | `demo_login.html` | Demo mode login (sets demo flag, bypasses Worker auth) |
+| `inspect/` | **Inspector Survey app** — a *separate* dashboard at `/inspect/`, own login, own localStorage namespace (`insp_*`). See "Inspector Survey" below |
 | `worker/` | **Cloudflare Worker source** — the auth/KV backend for every page above. Deploy from here (`npx wrangler deploy`); secrets via `wrangler secret put`. See `worker/README.md` |
 
 ---
@@ -170,6 +171,50 @@ Monitoring is **ongoing** (started as a 3-month pilot, Apr–Jun 2026). The mont
 - `GET /manpower-range?start=YYYY-MM-DD&end=YYYY-MM-DD` — month range
 
 ---
+
+## Inspector Survey (`/inspect/`)
+
+Feedback from **external** inspectors (SGS, Intertek, buyers' own QA) who inspect goods at the
+plant. Separate app, separate login, same repo and same Worker.
+
+**Flow:** QC (`quality` role) logs in at `/inspect/` and registers a *visit* (inspector mobile,
+name, company, buyer, PO). They hand over a printed **QR card** (`qr.html`). The inspector scans
+it on their **own phone**, logs in at `s.html` with mobile + OTP, sees their pending visit, and
+submits. Management reads `report.html`.
+
+| File | Who |
+|------|-----|
+| `inspect/index.html` | Login — `quality`/`admin` → `invite.html`, `management` → `report.html` |
+| `inspect/invite.html` | Register a visit; today's visits + live status |
+| `inspect/s.html` | **Public.** Inspector login → survey → submit |
+| `inspect/report.html` | Monthly report |
+| `inspect/qr.html` | Printable QR card (`qr.svg` is generated once, committed, no runtime QR lib) |
+| `inspect/questions.js` | Question set + version — **single source of truth** |
+| `inspect/config.js` | Worker URL; localhost-only override for testing against `wrangler dev` |
+
+> ⚠️ **Session scope is load-bearing.** Inspectors are outsiders. Their sessions carry
+> `scope:"inspector"` and are rejected by `/auth/session` and every staff endpoint; inspectors live
+> under KV `inspector:`, not `user:`, so `/auth/send-otp` doesn't know them at all. **Never** put an
+> inspector in `admin.html`/`user:`, and never use a bare `getSession` on a new endpoint — pick
+> `requireStaff` or `requireInspector` deliberately. Storage is `insp_*`, never `stl_*`: a survey
+> login must not become a KPI session.
+
+**Deliberate design decisions (don't "fix" these without reading why):**
+- **No SMS link, no reminder.** Discovery is the QR card only. A link SMS would need a new DLT
+  template; the static URL avoids it entirely. Consequence: **it is filled on-site or never**, which
+  is why *response rate* is a first-class metric on the report. If it drops below ~40%, that's the
+  signal to register a link template — not a bug.
+- **Report leads with pass rate and response rate, shows `n=` on every number**, leads with verbatim
+  comments, and segments ratings by Passed/Failed. At ~30-40 visits/month (~20 responses) a
+  single-month average is mostly noise, and an inspector who just failed the goods rates workmanship
+  low — pooling pass and fail makes a bad-quality month look like a service collapse.
+- **A comment is required when any rating is ≤3** (enforced in the Worker, mirrored in the UI).
+- **Question changes need a version bump** in BOTH `questions.js` and the Worker (`QUESTION_VERSION`
+  + `DIMS`). Every response is stamped with `qv`; rewording without bumping silently corrupts
+  month-on-month comparison.
+- Results are **self-reported and unverified** — no OTP scheme prevents QC registering a fake
+  inspector, since QC supplies the number. The real control is reconciling against the gate/visitor
+  register. Don't let the OTP create false confidence.
 
 ## MIS Dashboard Architecture
 
