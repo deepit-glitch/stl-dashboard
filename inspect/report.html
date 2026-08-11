@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Inspector Survey - Monthly Report</title>
-<link rel="stylesheet" href="style.css?v=20260717">
+<link rel="stylesheet" href="style.css?v=20260722">
 <style>
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:28px}
 .stat{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px}
@@ -27,13 +27,45 @@
 .small{font-size:11px;color:#94a3b8}
 .note{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;font-size:11.5px;color:#92400e;line-height:1.6;margin-bottom:22px}
 select{width:auto;padding:8px 12px;font-size:13px;font-weight:700}
+/* Tabs */
+.tabs{display:flex;gap:4px;margin-bottom:20px}
+.tab{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#94a3b8;background:none;border:none;padding:8px 14px;border-radius:8px;cursor:pointer}
+.tab:hover{background:#f1f5f9;color:#475569}
+.tab.on{color:#fff;background:#6366f1}
+.tab.on:hover{background:#4f46e5;color:#fff}
+/* Individual survey cards */
+.filterbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.search{flex:1;min-width:180px;padding:9px 12px;border:2px solid #e2e8f0;border-radius:10px;font-size:13px;font-family:inherit;font-weight:400;outline:none}
+.search:focus{border-color:#6366f1}
+.seg{display:flex;gap:6px}
+.segbtn{font-size:11px;font-weight:800;letter-spacing:.5px;border:none;border-radius:8px;padding:9px 13px;cursor:pointer;background:#f1f5f9;color:#64748b}
+.segbtn.on-all{background:#0f172a;color:#fff}
+.segbtn.on-pass{background:#f0fdf4;color:#15803d}
+.segbtn.on-fail{background:#fef2f2;color:#dc2626}
+.svy{border:0.5px solid #e2e8f0;border-left:3px solid #94a3b8;border-radius:0 10px 10px 0;padding:14px 16px;margin-bottom:12px}
+.svy.pass{border-left-color:#16a34a}
+.svy.fail{border-left-color:#dc2626}
+.svy-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.svy-name{font-size:15px;font-weight:800}
+.svy-name span{font-weight:400;color:#64748b}
+.svy-meta{font-size:11px;color:#94a3b8;margin-top:3px;line-height:1.5}
+.svy-meta b{color:#475569}
+.rstrip{display:flex;gap:6px;margin:13px 0 4px;flex-wrap:wrap}
+.rcell{flex:1;min-width:84px;background:#f8fafc;border-radius:8px;padding:8px 6px;text-align:center}
+.rcell.low{background:#fef2f2}
+.rcell-l{font-size:9px;color:#94a3b8;font-weight:700;letter-spacing:.3px}
+.rcell.low .rcell-l{color:#dc2626}
+.rcell-n{font-size:18px;font-weight:800;margin-top:2px}
+.rcell.low .rcell-n{color:#dc2626}
+.svy-cmt{font-size:13.5px;line-height:1.55;color:#0f172a;margin-top:11px;padding-left:11px;border-left:2px solid #e2e8f0}
+.svy-nocmt{font-size:12px;color:#cbd5e1;margin-top:11px;font-style:italic}
 </style>
 </head>
 <body>
 <div class="card wide" style="margin:0 auto">
   <div class="topbar">
     <div>
-      <h1>Inspector Survey &mdash; Monthly Report</h1>
+      <h1>Inspector Survey &mdash; Report</h1>
       <div class="who" id="who"></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
@@ -42,17 +74,29 @@ select{width:auto;padding:8px 12px;font-size:13px;font-weight:700}
       <button class="linkbtn" onclick="logout()">Log out</button>
     </div>
   </div>
+
+  <div class="tabs">
+    <button class="tab on" id="tab-summary" onclick="switchTab('summary')">Summary</button>
+    <button class="tab" id="tab-individual" onclick="switchTab('individual')">Individual surveys</button>
+  </div>
+
   <div id="body"><div class="empty">Loading...</div></div>
 </div>
 
-<script src="config.js?v=20260717"></script>
-<script src="questions.js?v=20260717"></script>
+<script src="config.js?v=20260722"></script>
+<script src="questions.js?v=20260722"></script>
 <script>
 const WORKER = window.INSPECT_WORKER;
 const ALLOWED = ["quality","admin","management"];
 // First month the survey existed. The list is COMPUTED from here to the current IST month — never
 // hardcode a month list; a fixed ceiling silently drops new months as time moves on.
 const INSPECT_START = "2026-07";
+
+// View state. Data for the selected month is fetched once and reused across tabs, search and filter.
+let TAB = "summary";
+let FILTER = "all";          // all | passed | failed  (individual tab)
+let SEARCH = "";
+let CUR_MK = null, CUR_ROWS = [], ROLLING = [];
 
 function token(){ return localStorage.getItem("insp_token"); }
 function logout(){
@@ -82,6 +126,24 @@ function monthList(){
 }
 function avg(a){ return a.length ? a.reduce((x,y)=>x+y,0)/a.length : null; }
 function fmt(n,d){ return n==null ? "&mdash;" : n.toFixed(d==null?2:d); }
+function dmy(d){ return d ? d.split("-").reverse().join("/") : ""; }
+// Format an ISO timestamp as an IST date + time (the DB stores UTC ISO strings).
+function istStamp(iso){
+  if (!iso) return "";
+  const t = new Date(new Date(iso).getTime()+19800000);
+  const dd = String(t.getUTCDate()).padStart(2,"0"), mm = String(t.getUTCMonth()+1).padStart(2,"0");
+  let h = t.getUTCHours(); const min = String(t.getUTCMinutes()).padStart(2,"0");
+  const ap = h < 12 ? "am" : "pm"; h = h % 12; if (h === 0) h = 12;
+  return dd+"/"+mm+" "+h+":"+min+ap;
+}
+// Full IST datetime "YYYY-MM-DD HH:MM" for the CSV (sortable, and honestly labelled IST).
+function istDateTime(iso){
+  if (!iso) return "";
+  const t = new Date(new Date(iso).getTime()+19800000);
+  const p = n => String(n).padStart(2,"0");
+  return t.getUTCFullYear()+"-"+p(t.getUTCMonth()+1)+"-"+p(t.getUTCDate())
+       +" "+p(t.getUTCHours())+":"+p(t.getUTCMinutes());
+}
 
 async function fetchMonth(mk){
   try {
@@ -92,23 +154,33 @@ async function fetchMonth(mk){
 }
 
 async function load(){
-  const body = document.getElementById("body");
-  body.innerHTML = '<div class="empty">Loading...</div>';
+  document.getElementById("body").innerHTML = '<div class="empty">Loading...</div>';
   const mk = document.getElementById("monthSel").value;
-  // Rolling 3-month window: this month and the two before it.
   const m1 = prevMk(mk), m2 = prevMk(m1);
   const [cur, p1, p2] = await Promise.all([fetchMonth(mk), fetchMonth(m1), fetchMonth(m2)]);
-  render(mk, cur, cur.concat(p1, p2));
+  CUR_MK = mk; CUR_ROWS = cur; ROLLING = cur.concat(p1, p2);
+  renderTab();
 }
 
-function render(mk, rows, rolling){
+function switchTab(t){
+  TAB = t;
+  document.getElementById("tab-summary").className = "tab" + (t==="summary"?" on":"");
+  document.getElementById("tab-individual").className = "tab" + (t==="individual"?" on":"");
+  renderTab();
+}
+
+function renderTab(){
+  if (CUR_MK == null) return;
+  if (TAB === "summary") renderSummary(CUR_MK, CUR_ROWS, ROLLING);
+  else renderIndividual(CUR_MK, CUR_ROWS);
+}
+
+function renderSummary(mk, rows, rolling){
   const Q = INSPECT_QUESTIONS;
   const done   = rows.filter(r => r.response);
   const respRate = rows.length ? Math.round(done.length / rows.length * 100) : null;
   const passed = done.filter(r => r.response.result === "passed").length;
   const passRate = done.length ? Math.round(passed / done.length * 100) : null;
-
-  const rollDone = rolling.filter(r => r.response);
 
   // Every number carries n=. At ~20 responses a month a bare average invites over-reading.
   let h = '<div class="stats">'
@@ -138,7 +210,7 @@ function render(mk, rows, rolling){
         + '<div class="cmt-meta"><b>'+esc(r.visit.name)+'</b>, '+esc(r.visit.company)
         + ' &middot; buyer <b>'+esc(r.visit.buyer)+'</b>'
         + (r.visit.po ? ' &middot; PO '+esc(r.visit.po) : '')
-        + ' &middot; '+esc(r.visit.visitDate.split("-").reverse().join("/"))
+        + ' &middot; '+esc(dmy(r.visit.visitDate))
         + ' &middot; <span class="pill '+(r.response.result==="passed"?"p-pass":"p-fail")+'">'+r.response.result+'</span>'
         + (lows.length ? ' &middot; low: '+lows.map(d=>esc(d.label)).join(", ") : '')
         + '</div></div>';
@@ -177,7 +249,7 @@ function render(mk, rows, rolling){
     ? '<table><thead><tr><th>Inspector</th><th>Company</th><th>Buyer / PO</th><th>Date</th><th>Registered by</th></tr></thead><tbody>'
       + missing.map(r => '<tr><td><b>'+esc(r.visit.name)+'</b></td><td>'+esc(r.visit.company)+'</td>'
         + '<td>'+esc(r.visit.buyer)+' <span class="small">'+esc(r.visit.po||"")+'</span></td>'
-        + '<td>'+esc(r.visit.visitDate.split("-").reverse().join("/"))+'</td>'
+        + '<td>'+esc(dmy(r.visit.visitDate))+'</td>'
         + '<td class="small">'+esc(r.visit.registeredByName||"")+'</td></tr>').join("")
       + '</tbody></table>'
     : '<div class="empty">Every registered visit was answered.</div>';
@@ -187,6 +259,112 @@ function render(mk, rows, rolling){
      + 'reconcile against the gate/visitor register.</div>';
 
   document.getElementById("body").innerHTML = h;
+}
+
+function renderIndividual(mk, rows){
+  const Q = INSPECT_QUESTIONS;
+  // Only submitted surveys here; the "no response" list lives on the Summary tab.
+  let done = rows.filter(r => r.response);
+  // Newest first, by submission time.
+  done.sort((a,b) => (b.response.submittedAt||"").localeCompare(a.response.submittedAt||""));
+
+  let shown = done;
+  if (FILTER !== "all") shown = shown.filter(r => r.response.result === FILTER);
+  if (SEARCH) {
+    const q = SEARCH.toLowerCase();
+    shown = shown.filter(r => {
+      const v = r.visit;
+      return [v.name, v.company, v.buyer, v.po].some(x => (x||"").toLowerCase().includes(q));
+    });
+  }
+
+  let h = '<div class="filterbar">'
+    + '<input class="search" id="svySearch" placeholder="Search inspector, company or buyer" value="'+esc(SEARCH)+'">'
+    + '<div class="seg">'
+    +   '<button class="segbtn'+(FILTER==="all"?" on-all":"")+'" onclick="setFilter(\'all\')">All</button>'
+    +   '<button class="segbtn'+(FILTER==="passed"?" on-pass":"")+'" onclick="setFilter(\'passed\')">Passed</button>'
+    +   '<button class="segbtn'+(FILTER==="failed"?" on-fail":"")+'" onclick="setFilter(\'failed\')">Failed</button>'
+    + '</div>'
+    + '<button class="linkbtn" style="border:2px solid #e2e8f0" onclick="exportCsv()"'
+    +   (done.length?"":" disabled")+'>Download CSV</button>'
+    + '</div>';
+
+  if (!done.length) {
+    h += '<div class="empty">No surveys submitted in '+esc(mkLabel(mk))+'.</div>';
+    document.getElementById("body").innerHTML = h;
+    return;
+  }
+
+  h += '<div class="sec-sub" style="margin-bottom:12px">'
+     + shown.length + ' of ' + done.length + ' submitted survey' + (done.length===1?"":"s")
+     + (FILTER!=="all"||SEARCH ? ' shown' : '') + ' &middot; newest first</div>';
+
+  if (!shown.length) {
+    h += '<div class="empty">No surveys match your filter.</div>';
+  } else {
+    h += shown.map(r => {
+      const v = r.visit, resp = r.response, pass = resp.result === "passed";
+      const cells = Q.dims.map(d => {
+        const val = resp.ratings[d.id];
+        const low = val <= Q.lowRating;
+        return '<div class="rcell'+(low?" low":"")+'"><div class="rcell-l">'+esc(d.label)+'</div>'
+             + '<div class="rcell-n">'+esc(val)+'</div></div>';
+      }).join("");
+      const meta = 'Buyer <b>'+esc(v.buyer)+'</b>'
+        + (v.po ? ' &middot; PO <b>'+esc(v.po)+'</b>' : ' &middot; no PO')
+        + ' &middot; visited '+esc(dmy(v.visitDate))
+        + (resp.submittedAt ? ' &middot; submitted '+esc(istStamp(resp.submittedAt)) : '')
+        + (v.registeredByName ? ' &middot; registered by '+esc(v.registeredByName) : '');
+      return '<div class="svy '+(pass?"pass":"fail")+'">'
+        + '<div class="svy-top"><div>'
+        +   '<div class="svy-name">'+esc(v.name)+' <span>&middot; '+esc(v.company)+'</span></div>'
+        +   '<div class="svy-meta">'+meta+'</div>'
+        + '</div>'
+        + '<span class="pill '+(pass?"p-pass":"p-fail")+'">'+resp.result+'</span></div>'
+        + '<div class="rstrip">'+cells+'</div>'
+        + (resp.comment
+            ? '<div class="svy-cmt">&ldquo;'+esc(resp.comment)+'&rdquo;</div>'
+            : '<div class="svy-nocmt">No comment left.</div>')
+        + '</div>';
+    }).join("");
+  }
+
+  document.getElementById("body").innerHTML = h;
+  // Keep focus + caret in the search box after re-render.
+  const s = document.getElementById("svySearch");
+  if (s && document.activeElement !== s && SEARCH) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
+  if (s) s.oninput = e => { SEARCH = e.target.value; renderIndividual(CUR_MK, CUR_ROWS); };
+}
+
+function setFilter(f){ FILTER = f; renderIndividual(CUR_MK, CUR_ROWS); }
+
+function csvCell(s){
+  s = s == null ? "" : String(s);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+}
+function exportCsv(){
+  const Q = INSPECT_QUESTIONS;
+  const done = CUR_ROWS.filter(r => r.response)
+    .sort((a,b) => (b.response.submittedAt||"").localeCompare(a.response.submittedAt||""));
+  if (!done.length) return;
+  const head = ["Visit date","Submitted (IST)","Inspector","Company","Buyer","PO","Result"]
+    .concat(Q.dims.map(d => d.label))
+    .concat(["Comment","Registered by"]);
+  const lines = [head.map(csvCell).join(",")];
+  done.forEach(r => {
+    const v = r.visit, resp = r.response;
+    const row = [v.visitDate, istDateTime(resp.submittedAt), v.name, v.company, v.buyer, v.po||"", resp.result]
+      .concat(Q.dims.map(d => resp.ratings[d.id]))
+      .concat([resp.comment||"", v.registeredByName||""]);
+    lines.push(row.map(csvCell).join(","));
+  });
+  // \r\n line endings + BOM so Excel opens it cleanly.
+  const blob = new Blob(["﻿" + lines.join("\r\n")], {type:"text/csv;charset=utf-8;"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "inspector-surveys-" + CUR_MK + ".csv";
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(a.href);
 }
 
 function stat(cls, n, l, sub){
