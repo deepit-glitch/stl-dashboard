@@ -353,10 +353,21 @@ function render(){
 }
 
 /* ── session check ───────────────────────────────────────── */
+// Made-up records so the demo has something to edit. Demo changes live in memory only.
+const DEMO_EMPLOYEES = [
+  ["D1001","ASHA DEVI","9000000101"],["D1002","RAKESH KUMAR","9000000102"],["D1003","SUNITA RANI","9000000103"],
+  ["D1004","MOHAN LAL","9000000104"],["D1005","POOJA SHARMA","9000000105"],["D1006","VIJAY SINGH","9000000106"],
+  ["D1007","KIRAN BALA","9000000107"],["D1008","SURESH CHAND","9000000107"],["D1009","NEHA THAKUR","9000000109"],
+  ["D1010","AMIT VERMA","9000000110"]].map(r=>({code:r[0],name:r[1],phone:r[2]}));
+
 async function init(){
-  // Demo mode bypass — skip the Worker entirely (parity with the other pages).
-  if(localStorage.getItem("stl_demo")==="true" && getToken()==="demo"){
-    state.demo=true; state.user=localStorage.getItem("stl_name")||"Demo User"; state.role=localStorage.getItem("stl_role")||"hr";
+  // Demo mode bypass — skip the Worker entirely (parity with the other pages). On localhost,
+  // employees.html?demo=1 starts it directly, for showing the page to someone without an hr login.
+  const local = location.hostname==="localhost" || location.hostname==="127.0.0.1";
+  const urlDemo = local && new URLSearchParams(location.search).get("demo")==="1";
+  if(urlDemo || (localStorage.getItem("stl_demo")==="true" && getToken()==="demo")){
+    state.demo=true; state.user=urlDemo?"Demo HR":(localStorage.getItem("stl_name")||"Demo User"); state.role="hr";
+    state.employees=DEMO_EMPLOYEES.slice();
     render(); return;
   }
   const token=getToken();
