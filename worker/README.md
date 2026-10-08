@@ -21,6 +21,8 @@ Requires `wrangler login` (one-time, opens a browser).
 
 ## Secrets
 
+`EMPLOYEES_READ_TOKEN` — read-only token for `GET /employees` (see Employee phone directory).
+
 `TWOFACTOR_KEY` — the 2Factor.in API key used to send OTP SMS. It is **not** in this repo, which
 is public. Set it once per Worker:
 
@@ -49,6 +51,8 @@ One KV namespace, `STL_AUTH`, bound as `AUTH_KV`. Everything is prefix-keyed:
 | `openvisit:{mobile}` | visit id with an open survey — TTL 72h |
 | `response:{visitId}` | `{ratings, comment, result, qv, submittedAt}` |
 | `visitidx:{YYYY-MM}` | list of visit ids in a month (report reads one key) |
+| `employees:nalagarh` | `{updatedAt, list:{code:{name, phone, at, by}}}` — the whole phone directory in one value |
+| `empbak:{ISO time}` | previous `employees:nalagarh`, written before every change — TTL 30 days |
 
 OTP keys are namespaced by flow: staff use `otp:{mobile}`, inspectors `otp:i:{mobile}` (same for
 `otpat:`/`otprl:`). A number that is both a staff user and an inspector therefore cannot have one
@@ -91,6 +95,17 @@ Sessions minted before Jul 2026 have no `scope` and are treated as staff; they e
 `/survey/auth/send-otp` is the only public endpoint that spends money. It refuses unless the
 number is a known inspector **with an open visit** — otherwise it would be an open SMS relay.
 Submitting burns the inspector's session and clears `openvisit:`, so a survey cannot be replayed.
+
+## Employee phone directory
+
+| Endpoint | Who |
+|---|---|
+| `GET /employees` | hr, admin — or `X-Service-Token` matching the `EMPLOYEES_READ_TOKEN` secret |
+| `POST /employees/bulk` `{upsert:[{code,name,phone}], delete:[code]}` | hr, admin |
+
+Nalagarh only, so `hr_noida` is deliberately excluded. The service token is read-only and exists
+for the absence-alert job on the Mac mini (`~/stl-absence-alerts`), which has no OTP session.
+To undo a bad bulk change, copy the newest `empbak:` value back over `employees:nalagarh`.
 
 ## Notes
 

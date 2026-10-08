@@ -8,6 +8,10 @@ const OTP_MAX_PER_HOUR = 10;
 const QUESTION_VERSION = 1;
 const DIMS = ["hospitality","coordination","ctn_stacking","packaging","workmanship"];
 const LOW_RATING = 3;
+const EMP_KEY = "employees:nalagarh";
+const EMP_ROLES = ["hr","admin"];
+const EMP_MAX_BATCH = 5000;
+const EMP_BACKUP_TTL = 2592000;
 const CORS = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"GET,POST,DELETE,OPTIONS","Access-Control-Allow-Headers":"Content-Type,X-Session-Token"};
 const ROLE_DEPT = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality",rsb:"RSB",hr:"HR",hr_noida:"Noida Finishing"};
 function json(data, status=200){return new Response(JSON.stringify(data),{status,headers:{"Content-Type":"application/json",...CORS}});}
@@ -15,6 +19,7 @@ function rand6(){const a=new Uint32Array(1);crypto.getRandomValues(a);return Str
 function randToken(){const arr=new Uint8Array(32);crypto.getRandomValues(arr);return Array.from(arr).map(b=>b.toString(16).padStart(2,"0")).join("");}
 function randId(){const arr=new Uint8Array(12);crypto.getRandomValues(arr);return Array.from(arr).map(b=>b.toString(16).padStart(2,"0")).join("");}
 // IST is UTC+5:30 and never shifts; the dashboards treat the IST calendar day as the day.
+function empCode(v){const c=String(v==null?"":v).trim().toUpperCase();return /^[A-Z0-9]{1,12}$/.test(c)?c:"";}
 function istDate(){return new Date(Date.now()+19800000).toISOString().slice(0,10);}
 async function sendOTP(mobile,otp,env){try{const url="https://2factor.in/API/V1/"+env.TWOFACTOR_KEY+"/SMS/"+mobile+"/"+otp+"/OTP1";const resp=await fetch(url);const data=await resp.json();return data.Status==="Success";}catch(e){return false;}}
 // Shared OTP machinery. `p` namespaces the KV keys so a number that is both a staff user and an
@@ -42,6 +47,44 @@ if(path==="/admin/users"&&request.method==="POST"){if(!await requireAdmin(reques
 if(path.startsWith("/admin/users/")&&request.method==="DELETE"){if(!await requireAdmin(request,env))return json({ok:false,error:"Unauthorized"},401);await env.AUTH_KV.delete("user:"+path.split("/").pop());return json({ok:true});}
 if(path.startsWith("/manpower/")&&request.method==="GET"){const sess=await requireStaff(request,env);if(!sess)return json({ok:false,error:"Unauthorized"},401);const date=path.split("/")[2];const raw=await env.AUTH_KV.get("manpower:"+date);return json({ok:true,data:raw?JSON.parse(raw):null});}
 if(path.startsWith("/manpower/")&&request.method==="POST"){const sess=await requireStaff(request,env);if(!sess)return json({ok:false,error:"Unauthorized"},401);const date=path.split("/")[2];const data=await request.json();await env.AUTH_KV.put("manpower:"+date,JSON.stringify({...data,enteredBy:sess.mobile,enteredAt:new Date().toISOString()}));return json({ok:true});}if(path==="/manpower-range"&&request.method==="GET"){const s=url.searchParams.get("start");const e=url.searchParams.get("end");if(!s||!e)return json({ok:false,error:"Missing params"},400);const keys=[];let d=new Date(s+"T00:00:00Z");const ed=new Date(e+"T00:00:00Z");while(d<=ed&&keys.length<35){keys.push(d.toISOString().slice(0,10));d.setUTCDate(d.getUTCDate()+1);}const entries=await Promise.all(keys.map(async k=>{const raw=await env.AUTH_KV.get("manpower:"+k);return{date:k,data:raw?JSON.parse(raw):null};}));return json({ok:true,data:entries});}
+
+/* ---------- Employee phone directory (Nalagarh) ---------- */
+
+// The whole directory (~1,000 rows) is one KV value, so the HR page and the absence-alert job each
+// read it in a single get. Writes are last-write-wins on that value: fine for one or two HR users.
+if(path==="/employees"&&request.method==="GET"){
+  // The absence-alert job on the Mac mini has no OTP session; it reads with a service token instead.
+  const svc=request.headers.get("X-Service-Token");
+  const allowed=(svc&&env.EMPLOYEES_READ_TOKEN&&svc===env.EMPLOYEES_READ_TOKEN)||await requireStaff(request,env,EMP_ROLES);
+  if(!allowed)return json({ok:false,error:"Unauthorized"},401);
+  const raw=await env.AUTH_KV.get(EMP_KEY);const dir=raw?JSON.parse(raw):{updatedAt:null,list:{}};
+  return json({ok:true,updatedAt:dir.updatedAt,employees:Object.keys(dir.list).sort().map(c=>({code:c,...dir.list[c]}))});}
+// Add, modify and delete in one call. Any invalid row rejects the whole batch, so a half-applied upload cannot happen.
+if(path==="/employees/bulk"&&request.method==="POST"){
+  const sess=await requireStaff(request,env,EMP_ROLES);if(!sess)return json({ok:false,error:"Unauthorized"},401);
+  const b=await request.json();const upsert=Array.isArray(b.upsert)?b.upsert:[];const del=Array.isArray(b.delete)?b.delete:[];
+  if(!upsert.length&&!del.length)return json({ok:false,error:"Nothing to save."},400);
+  if(upsert.length+del.length>EMP_MAX_BATCH)return json({ok:false,error:"Too many rows in one request."},400);
+  const errors=[];const rows=[];const seen={};
+  upsert.forEach((r,i)=>{const code=empCode(r&&r.code);const name=String((r&&r.name)||"").replace(/\s+/g," ").trim();const phone=String((r&&r.phone)||"").trim();
+    if(!code)errors.push({row:i+1,error:"Invalid employee code"});
+    else if(seen[code])errors.push({row:i+1,code,error:"Employee code appears twice"});
+    else if(!name||name.length>80)errors.push({row:i+1,code,error:"Name is missing or too long"});
+    else if(!/^[6-9]\d{9}$/.test(phone))errors.push({row:i+1,code,error:"Phone must be a 10-digit mobile number"});
+    else{seen[code]=true;rows.push({code,name,phone});}});
+  const delCodes=del.map(empCode);if(delCodes.some(c=>!c))errors.push({error:"Invalid employee code in delete list"});
+  if(errors.length)return json({ok:false,error:"Some rows are invalid. Nothing was saved.",errors:errors.slice(0,50)},400);
+  const raw=await env.AUTH_KV.get(EMP_KEY);const dir=raw?JSON.parse(raw):{updatedAt:null,list:{}};const now=new Date().toISOString();
+  // Keep the previous version for 30 days: a mistaken bulk delete is otherwise unrecoverable.
+  if(raw)await env.AUTH_KV.put("empbak:"+now,raw,{expirationTtl:EMP_BACKUP_TTL});
+  const out={added:0,updated:0,unchanged:0,deleted:0,notFound:0};
+  for(const c of delCodes){if(dir.list[c]){delete dir.list[c];out.deleted++;}else out.notFound++;}
+  for(const r of rows){const cur=dir.list[r.code];
+    if(cur&&cur.name===r.name&&cur.phone===r.phone){out.unchanged++;continue;}
+    if(cur)out.updated++;else out.added++;
+    dir.list[r.code]={name:r.name,phone:r.phone,at:now,by:sess.name||sess.mobile};}
+  dir.updatedAt=now;await env.AUTH_KV.put(EMP_KEY,JSON.stringify(dir));
+  return json({ok:true,...out,total:Object.keys(dir.list).length});}
 
 /* ---------- Inspector survey ---------- */
 

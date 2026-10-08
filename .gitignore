@@ -1,0 +1,4 @@
+.wrangler/
+.claude/
+*.xlsx
+*.xls

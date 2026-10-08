@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STL Employee Phone List</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#eef2f7;color:#0f172a;-webkit-font-smoothing:antialiased;font-size:14px}
+.hdr{background:#0f172a;padding:0 20px;height:54px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #6366f1;position:sticky;top:0;z-index:100}
+.brand{font-family:monospace;font-size:12px;font-weight:700;color:#818cf8;letter-spacing:2px}
+.hdr-r{display:flex;align-items:center;gap:12px;font-size:12px;color:#94a3b8;font-weight:600}
+.hbtn{padding:5px 14px;border-radius:6px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:12px;font-weight:600;text-decoration:none}
+.wrap{max-width:1080px;margin:0 auto;padding:18px 16px 60px}
+h1{font-size:20px;font-weight:800}
+.sub{color:#64748b;font-size:13px;margin-top:4px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 18px;margin-top:14px}
+.card h2{font-size:14px;font-weight:800;margin-bottom:4px}
+.hint{color:#64748b;font-size:12px;line-height:1.5}
+.tabs{display:flex;gap:6px;margin-top:16px;flex-wrap:wrap}
+.tab{padding:8px 14px;border-radius:9px;border:1px solid #cbd5e1;background:#fff;font-weight:700;font-size:13px;cursor:pointer;color:#334155}
+.tab.on{background:#6366f1;border-color:#6366f1;color:#fff}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:10px}
+label{font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px}
+input[type=text],input[type=search],textarea{border:1.5px solid #cbd5e1;border-radius:8px;padding:9px 10px;font-size:14px;font-family:inherit;width:100%;background:#fff;color:#0f172a}
+input:focus,textarea:focus{outline:none;border-color:#6366f1}
+textarea{min-height:120px;font-family:ui-monospace,Menlo,monospace;font-size:13px}
+.btn{padding:9px 16px;border-radius:8px;border:none;background:#6366f1;color:#fff;font-weight:700;font-size:13px;cursor:pointer}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sec{background:#fff;color:#334155;border:1.5px solid #cbd5e1}
+.btn.red{background:#dc2626}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b;text-align:left;padding:8px;border-bottom:2px solid #e2e8f0;background:#fff;position:sticky;top:54px}
+td{padding:7px 8px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+td.mono{font-family:ui-monospace,Menlo,monospace}
+tr:hover td{background:#f8fafc}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.p-new{background:#dcfce7;color:#166534}.p-chg{background:#fef3c7;color:#92400e}.p-same{background:#f1f5f9;color:#64748b}
+.p-bad{background:#fee2e2;color:#991b1b}.p-shared{background:#ffedd5;color:#9a3412}
+.link{color:#6366f1;font-weight:700;cursor:pointer;background:none;border:none;font-size:13px}
+.scroll{max-height:420px;overflow:auto;border:1px solid #e2e8f0;border-radius:10px;margin-top:10px}
+.scroll table{margin-top:0}.scroll th{top:0}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 22px;border-radius:10px;font-size:13px;font-weight:700;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,.15);color:#fff;max-width:90vw}
+.center{min-height:60vh;display:flex;align-items:center;justify-content:center;color:#64748b;font-weight:600}
+.grow{flex:1;min-width:160px}
+</style>
+</head>
+<body>
+<div id="root"><div class="center">Verifying session…</div></div>
+<script>
+// On localhost ONLY, an `stl_worker` localStorage key can point this page at `wrangler dev`, so
+// it can be tested without touching the real list. Ignored on any other host (same as inspect/config.js).
+const WORKER = ((location.hostname === "localhost" || location.hostname === "127.0.0.1") && localStorage.getItem("stl_worker"))
+  || "https://square-flower-57b5.deepit.workers.dev";
+const ALLOWED_ROLES = ["hr", "admin"];   // Nalagarh only: hr_noida is deliberately not here
+
+const state = { user:"", role:"", demo:false, employees:[], updatedAt:null, tab:"list",
+                search:"", sharedOnly:false, selected:new Set(), preview:null, delPreview:null,
+                busy:false, form:{code:"",name:"",phone:""} };
+
+/* ── helpers ─────────────────────────────────────────────── */
+function getToken(){ return localStorage.getItem("stl_token"); }
+function clearSession(){ ["stl_token","stl_role","stl_name","stl_dept","stl_demo"].forEach(k=>localStorage.removeItem(k)); }
+function esc(v){ return String(v==null?"":v).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function normCode(v){ const c=String(v==null?"":v).trim().toUpperCase().replace(/\.0$/,""); return /^[A-Z0-9]{1,12}$/.test(c)?c:""; }
+function normName(v){ return String(v==null?"":v).replace(/\s+/g," ").trim(); }
+function normPhone(v){
+  let d=String(v==null?"":v).replace(/\D/g,"");
+  if(d.length===12&&d.startsWith("91")) d=d.slice(2); else if(d.length===11&&d.startsWith("0")) d=d.slice(1);
+  return /^[6-9]\d{9}$/.test(d)?d:"";
+}
+function toast(msg, ok){
+  const t=document.createElement("div"); t.className="toast"; t.style.background=ok===false?"#dc2626":"#16a34a"; t.textContent=msg;
+  document.body.appendChild(t); setTimeout(()=>t.remove(), 4000);
+}
+function byCode(){ const m={}; state.employees.forEach(e=>m[e.code]=e); return m; }
+function sharedPhones(){ const n={}; state.employees.forEach(e=>n[e.phone]=(n[e.phone]||0)+1); return n; }
+function logout(){ const demo=state.demo; clearSession(); window.location.href = demo ? "demo_login.html" : "login.html"; }
+
+/* ── data ────────────────────────────────────────────────── */
+async function loadEmployees(){
+  if(state.demo) return;
+  const r=await fetch(`${WORKER}/employees`, { headers:{"X-Session-Token":getToken()} });
+  const d=await r.json();
+  if(!d.ok) throw new Error(d.error||"Could not load the list");
+  state.employees=d.employees; state.updatedAt=d.updatedAt;
+}
+async function saveChanges(upsert, del){
+  if(state.demo){   // demo mode never touches the Worker
+    const m=byCode(); del.forEach(c=>delete m[c]);
+    upsert.forEach(r=>m[r.code]={...r, at:new Date().toISOString(), by:"Demo"});
+    state.employees=Object.values(m).sort((a,b)=>a.code<b.code?-1:1);
+    return { ok:true, added:upsert.length, updated:0, deleted:del.length, unchanged:0, notFound:0 };
+  }
+  const r=await fetch(`${WORKER}/employees/bulk`, { method:"POST",
+    headers:{"Content-Type":"application/json","X-Session-Token":getToken()},
+    body:JSON.stringify({upsert, delete:del}) });
+  const d=await r.json();
+  if(!d.ok){
+    const first=(d.errors||[]).slice(0,3).map(e=>`${e.code||"row "+e.row}: ${e.error}`).join("; ");
+    throw new Error((d.error||"Save failed")+(first?" "+first:""));
+  }
+  await loadEmployees();
+  return d;
+}
+async function apply(upsert, del, after){
+  if(state.busy) return;
+  state.busy=true; render();
+  try{
+    const d=await saveChanges(upsert, del);
+    const parts=[]; if(d.added)parts.push(d.added+" added"); if(d.updated)parts.push(d.updated+" updated"); if(d.deleted)parts.push(d.deleted+" deleted");
+    toast(parts.length?parts.join(", "):"No changes were needed");
+    if(after) after();
+  }catch(e){ toast(e.message, false); }
+  state.busy=false; render();
+}
+
+/* ── reading pasted text / uploaded files ────────────────── */
+// Accepts a header row (CODE / EMPLOYEE or NAME / CONT NO., PHONE or MOBILE), plain 3 columns
+// (code, name, phone), or HR's 8-column on-roll sheet without its header.
+function rowsToRecords(rows){
+  const out=[]; let cols=null;
+  rows.forEach(cells=>{
+    cells=cells.map(c=>c==null?"":String(c).trim());
+    if(!cells.some(Boolean)) return;
+    const keys=cells.map(c=>c.toUpperCase().replace(/[^A-Z]/g,""));
+    const ci=keys.findIndex(k=>k==="CODE"||k==="EMPLOYEECODE"||k==="EMPCODE"||k==="PAYCODE");
+    if(ci>=0){
+      const ni=keys.findIndex(k=>k==="EMPLOYEE"||k==="NAME"||k==="EMPLOYEENAME"||k==="EMPNAME");
+      const pi=keys.findIndex(k=>k.startsWith("CONT")||k.startsWith("PHONE")||k.startsWith("MOBILE"));
+      cols = (ni>=0&&pi>=0) ? {code:ci,name:ni,phone:pi} : null;
+      return;
+    }
+    let c=cols;
+    if(!c){ if(cells.length===3) c={code:0,name:1,phone:2}; else if(cells.length>=7) c={code:1,name:3,phone:6}; }
+    if(!c){ out.push({raw:cells.join(" | "), error:"Expected 3 columns: code, name, phone"}); return; }
+    if(/^\d*$/.test(cells[c.name]||"")) return;   // title rows and the column-number row have no name
+    out.push({code:cells[c.code], name:cells[c.name], phone:cells[c.phone]});
+  });
+  return out;
+}
+function parseText(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  return rowsToRecords(lines.map(l=>l.includes("\t")?l.split("\t"):l.split(",")));
+}
+function buildPreview(records){
+  const cur=byCode(); const seen={}; const rows=[];
+  records.forEach(r=>{
+    if(r.error){ rows.push({status:"bad", reason:r.error, code:"", name:r.raw||"", phone:""}); return; }
+    const code=normCode(r.code), name=normName(r.name), phone=normPhone(r.phone);
+    const row={code:code||String(r.code||""), name, phone:phone||String(r.phone||"")};
+    if(!code) row.status="bad", row.reason="Invalid employee code";
+    else if(seen[code]) row.status="bad", row.reason="Code appears twice in this upload";
+    else if(!name) row.status="bad", row.reason="Name is missing";
+    else if(!phone) row.status="bad", row.reason="Not a 10-digit mobile number";
+    else {
+      seen[code]=true;
+      const c=cur[code];
+      if(!c) row.status="new";
+      else if(c.name===name&&c.phone===phone) row.status="same";
+      else { row.status="chg"; row.was=(c.phone!==phone?c.phone:"")+(c.name!==name?" "+c.name:""); }
+    }
+    rows.push(row);
+  });
+  const order={bad:0,new:1,chg:2,same:3};
+  rows.sort((a,b)=>order[a.status]-order[b.status]);
+  return rows;
+}
+function count(rows, s){ return rows.filter(r=>r.status===s).length; }
+
+/* ── actions ─────────────────────────────────────────────── */
+function setTab(t){ state.tab=t; render(); }
+function previewPaste(){
+  const text=document.getElementById("paste").value;
+  if(!text.trim()){ toast("Paste some rows first", false); return; }
+  state.preview=buildPreview(parseText(text)); render();
+}
+function previewFile(input){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result), {type:"array"});
+      let rows=[];
+      wb.SheetNames.forEach(n=>{ rows=rows.concat(XLSX.utils.sheet_to_json(wb.Sheets[n], {header:1, raw:true, defval:""})); });
+      state.preview=buildPreview(rowsToRecords(rows));
+    }catch(err){ toast("Could not read that file", false); }
+    render();
+  };
+  reader.readAsArrayBuffer(file);
+}
+function applyPreview(){
+  const rows=state.preview.filter(r=>r.status==="new"||r.status==="chg").map(r=>({code:r.code,name:r.name,phone:r.phone}));
+  apply(rows, [], ()=>{ state.preview=null; state.tab="list"; });
+}
+function saveForm(){
+  const f={ code:document.getElementById("f-code").value, name:document.getElementById("f-name").value, phone:document.getElementById("f-phone").value };
+  state.form=f;
+  const row=buildPreview([f])[0];
+  if(row.status==="bad"){ toast(row.reason, false); return; }
+  if(row.status==="same"){ toast("Nothing changed"); return; }
+  apply([{code:row.code,name:row.name,phone:row.phone}], [], ()=>{ state.form={code:"",name:"",phone:""}; });
+}
+function editRow(code){
+  const e=byCode()[code]; if(!e) return;
+  state.form={code:e.code,name:e.name,phone:e.phone}; state.tab="list"; render();
+  document.getElementById("f-phone").focus(); window.scrollTo({top:0,behavior:"smooth"});
+}
+function toggleSel(code, on){ on?state.selected.add(code):state.selected.delete(code); renderSelBar(); }
+function toggleAll(on){ visible().forEach(e=>on?state.selected.add(e.code):state.selected.delete(e.code)); render(); }
+function deleteSelected(){
+  const codes=[...state.selected]; if(!codes.length) return;
+  if(!confirm(`Delete ${codes.length} employee record${codes.length>1?"s":""}? This cannot be undone from this page.`)) return;
+  apply([], codes, ()=>state.selected.clear());
+}
+function previewDelete(){
+  const codes=[...new Set(document.getElementById("delcodes").value.split(/[\s,;]+/).map(normCode).filter(Boolean))];
+  if(!codes.length){ toast("Enter at least one employee code", false); return; }
+  const cur=byCode();
+  state.delPreview=codes.map(c=>({code:c, found:!!cur[c], name:cur[c]?cur[c].name:"", phone:cur[c]?cur[c].phone:""})); render();
+}
+function applyDelete(){
+  const codes=state.delPreview.filter(r=>r.found).map(r=>r.code);
+  if(!confirm(`Delete ${codes.length} employee record${codes.length>1?"s":""}? This cannot be undone from this page.`)) return;
+  apply([], codes, ()=>{ state.delPreview=null; state.tab="list"; });
+}
+function exportCsv(){
+  const lines=["Code,Name,Phone"].concat(state.employees.map(e=>`${e.code},"${e.name.replace(/"/g,'""')}",${e.phone}`));
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([lines.join("\n")], {type:"text/csv"})); a.download="stl_employee_phones.csv"; a.click();
+}
+function visible(){
+  const q=state.search.trim().toUpperCase(); const shared=sharedPhones();
+  return state.employees.filter(e=>(!q||e.code.includes(q)||e.name.toUpperCase().includes(q)||e.phone.includes(q))&&(!state.sharedOnly||shared[e.phone]>1));
+}
+function onSearch(v){ state.search=v; renderTable(); }
+
+/* ── render ──────────────────────────────────────────────── */
+function renderSelBar(){
+  const el=document.getElementById("selbar"); if(!el) return;
+  const n=state.selected.size;
+  el.innerHTML = n ? `<button class="btn red" onclick="deleteSelected()" ${state.busy?"disabled":""}>Delete selected (${n})</button>` : "";
+}
+function renderTable(){
+  const el=document.getElementById("tbl"); if(!el) return;
+  const rows=visible(); const shared=sharedPhones();
+  document.getElementById("shown").textContent = `${rows.length} of ${state.employees.length} shown`;
+  el.innerHTML = rows.length ? rows.map(e=>`<tr>
+      <td><input type="checkbox" ${state.selected.has(e.code)?"checked":""} onchange="toggleSel('${esc(e.code)}',this.checked)"></td>
+      <td class="mono">${esc(e.code)}</td><td>${esc(e.name)}</td>
+      <td class="mono">${esc(e.phone)} ${shared[e.phone]>1?'<span class="pill p-shared">shared</span>':""}</td>
+      <td><button class="link" onclick="editRow('${esc(e.code)}')">Edit</button></td></tr>`).join("")
+    : `<tr><td colspan="5" style="text-align:center;color:#64748b;padding:24px">${state.employees.length?"No match":"No employees yet. Use Bulk add / update to upload the list."}</td></tr>`;
+}
+function pill(s){ return {new:'<span class="pill p-new">New</span>',chg:'<span class="pill p-chg">Changed</span>',same:'<span class="pill p-same">No change</span>',bad:'<span class="pill p-bad">Invalid</span>'}[s]; }
+
+function render(){
+  const root=document.getElementById("root");
+  const dis=state.busy?"disabled":"";
+  const nShared=Object.values(sharedPhones()).filter(n=>n>1).reduce((a,n)=>a+n,0);
+  let body="";
+
+  if(state.tab==="list"){
+    body=`
+    <div class="card">
+      <h2>Add or change one employee</h2>
+      <div class="hint">Enter an existing code to change that employee's name or number.</div>
+      <div class="row">
+        <div style="width:130px"><label>Employee code</label><input type="text" id="f-code" value="${esc(state.form.code)}" autocomplete="off"></div>
+        <div class="grow"><label>Employee name</label><input type="text" id="f-name" value="${esc(state.form.name)}" autocomplete="off"></div>
+        <div style="width:170px"><label>Phone number</label><input type="text" id="f-phone" value="${esc(state.form.phone)}" inputmode="numeric" autocomplete="off"></div>
+        <button class="btn" onclick="saveForm()" ${dis}>Save</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-top:0">
+        <div class="grow"><input type="search" placeholder="Search code, name or number" value="${esc(state.search)}" oninput="onSearch(this.value)"></div>
+        <label style="margin:0;text-transform:none;font-size:13px;font-weight:600;display:flex;gap:6px;align-items:center">
+          <input type="checkbox" ${state.sharedOnly?"checked":""} onchange="state.sharedOnly=this.checked;renderTable()"> Shared numbers only (${nShared})</label>
+        <span id="selbar"></span>
+        <button class="btn sec" onclick="exportCsv()">Download list</button>
+      </div>
+      <div class="hint" style="margin-top:8px"><span id="shown"></span>. A number marked "shared" belongs to more than one employee; absence messages are not sent to shared numbers.</div>
+      <table>
+        <thead><tr><th style="width:34px"><input type="checkbox" onchange="toggleAll(this.checked)" title="Select all shown"></th><th>Code</th><th>Name</th><th>Phone</th><th></th></tr></thead>
+        <tbody id="tbl"></tbody>
+      </table>
+    </div>`;
+  }
+
+  if(state.tab==="bulk"){
+    const p=state.preview; let prev="";
+    if(p){
+      const nNew=count(p,"new"), nChg=count(p,"chg"), nBad=count(p,"bad"), nSame=count(p,"same");
+      prev=`<div class="card">
+        <h2>Check before saving</h2>
+        <div class="hint">${nNew} new, ${nChg} changed, ${nSame} with no change, ${nBad} invalid. Invalid rows are skipped; nothing is saved until you press the button.</div>
+        <div class="row"><button class="btn" onclick="applyPreview()" ${(nNew+nChg)&&!state.busy?"":"disabled"}>Save ${nNew+nChg} record${nNew+nChg===1?"":"s"}</button>
+          <button class="btn sec" onclick="state.preview=null;render()">Cancel</button></div>
+        <div class="scroll"><table><thead><tr><th>Result</th><th>Code</th><th>Name</th><th>Phone</th><th>Note</th></tr></thead><tbody>
+        ${p.filter(r=>r.status!=="same").slice(0,1500).map(r=>`<tr><td>${pill(r.status)}</td><td class="mono">${esc(r.code)}</td><td>${esc(r.name)}</td><td class="mono">${esc(r.phone)}</td><td class="hint">${esc(r.reason||(r.was?"was "+r.was.trim():""))}</td></tr>`).join("")}
+        </tbody></table></div></div>`;
+    }
+    body=`
+    <div class="card">
+      <h2>Bulk add / update</h2>
+      <div class="hint">Upload the on-roll contact list (Excel or CSV), or paste rows copied from Excel with three columns: code, name, phone.
+        Codes already in the list are updated; new codes are added. Nobody is deleted by an upload.</div>
+      <div class="row"><div><label>Upload a file</label><input type="file" accept=".xlsx,.xls,.csv" onchange="previewFile(this)"></div></div>
+      <div style="margin-top:14px"><label>Or paste rows</label>
+        <textarea id="paste" placeholder="17431&#9;PUSHPA GAUNIYA&#9;98XXXXXXXX"></textarea></div>
+      <div class="row"><button class="btn" onclick="previewPaste()">Check pasted rows</button></div>
+    </div>${prev}`;
+  }
+
+  if(state.tab==="delete"){
+    const p=state.delPreview; let prev="";
+    if(p){
+      const nFound=p.filter(r=>r.found).length;
+      prev=`<div class="card">
+        <h2>Check before deleting</h2>
+        <div class="hint">${nFound} found, ${p.length-nFound} not in the list.</div>
+        <div class="row"><button class="btn red" onclick="applyDelete()" ${nFound&&!state.busy?"":"disabled"}>Delete ${nFound} record${nFound===1?"":"s"}</button>
+          <button class="btn sec" onclick="state.delPreview=null;render()">Cancel</button></div>
+        <div class="scroll"><table><thead><tr><th>Code</th><th>Name</th><th>Phone</th><th></th></tr></thead><tbody>
+        ${p.map(r=>`<tr><td class="mono">${esc(r.code)}</td><td>${esc(r.name)}</td><td class="mono">${esc(r.phone)}</td><td>${r.found?"":'<span class="pill p-bad">Not in list</span>'}</td></tr>`).join("")}
+        </tbody></table></div></div>`;
+    }
+    body=`
+    <div class="card">
+      <h2>Bulk delete</h2>
+      <div class="hint">Paste the employee codes to remove, one per line or separated by commas. To delete a few, you can also tick them in the list.</div>
+      <div style="margin-top:10px"><label>Employee codes</label><textarea id="delcodes" placeholder="17431&#10;16041"></textarea></div>
+      <div class="row"><button class="btn" onclick="previewDelete()">Check codes</button></div>
+    </div>${prev}`;
+  }
+
+  root.innerHTML=`
+    <div class="hdr"><div class="brand">STL DASHBOARDS</div>
+      <div class="hdr-r">${esc(state.user)}<a class="hbtn" href="manpower.html">Manpower</a><button class="hbtn" onclick="logout()">Logout</button></div></div>
+    <div class="wrap">
+      <h1>Employee phone list</h1>
+      <div class="sub">Nalagarh. ${state.employees.length} employees${state.updatedAt?" · last changed "+new Date(state.updatedAt).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):""}. Used to send absence messages on WhatsApp.</div>
+      <div class="tabs">
+        <button class="tab ${state.tab==="list"?"on":""}" onclick="setTab('list')">List</button>
+        <button class="tab ${state.tab==="bulk"?"on":""}" onclick="setTab('bulk')">Bulk add / update</button>
+        <button class="tab ${state.tab==="delete"?"on":""}" onclick="setTab('delete')">Bulk delete</button>
+      </div>
+      ${body}
+    </div>`;
+  renderTable(); renderSelBar();
+}
+
+/* ── session check ───────────────────────────────────────── */
+async function init(){
+  // Demo mode bypass — skip the Worker entirely (parity with the other pages).
+  if(localStorage.getItem("stl_demo")==="true" && getToken()==="demo"){
+    state.demo=true; state.user=localStorage.getItem("stl_name")||"Demo User"; state.role=localStorage.getItem("stl_role")||"hr";
+    render(); return;
+  }
+  const token=getToken();
+  if(!token){ window.location.href="login.html"; return; }
+  try{
+    const r=await fetch(`${WORKER}/auth/session`, { headers:{"X-Session-Token":token} });
+    const d=r.ok?await r.json():{ok:false};
+    if(!d.ok){ clearSession(); window.location.href="login.html"; return; }
+    // hr_noida has a valid session but no business here; send it back to its own page.
+    if(d.role==="hr_noida"){ window.location.href="manpower.html"; return; }
+    if(!ALLOWED_ROLES.includes(d.role)){ window.location.href="login.html"; return; }
+    state.user=d.name||d.mobile||""; state.role=d.role;
+    await loadEmployees();
+    render();
+  }catch(e){
+    document.getElementById("root").innerHTML=`<div class="center">Could not load the employee list. Check the connection and reload.</div>`;
+  }
+}
+init();
+</script>
+</body>
+</html>

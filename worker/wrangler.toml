@@ -18,4 +18,5 @@ binding = "AUTH_KV"
 id = "6a9d1e6415a84bd7b96ec22ab1faa98c"   # STL_AUTH
 
 # Secrets (NOT in this file — set with `wrangler secret put`):
-#   TWOFACTOR_KEY   2Factor.in API key, used by sendOTP()
+#   TWOFACTOR_KEY          2Factor.in API key, used by sendOTP()
+#   EMPLOYEES_READ_TOKEN   read-only token the absence-alert job sends as X-Service-Token

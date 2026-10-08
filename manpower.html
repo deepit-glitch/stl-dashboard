@@ -482,6 +482,7 @@ function render(){
       <div style="font-family:monospace;font-size:12px;font-weight:700;color:#818cf8;letter-spacing:2px;">STL DASHBOARDS</div>
       <div style="display:flex;align-items:center;gap:12px;">
         ${state.userName ? `<span style="font-size:12px;color:#94a3b8;font-weight:600;">${state.userName}</span>` : ""}
+        ${isNoidaMode() ? "" : `<a href="employees.html" style="padding:5px 14px;border-radius:6px;border:1px solid #334155;color:#94a3b8;font-size:12px;font-weight:600;text-decoration:none;">Employee phones</a>`}
         <button onclick="logout()" style="padding:5px 14px;border-radius:6px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:12px;font-weight:600;">Logout</button>
       </div>
     </div>

@@ -75,6 +75,7 @@ const DAILY_DJ  = { 'Jun-26': { dates, weaving, dobby, jacquard } } // Dobby/Jac
 | `monthly.html` | KPI monthly target-vs-actual cards — React, role-gated |
 | `entry.html` | Dept KPI data entry form — React + Babel, role-gated, dept-restricted |
 | `manpower.html` | Nalagarh + Noida headcount entry, stored to Worker |
+| `employees.html` | Nalagarh employee phone list (code, name, phone) — add / modify / delete, singly or in bulk. `hr` + `admin` only (**not** `hr_noida`: Nalagarh-only by design). Read by the absence-alert job in `~/stl-absence-alerts` via a read-only service token. Phone numbers live in Worker KV only — never commit an employee list to this public repo |
 | `admin.html` | User management (add/edit/delete users, manage roles) |
 | `discrepancy.html` | Flags mismatches between KPI entries and MIS data |
 | `stl_data.js` | MIS data file — written by bot, never manually edited |
@@ -169,6 +170,7 @@ Monitoring is **ongoing** (started as a 3-month pilot, Apr–Jun 2026). The mont
 - `POST /kpidata/{dept}/{month}/{day}` — save a day's KPI entries
 - `GET /manpower/{date}` — single day manpower
 - `GET /manpower-range?start=YYYY-MM-DD&end=YYYY-MM-DD` — month range
+- `GET /employees` · `POST /employees/bulk` — employee phone list (`employees.html`)
 
 ---
 
