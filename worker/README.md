@@ -23,6 +23,8 @@ Requires `wrangler login` (one-time, opens a browser).
 
 `EMPLOYEES_READ_TOKEN` — read-only token for `GET /employees` (see Employee phone directory).
 
+`DIRECTORY_READ_TOKEN` — read-only token for `GET /recipients` (see People directory).
+
 `TWOFACTOR_KEY` — the 2Factor.in API key used to send OTP SMS. It is **not** in this repo, which
 is public. Set it once per Worker:
 
@@ -95,6 +97,27 @@ Sessions minted before Jul 2026 have no `scope` and are treated as staff; they e
 `/survey/auth/send-otp` is the only public endpoint that spends money. It refuses unless the
 number is a known inspector **with an open visit** — otherwise it would be an open SMS relay.
 Submitting burns the inspector's session and clears `openvisit:`, so a survey cannot be replayed.
+
+## People directory
+
+`admin.html` is one directory of people: dashboard users and the recipients of every automated
+WhatsApp / email message. A record is `user:{mobile}` =
+`{mobile,name,role,dept,email,active,lists,added,lastLogin,leftAt}`.
+
+- `role` grants dashboard login; `null` means "receives messages only".
+- `lists` is `{listId: ["whatsapp","email"]}`. List definitions live in one KV value, `comms:lists`.
+- `active:false` ("marked as left") blocks login, ends open sessions and drops the person from
+  every list in `/recipients`, while keeping the record so they can be reinstated.
+
+| Endpoint | Who |
+|---|---|
+| `GET /admin/users` · `POST /admin/users` · `DELETE /admin/users/{mobile}` | admin |
+| `GET /admin/lists` · `POST /admin/lists` · `DELETE /admin/lists/{id}` | admin |
+| `GET /admin/log` — last 100 directory changes (`dirlog:` keys, kept one year) | admin |
+| `GET /recipients` — every list resolved to its active members | admin — or `X-Service-Token` matching `DIRECTORY_READ_TOKEN` |
+
+`POST /admin/users` is a partial update: an omitted field keeps its stored value. Automations must
+read `/recipients` at send time and never carry their own copy of a number or address.
 
 ## Employee phone directory
 

@@ -52,6 +52,20 @@ tr:last-child td{border-bottom:none}
 .nav-links{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
 .nav-link{padding:6px 16px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#475569;text-decoration:none;font-size:12px;font-weight:700}
 .nav-link:hover{border-color:#6366f1;color:#6366f1}
+.form-row.five{grid-template-columns:1fr 1.2fr 1.4fr 1.4fr auto}
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tab{padding:5px 14px;border-radius:7px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;font-size:12px;font-weight:700}
+.tab.on{border-color:#6366f1;color:#6366f1;background:#eef2ff}
+.list-pill{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:#f1f5f9;color:#475569;margin:1px 3px 1px 0;white-space:nowrap}
+.r-none{background:#f1f5f9;color:#64748b}
+.sub{font-size:11px;color:#94a3b8}
+.edit-box{display:grid;gap:12px}
+.list-grid{display:grid;grid-template-columns:1fr auto auto;gap:6px 18px;align-items:center;font-size:12px;color:#1e293b;max-width:520px}
+.list-grid label{display:flex;gap:5px;align-items:center;margin:0;font-size:11px;letter-spacing:0;text-transform:none;color:#475569;font-weight:600}
+.list-grid input{width:auto}
+.btn-warn{padding:6px 14px;border:1.5px solid #fed7aa;border-radius:7px;background:transparent;color:#c2410c;cursor:pointer;font-size:12px;font-weight:700}
+.table-wrap{overflow-x:auto}
+@media(max-width:720px){.form-row,.form-row.five{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -82,11 +96,11 @@ tr:last-child td{border-bottom:none}
   <div id="statsRow" class="stat-grid"></div>
   <div id="flash" class="flash"></div>
 
-  <!-- Add user -->
+  <!-- Add person -->
   <div class="section">
-    <h2>Add Authorised User</h2>
-    <div class="sec-sub">Enter the mobile number, name and access level for the new user.</div>
-    <div class="form-row">
+    <h2>Add Person</h2>
+    <div class="sec-sub">One record per person. The role gives dashboard login; lists (set after adding) decide which automated WhatsApp and email messages they receive.</div>
+    <div class="form-row five">
       <div>
         <label>Mobile (10 digits)</label>
         <input type="tel" id="newMobile" maxlength="10" placeholder="9XXXXXXXXX">
@@ -96,184 +110,292 @@ tr:last-child td{border-bottom:none}
         <input type="text" id="newName" placeholder="Full name">
       </div>
       <div>
-        <label>Role</label>
-        <select id="newRole">
-          <option value="management">Management (all dashboards)</option>
-          <option value="weaving">Weaving</option>
-          <option value="dyeing">Dyeing</option>
-          <option value="finishing">Finishing</option>
-          <option value="prep">Preparatory</option>
-          <option value="gm_tech">GM (Tech)</option>
-          <option value="ppc">PPC</option>
-          <option value="bathrobe">Bathrobe</option>
-          <option value="quality">Quality</option>
-          <option value="rsb">Sr. GM Operations (RSB)</option>
-          <option value="hr">HR (Manpower Entry — Nalagarh)</option>
-          <option value="hr_noida">HR (Manpower Entry — Noida)</option>
-          <option value="admin">Admin</option>
-        </select>
+        <label>Email (optional)</label>
+        <input type="email" id="newEmail" placeholder="name@saratextiles.com">
       </div>
       <div>
-        <button class="btn-add" onclick="addUser()">Add User</button>
+        <label>Dashboard role</label>
+        <select id="newRole"></select>
+      </div>
+      <div>
+        <button class="btn-add" onclick="addUser()">Add</button>
       </div>
     </div>
   </div>
 
-  <!-- User list -->
+  <!-- People -->
   <div class="section">
-    <h2>Authorised Users</h2>
-    <div class="sec-sub">All mobile numbers that can log into the dashboard system.</div>
-    <div id="userTable"><div class="loading">Loading users...</div></div>
+    <h2>People</h2>
+    <div class="sec-sub">Everyone who can log in or who receives automated messages. Mark a person as left to stop both at once.</div>
+    <div id="userTabs" class="tabs"></div>
+    <div id="userTable" class="table-wrap"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- Lists -->
+  <div class="section">
+    <h2>Message Lists</h2>
+    <div class="sec-sub">Each automation sends to one list. Add or remove members by editing the person above.</div>
+    <div id="listTable" class="table-wrap"></div>
+    <div class="form-row five" style="margin-top:16px">
+      <div><label>List id</label><input type="text" id="listId" placeholder="mis-daily"></div>
+      <div><label>Name</label><input type="text" id="listName" placeholder="MIS daily summary"></div>
+      <div><label>Company</label><select id="listCompany"><option>STL</option><option>KNAB</option><option>Personal</option></select></div>
+      <div><label>WhatsApp group id (optional)</label><input type="text" id="listGroup" placeholder="1203...@g.us"></div>
+      <div><button class="btn-add" onclick="saveList()">Save List</button></div>
+    </div>
+  </div>
+
+  <!-- Change log -->
+  <div class="section">
+    <h2>Recent Changes</h2>
+    <div class="sec-sub">Who changed what in the directory.</div>
+    <div id="logTable" class="table-wrap"></div>
   </div>
 </div>
 
 <script>
-const WORKER = "https://square-flower-57b5.deepit.workers.dev";
-const ROLE_DEPT = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality",hr:"HR",hr_noida:"Noida Finishing"};
+// On localhost only, `stl_worker` in localStorage can point this page at `wrangler dev`.
+const IS_LOCAL = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+const WORKER = (IS_LOCAL && localStorage.getItem("stl_worker")) || "https://square-flower-57b5.deepit.workers.dev";
+const ROLE_DEPT = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality",rsb:"RSB",hr:"HR",hr_noida:"Noida Finishing"};
+const ROLE_LABELS = [["","No dashboard login (messages only)"],["management","Management (all dashboards)"],["weaving","Weaving"],["dyeing","Dyeing"],["finishing","Finishing"],["prep","Preparatory"],["gm_tech","GM (Tech)"],["ppc","PPC"],["bathrobe","Bathrobe"],["quality","Quality"],["rsb","Sr. GM Operations (RSB)"],["hr","HR (Manpower Entry — Nalagarh)"],["hr_noida","HR (Manpower Entry — Noida)"],["admin","Admin"]];
 const ROLE_COLORS = {admin:"r-admin",management:"r-management"};
+const CHANNELS = [["whatsapp","WhatsApp"],["email","Email"]];
+const state = { users:[], lists:{}, log:[], me:"", demo:false, tab:"active", editing:null };
 
 function getToken() { return localStorage.getItem("stl_token"); }
 function clearSession() { ["stl_token","stl_role","stl_name","stl_dept"].forEach(k=>localStorage.removeItem(k)); }
+function esc(v) { return String(v==null?"":v).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function roleOptions(sel) { return ROLE_LABELS.map(([v,l]) => `<option value="${v}" ${v===(sel||"")?"selected":""}>${esc(l)}</option>`).join(""); }
+function isActive(u) { return u.active !== false; }
+function byMobile(m) { return state.users.find(u => u.mobile === m); }
 
 function showFlash(msg, type) {
   const el = document.getElementById("flash");
   el.textContent = msg;
   el.className = "flash " + type;
-  setTimeout(() => { el.className = "flash"; }, 3000);
+  setTimeout(() => { el.className = "flash"; }, 4000);
 }
 
 async function doLogout() {
   const token = getToken();
-  if (token) { try { await fetch(WORKER+"/auth/logout",{method:"POST",headers:{"X-Session-Token":token}}); } catch(e){} }
+  if (token && !state.demo) { try { await fetch(WORKER+"/auth/logout",{method:"POST",headers:{"X-Session-Token":token}}); } catch(e){} }
   clearSession();
   window.location.href = "login.html";
 }
 
-function roleColor(role) {
-  return ROLE_COLORS[role] || "r-dept";
+/* ── data ── */
+async function api(path, method, body) {
+  if (state.demo) return demoApi(path, method, body);
+  const resp = await fetch(WORKER + path, { method: method||"GET", headers: {"Content-Type":"application/json","X-Session-Token": getToken()}, body: body ? JSON.stringify(body) : undefined });
+  if (resp.status === 401) { clearSession(); window.location.href = "login.html"; throw new Error("Unauthorized"); }
+  return resp.json();
+}
+async function loadAll() {
+  try {
+    const [u, l, g] = await Promise.all([api("/admin/users"), api("/admin/lists"), api("/admin/log")]);
+    state.users = (u.users||[]).sort((a,b) => a.name.localeCompare(b.name));
+    state.lists = l.lists || {};
+    state.log = g.log || [];
+    render();
+  } catch(e) { document.getElementById("userTable").innerHTML = '<div class="loading">Error loading the directory.</div>'; }
 }
 
-async function loadUsers() {
-  const token = getToken();
+/* ── render ── */
+function render() {
+  const active = state.users.filter(isActive), left = state.users.filter(u => !isActive(u));
+  const logins = active.filter(u => u.role).length;
+  const onLists = active.filter(u => u.lists && Object.keys(u.lists).length).length;
+  document.getElementById("statsRow").innerHTML = [[active.length,"Active people"],[logins,"Can log in"],[onLists,"On a message list"],[Object.keys(state.lists).length,"Lists"],[left.length,"Left"]]
+    .map(([n,l]) => `<div class="stat"><div class="stat-n">${n}</div><div class="stat-l">${l}</div></div>`).join("");
+  document.getElementById("userTabs").innerHTML = [["active","Active",active.length],["left","Left",left.length]]
+    .map(([k,l,n]) => `<button class="tab ${state.tab===k?"on":""}" onclick="setTab('${k}')">${l} (${n})</button>`).join("");
+  renderUsers(state.tab === "active" ? active : left);
+  renderLists(active);
+  renderLog();
+}
+function setTab(t) { state.tab = t; state.editing = null; render(); }
+
+function renderUsers(users) {
+  const el = document.getElementById("userTable");
+  if (!users.length) { el.innerHTML = `<div class="loading">${state.tab==="active" ? "No people yet. Add someone above." : "Nobody has been marked as left."}</div>`; return; }
+  const rows = users.map(u => {
+    const pills = Object.keys(u.lists||{}).map(id => `<span class="list-pill">${esc((state.lists[id]||{}).name||id)} · ${u.lists[id].map(c=>c==="whatsapp"?"WA":"Email").join("+")}</span>`).join("");
+    const main = `
+      <tr>
+        <td style="font-family:monospace;font-weight:700;white-space:nowrap">+91 ${esc(u.mobile)}</td>
+        <td>${esc(u.name)}${u.email ? `<div class="sub">${esc(u.email)}</div>` : ""}</td>
+        <td><span class="role-pill ${u.role ? (ROLE_COLORS[u.role]||"r-dept") : "r-none"}">${esc(u.role||"no login")}</span></td>
+        <td>${pills || '<span class="sub">—</span>'}</td>
+        <td class="sub" style="white-space:nowrap">${isActive(u) ? (u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('en-IN') : 'Never') : 'Left ' + (u.leftAt ? new Date(u.leftAt).toLocaleDateString('en-IN') : '')}</td>
+        <td style="white-space:nowrap">${isActive(u)
+          ? `<button class="btn-edit" onclick="editUser('${u.mobile}')">Edit</button>`
+          : `<button class="btn-edit" onclick="setActive('${u.mobile}',true)">Reinstate</button><button class="btn-del" onclick="removeUser('${u.mobile}')">Delete</button>`}</td>
+      </tr>`;
+    return main + (state.editing === u.mobile ? editRow(u) : "");
+  }).join("");
+  el.innerHTML = `<table><thead><tr><th>Mobile</th><th>Name</th><th>Role</th><th>Lists</th><th>Last Login</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function editRow(u) {
+  const ids = Object.keys(state.lists);
+  const grid = ids.length ? `<div class="list-grid">${ids.map(id => `<div>${esc(state.lists[id].name)} <span class="sub">${esc(state.lists[id].company)}</span></div>` +
+    CHANNELS.map(([c,l]) => `<label><input type="checkbox" data-list="${esc(id)}" data-ch="${c}" ${(u.lists&&u.lists[id]||[]).indexOf(c)!==-1?"checked":""}>${l}</label>`).join("")).join("")}</div>`
+    : '<div class="sub">No lists yet. Create one under Message Lists.</div>';
+  const self = u.mobile === state.me;
+  return `
+    <tr class="edit-row"><td colspan="6"><div class="edit-box">
+      <div class="edit-inline">
+        <input type="text" id="edit-name" value="${esc(u.name)}" placeholder="Name" style="width:180px">
+        <input type="email" id="edit-email" value="${esc(u.email||"")}" placeholder="Email (optional)" style="width:230px">
+        <select id="edit-role" style="width:auto" ${self?"disabled":""}>${roleOptions(u.role)}</select>
+      </div>
+      ${grid}
+      <div class="edit-inline">
+        <button class="btn-save" onclick="saveUser('${u.mobile}')">Save</button>
+        <button class="btn-cancel" onclick="editUser(null)">Cancel</button>
+        ${self ? "" : `<button class="btn-warn" onclick="setActive('${u.mobile}',false)">Mark as left</button>`}
+      </div>
+    </div></td></tr>`;
+}
+
+function renderLists(active) {
+  const ids = Object.keys(state.lists);
+  const el = document.getElementById("listTable");
+  if (!ids.length) { el.innerHTML = '<div class="loading">No lists yet.</div>'; return; }
+  const count = (id,c) => active.filter(u => u.lists && u.lists[id] && u.lists[id].indexOf(c) !== -1).length;
+  el.innerHTML = `<table><thead><tr><th>List id</th><th>Name</th><th>Company</th><th>WhatsApp</th><th>Email</th><th>Group</th><th></th></tr></thead><tbody>${ids.map(id => { const d = state.lists[id]; return `
+    <tr><td style="font-family:monospace;font-weight:700">${esc(id)}</td><td>${esc(d.name)}</td><td>${esc(d.company)}</td><td>${count(id,"whatsapp")}</td><td>${count(id,"email")}</td>
+    <td class="sub">${d.group ? esc(d.group) : "—"}</td>
+    <td style="white-space:nowrap"><button class="btn-edit" onclick="fillList('${esc(id)}')">Edit</button><button class="btn-del" onclick="removeList('${esc(id)}')">Delete</button></td></tr>`; }).join("")}</tbody></table>`;
+}
+
+function renderLog() {
+  const el = document.getElementById("logTable");
+  if (!state.log.length) { el.innerHTML = '<div class="loading">No changes recorded yet.</div>'; return; }
+  const what = r => r.list ? `${r.action} — ${r.name||r.list}` : `${r.action} — ${r.name||""} (${r.mobile||""})` + (r.active===false ? ", marked as left" : "") + (r.lists && r.lists.length ? ", lists: " + r.lists.join(", ") : "");
+  el.innerHTML = `<table><thead><tr><th>When</th><th>By</th><th>Change</th></tr></thead><tbody>${state.log.slice(0,25).map(r =>
+    `<tr><td class="sub" style="white-space:nowrap">${new Date(r.at).toLocaleString('en-IN')}</td><td>${esc(r.by)}</td><td>${esc(what(r))}</td></tr>`).join("")}</tbody></table>`;
+}
+
+/* ── actions ── */
+async function post(path, body, okMsg) {
   try {
-    const resp = await fetch(WORKER + "/admin/users", { headers: {"X-Session-Token": token} });
-    if (resp.status === 401) { clearSession(); window.location.href="login.html"; return; }
-    const data = await resp.json();
-    const users = data.users || [];
-
-    // Stats
-    const roles = {};
-    users.forEach(u => { roles[u.role] = (roles[u.role]||0)+1; });
-    document.getElementById("statsRow").innerHTML =
-      `<div class="stat"><div class="stat-n">${users.length}</div><div class="stat-l">Total Users</div></div>` +
-      Object.entries(roles).map(([r,n]) => `<div class="stat"><div class="stat-n">${n}</div><div class="stat-l">${r}</div></div>`).join("");
-
-    // Table
-    if (!users.length) { document.getElementById("userTable").innerHTML = '<div class="loading">No users yet. Add users above.</div>'; return; }
-    const rows = users.map(u => `
-      <tr id="row-${u.mobile}">
-        <td style="font-family:monospace;font-weight:700">+91 ${u.mobile}</td>
-        <td id="name-${u.mobile}">${u.name}</td>
-        <td><span class="role-pill ${roleColor(u.role)}" id="role-${u.mobile}">${u.role}</span></td>
-        <td style="color:#94a3b8;font-size:11px">${u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('en-IN') : 'Never'}</td>
-        <td>
-          <button class="btn-edit" onclick="editUser('${u.mobile}','${u.name}','${u.role}','${u.dept||''}')">Edit</button>
-          ${u.mobile !== "9810494444" ? `<button class="btn-del" onclick="removeUser('${u.mobile}','${u.name}')">Remove</button>` : '<span style="font-size:11px;color:#94a3b8">Admin</span>'}
-        </td>
-      </tr>`).join("");
-    document.getElementById("userTable").innerHTML = `
-      <table>
-        <thead><tr><th>Mobile</th><th>Name</th><th>Role</th><th>Last Login</th><th></th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`;
-  } catch(e) { document.getElementById("userTable").innerHTML = '<div class="loading">Error loading users.</div>'; }
+    const data = await api(path, "POST", body);
+    if (!data.ok) { showFlash(data.error || "Could not save.", "err"); return false; }
+    showFlash(okMsg, "ok"); state.editing = null; await loadAll(); return true;
+  } catch(e) { showFlash("Network error.", "err"); return false; }
 }
 
 async function addUser() {
   const mobile = document.getElementById("newMobile").value.replace(/\D/g,"");
   const name   = document.getElementById("newName").value.trim();
-  const role   = document.getElementById("newRole").value;
+  const email  = document.getElementById("newEmail").value.trim();
+  const role   = document.getElementById("newRole").value || null;
   if (!/^[6-9]\d{9}$/.test(mobile)) { showFlash("Enter a valid 10-digit mobile number.","err"); return; }
   if (!name) { showFlash("Enter the person's name.","err"); return; }
-  const dept = ROLE_DEPT[role] || null;
-  const token = getToken();
-  try {
-    const resp = await fetch(WORKER+"/admin/users",{method:"POST",headers:{"Content-Type":"application/json","X-Session-Token":token},body:JSON.stringify({mobile,name,role,dept})});
-    const data = await resp.json();
-    if (data.ok) {
-      showFlash(name + " added successfully.","ok");
-      document.getElementById("newMobile").value="";
-      document.getElementById("newName").value="";
-      loadUsers();
-    } else { showFlash(data.error||"Failed to add user.","err"); }
-  } catch(e) { showFlash("Network error.","err"); }
+  const cur = byMobile(mobile);
+  if (cur) { showFlash(mobile + " is already in the directory as " + cur.name + (isActive(cur) ? "." : " (marked as left — reinstate them instead)."), "err"); return; }
+  if (await post("/admin/users", {mobile, name, email, role, dept: role ? (ROLE_DEPT[role]||null) : null, active:true, lists:{}}, name + " added.")) {
+    ["newMobile","newName","newEmail"].forEach(id => document.getElementById(id).value = "");
+    state.tab = "active"; state.editing = mobile; render();
+  }
 }
 
-function editUser(mobile, name, role, dept) {
-  // Remove any existing edit row
-  const existing = document.getElementById('edit-row');
-  if (existing) existing.remove();
-
-  const ROLE_DEPT_MAP = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality",rsb:"RSB",hr:"HR",hr_noida:"Noida Finishing"};
-  const deptOptions = ['','Weaving','Dyeing','Finishing','Prep','UB','PPC','Bathrobe','Quality','RSB','HR','Noida Finishing'];
-
-  const row = document.getElementById('row-' + mobile);
-  const editRow = document.createElement('tr');
-  editRow.id = 'edit-row';
-  editRow.className = 'edit-row';
-  editRow.innerHTML = `
-    <td colspan="5">
-      <div class="edit-inline">
-        <input type="text" id="edit-name" value="${name}" placeholder="Name" style="width:160px">
-        <select id="edit-role">
-          ${['management','weaving','dyeing','finishing','prep','gm_tech','ppc','bathrobe','quality','rsb','hr','hr_noida','admin'].map(r =>
-            `<option value="${r}" ${r===role?'selected':''}>${r}</option>`
-          ).join('')}
-        </select>
-        <button class="btn-save" onclick="saveUser('${mobile}')">Save</button>
-        <button class="btn-cancel" onclick="document.getElementById('edit-row').remove()">Cancel</button>
-      </div>
-    </td>`;
-
-  row.insertAdjacentElement('afterend', editRow);
-  document.getElementById('edit-name').focus();
-}
+function editUser(mobile) { state.editing = mobile; render(); if (mobile) document.getElementById("edit-name").focus(); }
 
 async function saveUser(mobile) {
-  const name  = document.getElementById('edit-name').value.trim();
-  const role  = document.getElementById('edit-role').value;
-  if (!name) { showFlash('Name cannot be empty.', 'err'); return; }
-  const ROLE_DEPT_MAP = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality",rsb:"RSB",hr:"HR",hr_noida:"Noida Finishing"};
-  const dept = ROLE_DEPT_MAP[role] || null;
-  const token = getToken();
-  try {
-    const resp = await fetch(WORKER+'/admin/users', {
-      method:'POST',
-      headers:{'Content-Type':'application/json','X-Session-Token':token},
-      body:JSON.stringify({mobile, name, role, dept})
-    });
-    const data = await resp.json();
-    if (data.ok) {
-      showFlash(name + ' updated successfully.', 'ok');
-      document.getElementById('edit-row').remove();
-      loadUsers();
-    } else { showFlash(data.error||'Failed to update.', 'err'); }
-  } catch(e) { showFlash('Network error.', 'err'); }
+  const name  = document.getElementById("edit-name").value.trim();
+  const email = document.getElementById("edit-email").value.trim();
+  const role  = document.getElementById("edit-role").value || null;
+  if (!name) { showFlash("Name cannot be empty.", "err"); return; }
+  const lists = {};
+  document.querySelectorAll(".list-grid input:checked").forEach(c => { (lists[c.dataset.list] = lists[c.dataset.list] || []).push(c.dataset.ch); });
+  await post("/admin/users", {mobile, name, email, role, dept: role ? (ROLE_DEPT[role]||null) : null, lists}, name + " updated.");
 }
 
-async function removeUser(mobile, name) {
-  if (!confirm("Remove " + name + " (" + mobile + ") from access?")) return;
-  const token = getToken();
+async function setActive(mobile, active) {
+  const u = byMobile(mobile); if (!u) return;
+  const n = Object.keys(u.lists||{}).length;
+  if (!active && !confirm(`Mark ${u.name} as left?\n\nThis ends their dashboard login${n ? ` and stops messages from ${n} list${n>1?"s":""}` : ""}. You can reinstate them later.`)) return;
+  await post("/admin/users", {mobile, active}, u.name + (active ? " reinstated." : " marked as left."));
+}
+
+async function removeUser(mobile) {
+  const u = byMobile(mobile); if (!u) return;
+  if (!confirm("Permanently delete " + u.name + " (" + mobile + ")? This cannot be undone.")) return;
   try {
-    const resp = await fetch(WORKER+"/admin/users/"+mobile,{method:"DELETE",headers:{"X-Session-Token":token}});
-    const data = await resp.json();
-    if (data.ok) { showFlash(name+" removed.","ok"); loadUsers(); }
-    else { showFlash(data.error||"Failed to remove.","err"); }
-  } catch(e) { showFlash("Network error.","err"); }
+    const data = await api("/admin/users/" + mobile, "DELETE");
+    if (data.ok) { showFlash(u.name + " deleted.", "ok"); loadAll(); }
+    else { showFlash(data.error || "Failed to delete.", "err"); }
+  } catch(e) { showFlash("Network error.", "err"); }
+}
+
+function fillList(id) {
+  const d = state.lists[id];
+  document.getElementById("listId").value = id;
+  document.getElementById("listName").value = d.name;
+  document.getElementById("listCompany").value = d.company;
+  document.getElementById("listGroup").value = d.group || "";
+  document.getElementById("listName").focus();
+}
+async function saveList() {
+  const id = document.getElementById("listId").value.trim().toLowerCase();
+  const name = document.getElementById("listName").value.trim();
+  if (!id || !name) { showFlash("Enter a list id and a name.", "err"); return; }
+  if (await post("/admin/lists", {id, name, company: document.getElementById("listCompany").value, group: document.getElementById("listGroup").value.trim()}, "List " + id + " saved.")) {
+    ["listId","listName","listGroup"].forEach(k => document.getElementById(k).value = "");
+  }
+}
+async function removeList(id) {
+  if (!confirm("Delete the list " + id + "?")) return;
+  try {
+    const data = await api("/admin/lists/" + encodeURIComponent(id), "DELETE");
+    if (data.ok) { showFlash("List " + id + " deleted.", "ok"); loadAll(); }
+    else { showFlash(data.error || "Failed to delete.", "err"); }
+  } catch(e) { showFlash("Network error.", "err"); }
+}
+
+/* ── demo (localhost only): made-up people, changes live in memory ── */
+const DEMO = {
+  lists: { "mis-daily":{name:"MIS daily summary",company:"STL",group:null}, "absence-hr":{name:"Absence lists to HR",company:"STL",group:null} },
+  users: [
+    {mobile:"9000000201",name:"Demo Admin",role:"admin",dept:null,email:"admin@example.com",active:true,lists:{"mis-daily":["whatsapp"]},lastLogin:new Date().toISOString()},
+    {mobile:"9000000202",name:"Asha Verma",role:"hr",dept:"HR",email:"asha@example.com",active:true,lists:{"absence-hr":["email"]},lastLogin:null},
+    {mobile:"9000000203",name:"Rakesh Kumar",role:"weaving",dept:"Weaving",email:null,active:true,lists:{},lastLogin:null},
+    {mobile:"9000000204",name:"Outside Auditor",role:null,dept:null,email:null,active:true,lists:{"mis-daily":["whatsapp"]},lastLogin:null},
+    {mobile:"9000000205",name:"Former Manager",role:"management",dept:null,email:null,active:false,lists:{"mis-daily":["whatsapp"]},lastLogin:null,leftAt:new Date().toISOString()}],
+  log: [] };
+function demoApi(path, method, body) {
+  const note = (action, d) => DEMO.log.unshift({at:new Date().toISOString(), by:"Demo Admin", action, ...d});
+  if (path === "/admin/users" && method === "POST") {
+    const i = DEMO.users.findIndex(u => u.mobile === body.mobile), cur = DEMO.users[i];
+    const u = {lastLogin:null, active:true, lists:{}, ...cur, ...body};
+    if (Object.values(u.lists).some(c => c.indexOf("email") !== -1) && !u.email) return {ok:false, error:"Add an email address before putting " + u.name + " on an email list."};
+    u.leftAt = u.active ? null : (cur && cur.leftAt) || new Date().toISOString();
+    if (cur) DEMO.users[i] = u; else DEMO.users.push(u);
+    note(cur ? "update" : "add", {mobile:u.mobile, name:u.name, active:u.active, lists:Object.keys(u.lists)});
+  } else if (path.startsWith("/admin/users/") && method === "DELETE") {
+    DEMO.users = DEMO.users.filter(u => u.mobile !== path.split("/").pop());
+  } else if (path === "/admin/lists" && method === "POST") {
+    DEMO.lists[body.id] = {name:body.name, company:body.company, group:body.group||null}; note("list-update", {list:body.id, name:body.name});
+  } else if (path.startsWith("/admin/lists/") && method === "DELETE") {
+    const id = decodeURIComponent(path.split("/").pop());
+    const n = DEMO.users.filter(u => u.lists && u.lists[id]).length;
+    if (n) return {ok:false, error:"Remove its " + n + " member(s) first."};
+    delete DEMO.lists[id];
+  }
+  return {ok:true, users:DEMO.users.map(u => ({...u})), lists:{...DEMO.lists}, log:DEMO.log.slice()};
 }
 
 // Check session on load
 (async function() {
+  document.getElementById("newRole").innerHTML = roleOptions("management");
+  if (IS_LOCAL && new URLSearchParams(location.search).get("demo") === "1") {
+    state.demo = true; state.me = "9000000201";
+    document.getElementById("adminName").textContent = "Demo Admin";
+    loadAll(); return;
+  }
   const token = getToken();
   if (!token) { window.location.href="login.html"; return; }
   try {
@@ -282,11 +404,12 @@ async function removeUser(mobile, name) {
     const d = await resp.json();
     if (!d.ok || d.role !== "admin") { window.location.href = d.role === "management" ? "daily.html" : "entry.html"; return; }
     document.getElementById("adminName").textContent = d.name;
-    loadUsers();
+    state.me = d.mobile;
+    loadAll();
   } catch(e) {
     // Fail open - allow if token exists
     document.getElementById("adminName").textContent = localStorage.getItem("stl_name")||"";
-    loadUsers();
+    loadAll();
   }
 })();
 </script>

@@ -76,7 +76,7 @@ const DAILY_DJ  = { 'Jun-26': { dates, weaving, dobby, jacquard } } // Dobby/Jac
 | `entry.html` | Dept KPI data entry form — React + Babel, role-gated, dept-restricted |
 | `manpower.html` | Nalagarh + Noida headcount entry, stored to Worker |
 | `employees.html` | Nalagarh employee phone list (code, name, phone) — add / modify / delete, singly or in bulk. `hr` + `admin` only (**not** `hr_noida`: Nalagarh-only by design). Read by the absence-alert job in `~/stl-absence-alerts` via a read-only service token. Phone numbers live in Worker KV only — never commit an employee list to this public repo |
-| `admin.html` | User management (add/edit/delete users, manage roles) |
+| `admin.html` | **People directory** — dashboard users *and* message recipients in one list: role (login), email, message lists, mark as left / reinstate, change log. Every automation reads its recipients from the Worker's `GET /recipients`; see `worker/README.md` → People directory |
 | `discrepancy.html` | Flags mismatches between KPI entries and MIS data |
 | `stl_data.js` | MIS data file — written by bot, never manually edited |
 | `depts.js` | Shared `DEPTS` KPI config — single source loaded by `daily.html` + `monthly.html` |
