@@ -53,6 +53,7 @@ tr:last-child td{border-bottom:none}
 .nav-link{padding:6px 16px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#475569;text-decoration:none;font-size:12px;font-weight:700}
 .nav-link:hover{border-color:#6366f1;color:#6366f1}
 .form-row.five{grid-template-columns:1fr 1.2fr 1.4fr 1.4fr auto}
+.form-row.four{grid-template-columns:1fr 1.4fr 1.4fr auto}
 .tabs{display:flex;gap:6px;margin-bottom:14px}
 .tab{padding:5px 14px;border-radius:7px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;font-size:12px;font-weight:700}
 .tab.on{border-color:#6366f1;color:#6366f1;background:#eef2ff}
@@ -65,7 +66,7 @@ tr:last-child td{border-bottom:none}
 .list-grid input{width:auto}
 .btn-warn{padding:6px 14px;border:1.5px solid #fed7aa;border-radius:7px;background:transparent;color:#c2410c;cursor:pointer;font-size:12px;font-weight:700}
 .table-wrap{overflow-x:auto}
-@media(max-width:720px){.form-row,.form-row.five{grid-template-columns:1fr}}
+@media(max-width:720px){.form-row,.form-row.five,.form-row.four{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -134,12 +135,11 @@ tr:last-child td{border-bottom:none}
   <!-- Lists -->
   <div class="section">
     <h2>Message Lists</h2>
-    <div class="sec-sub">Each automation sends to one list. Add or remove members by editing the person above.</div>
+    <div class="sec-sub">Sara Textiles communications only. Each automation sends to one list; add or remove members by editing the person above.</div>
     <div id="listTable" class="table-wrap"></div>
-    <div class="form-row five" style="margin-top:16px">
+    <div class="form-row four" style="margin-top:16px">
       <div><label>List id</label><input type="text" id="listId" placeholder="mis-daily"></div>
       <div><label>Name</label><input type="text" id="listName" placeholder="MIS daily summary"></div>
-      <div><label>Company</label><select id="listCompany"><option>STL</option><option>KNAB</option><option>Personal</option></select></div>
       <div><label>WhatsApp group id (optional)</label><input type="text" id="listGroup" placeholder="1203...@g.us"></div>
       <div><button class="btn-add" onclick="saveList()">Save List</button></div>
     </div>
@@ -239,7 +239,7 @@ function renderUsers(users) {
 
 function editRow(u) {
   const ids = Object.keys(state.lists);
-  const grid = ids.length ? `<div class="list-grid">${ids.map(id => `<div>${esc(state.lists[id].name)} <span class="sub">${esc(state.lists[id].company)}</span></div>` +
+  const grid = ids.length ? `<div class="list-grid">${ids.map(id => `<div>${esc(state.lists[id].name)}</div>` +
     CHANNELS.map(([c,l]) => `<label><input type="checkbox" data-list="${esc(id)}" data-ch="${c}" ${(u.lists&&u.lists[id]||[]).indexOf(c)!==-1?"checked":""}>${l}</label>`).join("")).join("")}</div>`
     : '<div class="sub">No lists yet. Create one under Message Lists.</div>';
   const self = u.mobile === state.me;
@@ -264,8 +264,8 @@ function renderLists(active) {
   const el = document.getElementById("listTable");
   if (!ids.length) { el.innerHTML = '<div class="loading">No lists yet.</div>'; return; }
   const count = (id,c) => active.filter(u => u.lists && u.lists[id] && u.lists[id].indexOf(c) !== -1).length;
-  el.innerHTML = `<table><thead><tr><th>List id</th><th>Name</th><th>Company</th><th>WhatsApp</th><th>Email</th><th>Group</th><th></th></tr></thead><tbody>${ids.map(id => { const d = state.lists[id]; return `
-    <tr><td style="font-family:monospace;font-weight:700">${esc(id)}</td><td>${esc(d.name)}</td><td>${esc(d.company)}</td><td>${count(id,"whatsapp")}</td><td>${count(id,"email")}</td>
+  el.innerHTML = `<table><thead><tr><th>List id</th><th>Name</th><th>WhatsApp</th><th>Email</th><th>Group</th><th></th></tr></thead><tbody>${ids.map(id => { const d = state.lists[id]; return `
+    <tr><td style="font-family:monospace;font-weight:700">${esc(id)}</td><td>${esc(d.name)}</td><td>${count(id,"whatsapp")}</td><td>${count(id,"email")}</td>
     <td class="sub">${d.group ? esc(d.group) : "—"}</td>
     <td style="white-space:nowrap"><button class="btn-edit" onclick="fillList('${esc(id)}')">Edit</button><button class="btn-del" onclick="removeList('${esc(id)}')">Delete</button></td></tr>`; }).join("")}</tbody></table>`;
 }
@@ -335,7 +335,6 @@ function fillList(id) {
   const d = state.lists[id];
   document.getElementById("listId").value = id;
   document.getElementById("listName").value = d.name;
-  document.getElementById("listCompany").value = d.company;
   document.getElementById("listGroup").value = d.group || "";
   document.getElementById("listName").focus();
 }
@@ -343,7 +342,7 @@ async function saveList() {
   const id = document.getElementById("listId").value.trim().toLowerCase();
   const name = document.getElementById("listName").value.trim();
   if (!id || !name) { showFlash("Enter a list id and a name.", "err"); return; }
-  if (await post("/admin/lists", {id, name, company: document.getElementById("listCompany").value, group: document.getElementById("listGroup").value.trim()}, "List " + id + " saved.")) {
+  if (await post("/admin/lists", {id, name, group: document.getElementById("listGroup").value.trim()}, "List " + id + " saved.")) {
     ["listId","listName","listGroup"].forEach(k => document.getElementById(k).value = "");
   }
 }
@@ -358,7 +357,7 @@ async function removeList(id) {
 
 /* ── demo (localhost only): made-up people, changes live in memory ── */
 const DEMO = {
-  lists: { "mis-daily":{name:"MIS daily summary",company:"STL",group:null}, "absence-hr":{name:"Absence lists to HR",company:"STL",group:null} },
+  lists: { "mis-daily":{name:"MIS daily summary",group:null}, "absence-hr":{name:"Absence lists to HR",group:null} },
   users: [
     {mobile:"9000000201",name:"Demo Admin",role:"admin",dept:null,email:"admin@example.com",active:true,lists:{"mis-daily":["whatsapp"]},lastLogin:new Date().toISOString()},
     {mobile:"9000000202",name:"Asha Verma",role:"hr",dept:"HR",email:"asha@example.com",active:true,lists:{"absence-hr":["email"]},lastLogin:null},
@@ -378,7 +377,7 @@ function demoApi(path, method, body) {
   } else if (path.startsWith("/admin/users/") && method === "DELETE") {
     DEMO.users = DEMO.users.filter(u => u.mobile !== path.split("/").pop());
   } else if (path === "/admin/lists" && method === "POST") {
-    DEMO.lists[body.id] = {name:body.name, company:body.company, group:body.group||null}; note("list-update", {list:body.id, name:body.name});
+    DEMO.lists[body.id] = {name:body.name, group:body.group||null}; note("list-update", {list:body.id, name:body.name});
   } else if (path.startsWith("/admin/lists/") && method === "DELETE") {
     const id = decodeURIComponent(path.split("/").pop());
     const n = DEMO.users.filter(u => u.lists && u.lists[id]).length;

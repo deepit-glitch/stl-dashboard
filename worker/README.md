@@ -106,6 +106,9 @@ WhatsApp / email message. A record is `user:{mobile}` =
 
 - `role` grants dashboard login; `null` means "receives messages only".
 - `lists` is `{listId: ["whatsapp","email"]}`. List definitions live in one KV value, `comms:lists`.
+- **Sara Textiles communications only.** Personal automations (LMS, DLF, meeting prep, the
+  Problems and Todo List groups) and KNAB keep their own recipients locally and must never be
+  added here.
 - `active:false` ("marked as left") blocks login, ends open sessions and drops the person from
   every list in `/recipients`, while keeping the record so they can be reinstated.
 

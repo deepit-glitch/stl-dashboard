@@ -16,7 +16,6 @@ const CORS = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"
 const ROLE_DEPT = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality",rsb:"RSB",hr:"HR",hr_noida:"Noida Finishing"};
 const DIR_LISTS_KEY = "comms:lists";
 const DIR_CHANNELS = ["whatsapp","email"];
-const DIR_COMPANIES = ["STL","KNAB","Personal"];
 const DIR_LOG_TTL = 31536000;
 const LOGIN_ROLES = ["admin","management"].concat(Object.keys(ROLE_DEPT));
 function json(data, status=200){return new Response(JSON.stringify(data),{status,headers:{"Content-Type":"application/json",...CORS}});}
@@ -96,7 +95,9 @@ if(path.startsWith("/admin/users/")&&request.method==="DELETE"){
   if(curRaw)await dirLog(env,sess,"delete",{mobile,name:JSON.parse(curRaw).name});
   return json({ok:true});}
 
-// Distribution lists. A list is only a label here; membership lives on each person's record.
+// Distribution lists, for Sara Textiles communications only: personal and other-company
+// automations keep their own recipients and never use this directory.
+// A list is only a label here; membership lives on each person's record.
 // `group` is an optional WhatsApp group id that also receives the list's messages.
 if(path==="/admin/lists"&&request.method==="GET"){if(!await requireAdmin(request,env))return json({ok:false,error:"Unauthorized"},401);return json({ok:true,lists:await dirLists(env)});}
 if(path==="/admin/lists"&&request.method==="POST"){
@@ -104,10 +105,9 @@ if(path==="/admin/lists"&&request.method==="POST"){
   const b=await request.json();const id=String(b.id||"").trim().toLowerCase();
   if(!/^[a-z0-9][a-z0-9-]{1,39}$/.test(id))return json({ok:false,error:"List id must be 2-40 characters: lowercase letters, digits and hyphens."},400);
   const name=String(b.name||"").replace(/\s+/g," ").trim();if(!name||name.length>80)return json({ok:false,error:"List name is missing or too long"},400);
-  const company=DIR_COMPANIES.indexOf(b.company)!==-1?b.company:"STL";
   const group=String(b.group||"").trim();if(group&&!/^[0-9-]+@g\.us$/.test(group))return json({ok:false,error:"WhatsApp group id must look like 1203…@g.us"},400);
   const defs=await dirLists(env);const isNew=!defs[id];
-  defs[id]={name,company,group:group||null,note:String(b.note||"").trim().slice(0,200)};
+  defs[id]={name,group:group||null,note:String(b.note||"").trim().slice(0,200)};
   await env.AUTH_KV.put(DIR_LISTS_KEY,JSON.stringify(defs));
   await dirLog(env,sess,isNew?"list-add":"list-update",{list:id,name});
   return json({ok:true,lists:defs});}
@@ -134,7 +134,7 @@ if(path==="/recipients"&&request.method==="GET"){
   const defs=await dirLists(env);const users=(await dirUsers(env)).filter(u=>u.active!==false).sort((a,b)=>a.name<b.name?-1:1);const out={};
   for(const id of Object.keys(defs)){const d=defs[id];
     const on=c=>users.filter(u=>u.lists&&u.lists[id]&&u.lists[id].indexOf(c)!==-1);
-    out[id]={name:d.name,company:d.company,group:d.group||null,
+    out[id]={name:d.name,group:d.group||null,
       whatsapp:on("whatsapp").map(u=>({name:u.name,to:"91"+u.mobile})),
       email:on("email").filter(u=>u.email).map(u=>({name:u.name,to:u.email}))};}
   return json({ok:true,generatedAt:new Date().toISOString(),lists:out});}
