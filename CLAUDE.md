@@ -227,8 +227,8 @@ design is multi-department from the start.
 **Flow:** anyone opens `/matcode/` (no login), picks the department, lists the materials and
 sends. An OTP goes to that department's **head (one HOD per department)**; entering it approves
 the request. The HOD can also open the approval link (`?r={id}`) on their own phone, read the
-request and enter the OTP there. A job on the Mac mini (`~/stl-matcode`, launchd, every 5 min)
-then checks each material against SAP and emails EDP the request as Excel, with possible
+request and enter the OTP there. A job on the Mac mini (`~/stl-matcode`, launchd, in three
+batches a day: 10:00, 14:00, 18:00) then checks each material against SAP and emails EDP the request as Excel, with possible
 duplicates as an advisory.
 
 | File | Purpose |
