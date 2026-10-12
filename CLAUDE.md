@@ -86,6 +86,7 @@ const DAILY_DJ  = { 'Jun-26': { dates, weaving, dobby, jacquard } } // Dobby/Jac
 | `mp_recovery.html` | Recovery tool for manpower data |
 | `demo_login.html` | Demo mode login (sets demo flag, bypasses Worker auth) |
 | `inspect/` | **Inspector Survey app** — a *separate* dashboard at `/inspect/`, own login, own localStorage namespace (`insp_*`). See "Inspector Survey" below |
+| `matcode/` | **Material Code Request app** — a *public* form at `/matcode/` (no login) for departments to ask EDP for new SAP material codes. See "Material Code Requests" below |
 | `worker/` | **Cloudflare Worker source** — the auth/KV backend for every page above. Deploy from here (`npx wrangler deploy`); secrets via `wrangler secret put`. See `worker/README.md` |
 
 ---
@@ -217,6 +218,36 @@ submits. Management reads `report.html`.
 - Results are **self-reported and unverified** — no OTP scheme prevents QC registering a fake
   inspector, since QC supplies the number. The real control is reconciling against the gate/visitor
   register. Don't let the OTP create false confidence.
+
+## Material Code Requests (`/matcode/`)
+
+Departments ask EDP to open new material codes in SAP. Engineering is the first department; the
+design is multi-department from the start.
+
+**Flow:** anyone opens `/matcode/` (no login), picks the department, lists the materials and
+sends. An OTP goes to that department's **head (one HOD per department)**; entering it approves
+the request. The HOD can also open the approval link (`?r={id}`) on their own phone, read the
+request and enter the OTP there. A job on the Mac mini (`~/stl-matcode`, launchd, every 5 min)
+then checks each material against SAP and emails EDP the request as Excel, with possible
+duplicates as an advisory.
+
+| File | Purpose |
+|------|---------|
+| `matcode/index.html` | **Public.** Form → OTP approval → done. Also the HOD's approval-link view |
+| `matcode/admin.html` | `admin` only — the HOD per department, the EDP address(es), the month's requests |
+| `matcode/depts.js` | Departments and their dropdowns (types, groups, UOMs, plants) — **single source of truth** |
+| `matcode/config.js` | Worker URL; localhost-only `mc_worker` override for `wrangler dev` |
+
+**Deliberate design decisions:**
+- **No login.** The control is the HOD's OTP at submit, not who filled the form.
+- **The duplicate check runs after approval and never blocks.** It is advice to EDP, who decide.
+  The requester sees nothing of it.
+- **HOD phone numbers live in Worker KV, never in `depts.js`** — this repo is public.
+- **Adding a department** = an entry in `matcode/depts.js` + its HOD on `matcode/admin.html`. No
+  Worker change; the Excel sheet is named after the department id.
+- Styling is shared with the inspector app (`../inspect/style.css`).
+
+Worker endpoints, KV keys and the SMS-spend cap: `worker/README.md` → Material code requests.
 
 ## MIS Dashboard Architecture
 

@@ -25,6 +25,9 @@ Requires `wrangler login` (one-time, opens a browser).
 
 `DIRECTORY_READ_TOKEN` — read-only token for `GET /recipients` (see People directory).
 
+`MATCODE_SERVICE_TOKEN` — lets the Mac mini job read the material-code queue and mark requests
+as sent (see Material code requests). Unlike the two above it can write, so it is its own secret.
+
 `TWOFACTOR_KEY` — the 2Factor.in API key used to send OTP SMS. It is **not** in this repo, which
 is public. Set it once per Worker:
 
@@ -67,6 +70,9 @@ brute-force/spend deterrent, not an exact limiter.
 
 2Factor.in, template **`OTP1`**:
 `https://2factor.in/API/V1/{key}/SMS/{mobile}/{otp}/OTP1`
+
+For local testing, a git-ignored `worker/.dev.vars` can set `SMS_BASE` to a local stub so
+`wrangler dev` sends no real SMS. It must never be set on the deployed Worker.
 
 ## Session scopes
 
@@ -121,6 +127,45 @@ WhatsApp / email message. A record is `user:{mobile}` =
 
 `POST /admin/users` is a partial update: an omitted field keeps its stored value. Automations must
 read `/recipients` at send time and never carry their own copy of a number or address.
+
+## Material code requests
+
+`/matcode/` — a department asks EDP to open new material codes in SAP. **The form is public: no
+login.** A request only counts once the department's head (one HOD per department) approves it
+with an OTP sent to the HOD's own phone. Approved requests wait in a queue for the job in
+`~/stl-matcode` on the Mac mini, which checks SAP for likely duplicates (the Worker cannot reach
+HANA) and emails EDP the request as Excel with the duplicates as an advisory.
+
+| Endpoint | Who |
+|---|---|
+| `GET /matcode/depts` | public — departments that have a HOD, HOD name, masked number |
+| `POST /matcode/requests` | public — validates, stores, sends the OTP to the HOD |
+| `GET /matcode/requests/{id}` | anyone holding the id (the approval link) |
+| `POST /matcode/requests/{id}/attachments?line=&name=` | same — one file per line, 4 MB, pending requests only |
+| `POST /matcode/requests/{id}/resend` · `/approve` `{otp}` | same |
+| `GET /matcode/queue` · `POST /matcode/requests/{id}/sent` · `GET /matcode/attachments/{id}/{line}` | `X-Service-Token` = `MATCODE_SERVICE_TOKEN` (attachments also admin) |
+| `GET`/`POST /matcode/admin/config` · `GET /matcode/admin/requests?month=` | admin (`matcode/admin.html`) |
+
+| Key | Value |
+|---|---|
+| `matcode:config` | `{depts:{id:{label,hod:{name,mobile}}}, email:[...]}` — HODs and the EDP address(es) |
+| `mcreq:{id}` | the request; TTL 24h while `pending`, permanent once `approved` / `sent` |
+| `mcatt:{id}:{line}` | attachment bytes, name/type/size in KV metadata — TTL 30 days |
+| `mcq:{id}` | marker: approved, not yet emailed |
+| `mcidx:{YYYY-MM}` | ids approved in a month (admin page reads one key) |
+| `mcrl:{mobile}` | OTPs sent to a HOD this hour |
+
+- **`POST /matcode/requests` is public and spends SMS money, all of it on a HOD's phone.** It is
+  capped at 15 OTPs per HOD per hour across all requests (`mcrl:`), on top of `otpSend`'s
+  per-request cooldown. Do not loosen this without adding another gate.
+- The request id (96 random bits) is the only credential on the public endpoints. It never
+  reveals the HOD's full number.
+- OTPs are namespaced per request (`otp:m:{id}:{mobile}`), so two requests waiting on the same HOD
+  cannot overwrite each other's OTP.
+- The Worker checks a line's length and character set only. Which types, groups and units a
+  department may pick lives in `matcode/depts.js`, so a new code or department needs no deploy.
+- The EDP address is in `matcode:config`, not the people directory: the directory is keyed by
+  mobile number and a shared mailbox has none.
 
 ## Employee phone directory
 

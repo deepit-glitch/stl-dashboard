@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sara Textiles - Material Code Requests (Admin)</title>
+<link rel="stylesheet" href="../inspect/style.css?v=20260717">
+<style>
+body{padding:20px 12px}
+.card.wide{margin:0 auto}
+.row{display:grid;grid-template-columns:150px 1fr 190px;gap:12px;align-items:center;margin-bottom:10px}
+.row .name{font-size:13px;font-weight:800}
+.sec{margin-bottom:34px}
+.scroll{overflow-x:auto}
+.scroll table{min-width:640px}
+.p-wait{background:#fffbeb;color:#b45309}
+.p-sent{background:#f0fdf4;color:#15803d}
+.p-dup{background:#fef2f2;color:#dc2626}
+@media(max-width:640px){.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="card wide">
+  <div class="topbar">
+    <div><h1>Material Code Requests</h1><div class="who" id="who"></div></div>
+    <div><a class="linkbtn" href="index.html">Open the form</a><a class="linkbtn" href="../admin.html">Directory</a></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">HEAD OF DEPARTMENT</div>
+    <div class="sec-sub">The one person per department whose phone receives the approval OTP. A department appears on the form only once this is filled.</div>
+    <div id="depts"></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">SEND APPROVED REQUESTS TO</div>
+    <div class="sec-sub">Email addresses that receive the Excel and the possible-duplicates advisory. Separate several with commas.</div>
+    <input type="text" id="email" placeholder="edp@saratextiles.com">
+    <button class="btn" style="max-width:200px" id="saveBtn" onclick="save()">Save</button>
+    <div class="err" id="err"></div><div class="ok-msg" id="ok"></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">APPROVED REQUESTS</div>
+    <div class="sec-sub"><input type="month" id="month" onchange="loadRequests()" style="padding:6px 10px;border:2px solid #e2e8f0;border-radius:8px;font-family:inherit"></div>
+    <div class="scroll"><table id="reqs"></table></div>
+  </div>
+</div>
+
+<script src="config.js?v=20261012"></script>
+<script src="depts.js?v=20261012"></script>
+<script>
+const WORKER = window.MATCODE_WORKER, MC = window.MATCODE;
+const token = localStorage.getItem("stl_token");
+function esc(s){ const d=document.createElement("div"); d.textContent = s==null?"":String(s); return d.innerHTML; }
+function api(path, opts){ return fetch(WORKER+path, Object.assign({headers:{"Content-Type":"application/json","X-Session-Token":token}}, opts||{})).then(r => r.json()); }
+function note(id, text){ ["err","ok"].forEach(x => document.getElementById(x).classList.remove("show")); if (text) { const e=document.getElementById(id); e.textContent=text; e.classList.add("show"); } }
+
+function renderConfig(cfg){
+  document.getElementById("depts").innerHTML = MC.depts.map(d => { const h = (cfg.depts[d.id] && cfg.depts[d.id].hod) || {};
+    return '<div class="row"><div class="name">'+esc(d.label)+'</div>'
+      + '<input type="text" id="hn-'+d.id+'" maxlength="60" placeholder="Name" value="'+esc(h.name||"")+'">'
+      + '<input type="tel" id="hm-'+d.id+'" maxlength="10" placeholder="10-digit mobile" value="'+esc(h.mobile||"")+'"></div>'; }).join("");
+  document.getElementById("email").value = cfg.email.join(", ");
+}
+async function save(){
+  note();
+  const depts = {};
+  MC.depts.forEach(d => { depts[d.id] = {label: d.label, hod: {name: document.getElementById("hn-"+d.id).value, mobile: document.getElementById("hm-"+d.id).value}}; });
+  const email = document.getElementById("email").value.split(/[,;\s]+/).filter(Boolean);
+  const btn = document.getElementById("saveBtn"); btn.disabled = true;
+  try {
+    const d = await api("/matcode/admin/config", {method:"POST", body: JSON.stringify({depts, email})});
+    if (d.ok) { renderConfig(d.config); note("ok", "Saved."); } else note("err", d.error || "Could not save.");
+  } catch(e) { note("err", "Network error - please try again."); }
+  btn.disabled = false;
+}
+function fmt(iso){ return iso ? new Date(iso).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}) : ""; }
+async function loadRequests(){
+  const t = document.getElementById("reqs");
+  const d = await api("/matcode/admin/requests?month="+document.getElementById("month").value);
+  if (!d.ok) { t.innerHTML = '<tr><td class="empty">'+esc(d.error)+'</td></tr>'; return; }
+  if (!d.requests.length) { t.innerHTML = '<tr><td class="empty">No approved requests in this month.</td></tr>'; return; }
+  t.innerHTML = '<tr><th>Request</th><th>Raised by</th><th>Approved</th><th>Materials</th><th>Status</th></tr>' + d.requests.map(q => {
+    const dup = q.dupes ? (q.dupes.strong||0)+(q.dupes.possible||0) : 0;
+    return '<tr><td><b>'+esc(q.no)+'</b><br><span class="muted">'+esc(q.deptLabel)+'</span></td><td>'+esc(q.requester)+'</td>'
+      + '<td>'+esc(q.hod.name)+'<br><span class="muted">'+fmt(q.approvedAt)+'</span></td>'
+      + '<td>'+q.lines.map(l => esc(l.description)).join("<br>")+'</td>'
+      + '<td>'+(q.status==="sent" ? '<span class="pill p-sent">Sent to EDP</span><br><span class="muted">'+fmt(q.sentAt)+'</span>' : '<span class="pill p-wait">Waiting to send</span>')
+      + (dup ? '<br><span class="pill p-dup">'+dup+' possible duplicate'+(dup>1?'s':'')+'</span>' : '')
+      + (q.note ? '<br><span class="muted">'+esc(q.note)+'</span>' : '')+'</td></tr>'; }).join("");
+}
+
+(async () => {
+  if (!token) { location.href = "../login.html"; return; }
+  let sess; try { sess = await api("/auth/session"); } catch(e) { sess = {}; }
+  if (!sess.ok || sess.role !== "admin") { location.href = "../login.html"; return; }
+  document.getElementById("who").textContent = sess.name;
+  // IST calendar month, like the rest of the dashboards.
+  document.getElementById("month").value = new Date(Date.now()+19800000).toISOString().slice(0,7);
+  const c = await api("/matcode/admin/config");
+  if (c.ok) renderConfig(c.config);
+  loadRequests();
+})();
+</script>
+</body>
+</html>

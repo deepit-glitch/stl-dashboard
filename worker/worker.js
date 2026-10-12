@@ -17,6 +17,15 @@ const ROLE_DEPT = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:
 const DIR_LISTS_KEY = "comms:lists";
 const DIR_CHANNELS = ["whatsapp","email"];
 const DIR_LOG_TTL = 31536000;
+const MC_CFG_KEY = "matcode:config";
+const MC_PENDING_TTL = 86400;
+const MC_ATT_TTL = 2592000;
+const MC_ATT_MAX = 4194304;
+const MC_ATT_TYPES = ["application/pdf","image/jpeg","image/png","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"];
+const MC_MAX_LINES = 25;
+const MC_HOD_MAX_PER_HOUR = 15;
+// One line of a request. Mirrors the columns of the department's Excel format; the lengths are SAP's.
+const MC_FIELDS = [{k:"description",label:"Material description",max:40,req:true},{k:"mtart",label:"Material type",max:4,req:true,re:/^[A-Z0-9]+$/},{k:"matkl",label:"Material group",max:9,req:true,re:/^[A-Z0-9]+$/},{k:"uom",label:"UOM",max:3,req:true,re:/^[A-Z0-9]+$/},{k:"plant",label:"Plant",max:4,req:true,re:/^\d{4}$/},{k:"manufacturer",label:"Manufacturer",max:60},{k:"mfrpn",label:"Manufacturer part no.",max:40},{k:"equipment",label:"Equipment / functional location",max:60},{k:"remarks",label:"Remarks",max:200}];
 const LOGIN_ROLES = ["admin","management"].concat(Object.keys(ROLE_DEPT));
 function json(data, status=200){return new Response(JSON.stringify(data),{status,headers:{"Content-Type":"application/json",...CORS}});}
 function rand6(){const a=new Uint32Array(1);crypto.getRandomValues(a);return String(100000+(a[0]%900000));}
@@ -25,7 +34,8 @@ function randId(){const arr=new Uint8Array(12);crypto.getRandomValues(arr);retur
 // IST is UTC+5:30 and never shifts; the dashboards treat the IST calendar day as the day.
 function empCode(v){const c=String(v==null?"":v).trim().toUpperCase();return /^[A-Z0-9]{1,12}$/.test(c)?c:"";}
 function istDate(){return new Date(Date.now()+19800000).toISOString().slice(0,10);}
-async function sendOTP(mobile,otp,env){try{const url="https://2factor.in/API/V1/"+env.TWOFACTOR_KEY+"/SMS/"+mobile+"/"+otp+"/OTP1";const resp=await fetch(url);const data=await resp.json();return data.Status==="Success";}catch(e){return false;}}
+// SMS_BASE is unset in production; `wrangler dev` points it at a local stub so no real SMS is sent.
+async function sendOTP(mobile,otp,env){try{const url=(env.SMS_BASE||"https://2factor.in")+"/API/V1/"+env.TWOFACTOR_KEY+"/SMS/"+mobile+"/"+otp+"/OTP1";const resp=await fetch(url);const data=await resp.json();return data.Status==="Success";}catch(e){return false;}}
 // Shared OTP machinery. `p` namespaces the KV keys so a number that is both a staff user and an
 // external inspector cannot have one flow clobber the other's OTP or rate-limit window.
 async function otpSend(mobile,env,p){const now=Date.now();const rlRaw=await env.AUTH_KV.get("otprl:"+p+mobile);let rl=rlRaw?JSON.parse(rlRaw):{n:0,first:now,last:0};if(now-rl.first>3600000)rl={n:0,first:now,last:0};if(rl.last&&now-rl.last<OTP_COOLDOWN_SEC*1000)return{ok:false,status:429,error:"Please wait a few seconds before requesting another OTP."};if(rl.n>=OTP_MAX_PER_HOUR)return{ok:false,status:429,error:"Too many OTP requests. Please try again later."};const otp=rand6();await env.AUTH_KV.put("otp:"+p+mobile,otp,{expirationTtl:OTP_TTL});await env.AUTH_KV.delete("otpat:"+p+mobile);const sent=await sendOTP(mobile,otp,env);if(!sent)return{ok:false,status:500,error:"SMS failed - please retry"};rl.n++;rl.last=now;await env.AUTH_KV.put("otprl:"+p+mobile,JSON.stringify(rl),{expirationTtl:3600});return{ok:true};}
@@ -43,6 +53,17 @@ function isInspector(sess){return !!sess&&sess.scope==="inspector";}
 async function requireStaff(request,env,roles){const s=await getSession(request,env);if(!s||isInspector(s))return null;if(roles&&roles.indexOf(s.role)===-1)return null;return s;}
 async function requireInspector(request,env){const s=await getSession(request,env);if(!s||!isInspector(s))return null;return s;}
 async function requireAdmin(request,env){return await requireStaff(request,env,["admin"]);}
+async function mcConfig(env){const raw=await env.AUTH_KV.get(MC_CFG_KEY);const c=raw?JSON.parse(raw):{};return{depts:c.depts||{},email:c.email||[]};}
+function mcMask(mobile){return "XXXXXX"+String(mobile).slice(-4);}
+function mcText(v){return String(v==null?"":v).replace(/\s+/g," ").trim();}
+function mcService(request,env){const t=request.headers.get("X-Service-Token");return !!(t&&env.MATCODE_SERVICE_TOKEN&&t===env.MATCODE_SERVICE_TOKEN);}
+// The form is public, so every OTP it triggers lands on a head of department's phone. Cap them per
+// HOD across all requests; the per-request limits in otpSend alone would let a stranger open
+// request after request.
+async function mcHodLimit(env,mobile){const now=Date.now();const raw=await env.AUTH_KV.get("mcrl:"+mobile);let rl=raw?JSON.parse(raw):{n:0,first:now};if(now-rl.first>3600000)rl={n:0,first:now};if(rl.n>=MC_HOD_MAX_PER_HOUR)return false;rl.n++;await env.AUTH_KV.put("mcrl:"+mobile,JSON.stringify(rl),{expirationTtl:3600});return true;}
+async function mcAttachments(env,id){const page=await env.AUTH_KV.list({prefix:"mcatt:"+id+":"});return page.keys.map(k=>({line:parseInt(k.name.split(":")[2],10),...(k.metadata||{})})).sort((a,b)=>a.line-b.line);}
+// What anyone holding the request link may see: everything except the HOD's full number.
+async function mcView(env,r){return{id:r.id,no:r.no,dept:r.dept,deptLabel:r.deptLabel,requester:r.requester,requesterMobile:r.requesterMobile||null,lines:r.lines,status:r.status,createdAt:r.createdAt,approvedAt:r.approvedAt||null,sentAt:r.sentAt||null,dupes:r.dupes||null,note:r.note||null,hod:{name:r.hod.name,mobile:mcMask(r.hod.mobile)},attachments:await mcAttachments(env,r.id)};}
 export default{async fetch(request,env){
 const url=new URL(request.url);const path=url.pathname;
 if(request.method==="OPTIONS")return new Response(null,{headers:CORS});
@@ -214,4 +235,106 @@ if(path==="/survey/submit"&&request.method==="POST"){const sess=await requireIns
   return json({ok:true});}
 // Report returns raw records; the page aggregates. At ~40 visits/month that is a handful of reads.
 if(path.startsWith("/survey/report/")&&request.method==="GET"){if(!await requireStaff(request,env,["quality","admin","management"]))return json({ok:false,error:"Unauthorized"},401);const mk=path.split("/")[3]||"";if(!/^\d{4}-\d{2}$/.test(mk))return json({ok:false,error:"Invalid month"},400);const idxRaw=await env.AUTH_KV.get("visitidx:"+mk);const idx=idxRaw?JSON.parse(idxRaw):[];const rows=await Promise.all(idx.map(async id=>{const[vRaw,rRaw]=await Promise.all([env.AUTH_KV.get("visit:"+id),env.AUTH_KV.get("response:"+id)]);if(!vRaw)return null;const v=JSON.parse(vRaw);return{visit:{id:v.id,name:v.name,company:v.company,buyer:v.buyer,po:v.po,visitDate:v.visitDate,status:v.status,registeredByName:v.registeredByName||null},response:rRaw?JSON.parse(rRaw):null};}));return json({ok:true,month:mk,qv:QUESTION_VERSION,dims:DIMS,rows:rows.filter(Boolean)});}
+/* ---------- Material code requests (/matcode/) ---------- */
+
+// A department fills the form without logging in; the request only counts once its head of
+// department has approved it with an OTP sent to the HOD's own phone. Approved requests wait in a
+// queue for the job on the Mac mini, which checks SAP for likely duplicates and emails EDP.
+if(path==="/matcode/depts"&&request.method==="GET"){
+  const cfg=await mcConfig(env);
+  return json({ok:true,depts:Object.keys(cfg.depts).filter(id=>cfg.depts[id].hod).map(id=>({id,label:cfg.depts[id].label||id,hod:cfg.depts[id].hod.name,mobile:mcMask(cfg.depts[id].hod.mobile)}))});}
+if(path==="/matcode/requests"&&request.method==="POST"){
+  const b=await request.json();const cfg=await mcConfig(env);const dept=String(b.dept||"");const d=cfg.depts[dept];
+  if(!d||!d.hod)return json({ok:false,error:"This department is not set up for material code requests yet."},400);
+  const requester=mcText(b.requester);if(!requester||requester.length>60)return json({ok:false,error:"Please enter your name."},400);
+  const requesterMobile=String(b.requesterMobile||"").replace(/\D/g,"");if(requesterMobile&&!/^[6-9]\d{9}$/.test(requesterMobile))return json({ok:false,error:"Your mobile number is not valid."},400);
+  const src=Array.isArray(b.lines)?b.lines:[];if(!src.length)return json({ok:false,error:"Add at least one material."},400);
+  if(src.length>MC_MAX_LINES)return json({ok:false,error:"A request can hold at most "+MC_MAX_LINES+" materials."},400);
+  const lines=[];
+  for(let i=0;i<src.length;i++){const line={};
+    for(const f of MC_FIELDS){const v=mcText(src[i]&&src[i][f.k]);
+      if(f.req&&!v)return json({ok:false,error:"Material "+(i+1)+": "+f.label+" is required."},400);
+      if(v.length>f.max)return json({ok:false,error:"Material "+(i+1)+": "+f.label+" is longer than "+f.max+" characters."},400);
+      if(v&&f.re&&!f.re.test(v))return json({ok:false,error:"Material "+(i+1)+": "+f.label+" is not valid."},400);
+      line[f.k]=v;}
+    lines.push(line);}
+  if(!await mcHodLimit(env,d.hod.mobile))return json({ok:false,error:"Too many requests are waiting for this department's approval. Please try again in an hour."},429);
+  const id=randId();
+  const req={id,no:dept.toUpperCase()+"-"+istDate().slice(2).replace(/-/g,"")+"-"+id.slice(0,4).toUpperCase(),dept,deptLabel:d.label||dept,requester,requesterMobile:requesterMobile||null,lines,status:"pending",createdAt:new Date().toISOString(),hod:{name:d.hod.name,mobile:d.hod.mobile}};
+  // Unapproved requests expire on their own after a day.
+  await env.AUTH_KV.put("mcreq:"+id,JSON.stringify(req),{expirationTtl:MC_PENDING_TTL});
+  const r=await otpSend(d.hod.mobile,env,"m:"+id+":");
+  // The request is saved either way; if the SMS failed the page offers Resend.
+  return json({ok:true,otpSent:r.ok,otpError:r.ok?null:r.error,request:await mcView(env,req)});}
+const mcm=path.match(/^\/matcode\/requests\/([a-f0-9]{24})(?:\/([a-z]+))?$/);
+if(mcm){
+  const id=mcm[1];const action=mcm[2]||"";const raw=await env.AUTH_KV.get("mcreq:"+id);
+  if(!raw)return json({ok:false,error:"This request was not found. A request that is not approved within 24 hours is discarded."},404);
+  const req=JSON.parse(raw);
+  // The id is unguessable and is the only credential here: whoever holds the link (the requester,
+  // or the HOD it was forwarded to) may read the request and enter the OTP.
+  if(!action&&request.method==="GET")return json({ok:true,request:await mcView(env,req)});
+  if(action==="sent"&&request.method==="POST"){
+    if(!mcService(request,env))return json({ok:false,error:"Unauthorized"},401);
+    if(req.status!=="approved")return json({ok:false,error:"Request is not waiting to be sent."},409);
+    const b=await request.json();req.status="sent";req.sentAt=new Date().toISOString();req.sentTo=Array.isArray(b.sentTo)?b.sentTo:[];req.dupes=b.dupes||null;req.note=mcText(b.note).slice(0,300)||null;
+    await env.AUTH_KV.put("mcreq:"+id,JSON.stringify(req));await env.AUTH_KV.delete("mcq:"+id);
+    return json({ok:true});}
+  if(req.status!=="pending")return json({ok:false,error:"This request has already been approved."},409);
+  if(action==="attachments"&&request.method==="POST"){
+    const line=parseInt(url.searchParams.get("line")||"",10);if(!(line>=1&&line<=req.lines.length))return json({ok:false,error:"Unknown material line."},400);
+    const type=(request.headers.get("Content-Type")||"").split(";")[0].trim();if(MC_ATT_TYPES.indexOf(type)===-1)return json({ok:false,error:"Attach a PDF, JPG, PNG or Excel file."},400);
+    const name=mcText(url.searchParams.get("name")).replace(/[^\w.\- ()]/g,"_").slice(0,80)||"attachment";
+    const body=await request.arrayBuffer();if(!body.byteLength)return json({ok:false,error:"The file is empty."},400);
+    if(body.byteLength>MC_ATT_MAX)return json({ok:false,error:"The file is larger than 4 MB."},400);
+    await env.AUTH_KV.put("mcatt:"+id+":"+line,body,{expirationTtl:MC_ATT_TTL,metadata:{name,type,size:body.byteLength}});
+    return json({ok:true});}
+  if(action==="resend"&&request.method==="POST"){
+    if(!await mcHodLimit(env,req.hod.mobile))return json({ok:false,error:"Too many OTPs have been sent to this department's head. Please try again in an hour."},429);
+    const r=await otpSend(req.hod.mobile,env,"m:"+id+":");return r.ok?json({ok:true}):json({ok:false,error:r.error},r.status);}
+  if(action==="approve"&&request.method==="POST"){
+    const{otp}=await request.json();if(!otp)return json({ok:false,error:"Enter the OTP."},400);
+    const v=await otpVerify(req.hod.mobile,String(otp),env,"m:"+id+":");if(!v.ok)return json({ok:false,error:v.error},v.status);
+    req.status="approved";req.approvedAt=new Date().toISOString();
+    // Written again without a TTL: an approved request is a permanent record.
+    await env.AUTH_KV.put("mcreq:"+id,JSON.stringify(req));await env.AUTH_KV.put("mcq:"+id,"1");
+    const mk=istDate().slice(0,7);const idxRaw=await env.AUTH_KV.get("mcidx:"+mk);const idx=idxRaw?JSON.parse(idxRaw):[];idx.push(id);await env.AUTH_KV.put("mcidx:"+mk,JSON.stringify(idx));
+    return json({ok:true,request:await mcView(env,req)});}
+  return json({ok:false,error:"Not found"},404);}
+// Mac mini job: approved requests not yet emailed, and who to email them to.
+if(path==="/matcode/queue"&&request.method==="GET"){
+  if(!mcService(request,env))return json({ok:false,error:"Unauthorized"},401);
+  const cfg=await mcConfig(env);const page=await env.AUTH_KV.list({prefix:"mcq:"});
+  const reqs=await Promise.all(page.keys.map(async k=>{const raw=await env.AUTH_KV.get("mcreq:"+k.name.slice(4));return raw?await mcView(env,JSON.parse(raw)):null;}));
+  return json({ok:true,email:cfg.email,requests:reqs.filter(Boolean)});}
+const mca=path.match(/^\/matcode\/attachments\/([a-f0-9]{24})\/(\d{1,2})$/);
+if(mca&&request.method==="GET"){
+  if(!mcService(request,env)&&!await requireAdmin(request,env))return json({ok:false,error:"Unauthorized"},401);
+  const got=await env.AUTH_KV.getWithMetadata("mcatt:"+mca[1]+":"+parseInt(mca[2],10),{type:"arrayBuffer"});
+  if(!got.value)return json({ok:false,error:"Not found"},404);
+  return new Response(got.value,{headers:{"Content-Type":(got.metadata&&got.metadata.type)||"application/octet-stream",...CORS}});}
+// Admin: who approves for each department, and where approved requests are emailed.
+if(path==="/matcode/admin/config"&&request.method==="GET"){if(!await requireAdmin(request,env))return json({ok:false,error:"Unauthorized"},401);return json({ok:true,config:await mcConfig(env)});}
+if(path==="/matcode/admin/config"&&request.method==="POST"){
+  const sess=await requireAdmin(request,env);if(!sess)return json({ok:false,error:"Unauthorized"},401);
+  const b=await request.json();const depts={};
+  for(const id of Object.keys(b.depts||{})){
+    if(!/^[a-z0-9]{2,12}$/.test(id))return json({ok:false,error:"Invalid department id: "+id},400);
+    const d=b.depts[id]||{};const label=mcText(d.label).slice(0,40)||id;let hod=null;
+    if(d.hod&&(d.hod.name||d.hod.mobile)){const name=mcText(d.hod.name);const mobile=String(d.hod.mobile||"").replace(/\D/g,"");
+      if(!name||name.length>60)return json({ok:false,error:label+": enter the head of department's name."},400);
+      if(!/^[6-9]\d{9}$/.test(mobile))return json({ok:false,error:label+": the head of department's mobile number is not valid."},400);
+      hod={name,mobile};}
+    depts[id]={label,hod};}
+  const email=[].concat(b.email||[]).map(e=>String(e).trim().toLowerCase()).filter(Boolean);
+  if(email.some(e=>!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)))return json({ok:false,error:"One of the email addresses is not valid."},400);
+  await env.AUTH_KV.put(MC_CFG_KEY,JSON.stringify({depts,email}));
+  await dirLog(env,sess,"matcode-config",{depts:Object.keys(depts).filter(id=>depts[id].hod),email});
+  return json({ok:true,config:{depts,email}});}
+if(path==="/matcode/admin/requests"&&request.method==="GET"){
+  if(!await requireAdmin(request,env))return json({ok:false,error:"Unauthorized"},401);
+  const mk=url.searchParams.get("month")||istDate().slice(0,7);if(!/^\d{4}-\d{2}$/.test(mk))return json({ok:false,error:"Invalid month"},400);
+  const idxRaw=await env.AUTH_KV.get("mcidx:"+mk);const idx=idxRaw?JSON.parse(idxRaw):[];
+  const rows=await Promise.all(idx.map(async id=>{const raw=await env.AUTH_KV.get("mcreq:"+id);return raw?await mcView(env,JSON.parse(raw)):null;}));
+  return json({ok:true,month:mk,requests:rows.filter(Boolean).reverse()});}
 return json({ok:false,error:"Not found"},404);}};

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sara Textiles - Material Code Request</title>
+<link rel="stylesheet" href="../inspect/style.css?v=20260717">
+<style>
+/* Form-only styling; everything else comes from the shared sheet so this reads as the same software. */
+body{padding:20px 12px}
+.card.wide{max-width:860px;margin:0 auto}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px}
+.grid .full{grid-column:1/-1}
+.line{border:1px solid #e2e8f0;border-radius:14px;padding:18px 18px 20px;margin-bottom:16px;background:#f8fafc}
+.line-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.line-h b{font-size:12px;font-weight:800;color:#6366f1;letter-spacing:1.5px;text-transform:uppercase}
+.line input,.line select{background:#fff}
+.count{float:right;font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:.5px;text-transform:none}
+.count.over{color:#dc2626}
+.opt{font-weight:600;color:#cbd5e1;letter-spacing:.5px;text-transform:none}
+.req{color:#dc2626;font-weight:800}
+input[type=file]{width:100%;font-size:13px;color:#475569;padding:9px 0}
+input.desc{text-transform:uppercase}
+input.desc::placeholder{text-transform:none}
+.note{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:11px 14px;font-size:12px;color:#92400e;line-height:1.5;margin-bottom:18px}
+.box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:18px;font-size:13px;line-height:1.7}
+.scroll{overflow-x:auto;margin-bottom:20px}
+.scroll table{min-width:560px}
+.otp-wrap{max-width:380px;margin:0 auto;text-align:center}
+.done{text-align:center;padding:16px 0}
+.done-tick{width:64px;height:64px;border-radius:50%;background:#f0fdf4;color:#16a34a;font-size:34px;line-height:64px;margin:0 auto 16px;font-weight:800}
+@media(max-width:600px){.grid{grid-template-columns:1fr}.card{padding:26px 18px}}
+</style>
+</head>
+<body>
+<div class="card wide">
+  <div class="brand">
+    <div class="brand-logo-wrap"><img src="../logo-sara-white.png" alt="Sara Textiles Limited"></div>
+    <div class="sub">NEW MATERIAL CODE REQUEST</div>
+  </div>
+
+  <!-- Step 1: the request -->
+  <div class="step" id="stepForm">
+    <div class="grid" style="margin-bottom:20px">
+      <div><label>Department <span class="req">*</span></label><select id="dept" onchange="setDept(this.value)"></select></div>
+      <div><label>Your name <span class="req">*</span></label><input type="text" id="requester" maxlength="60" autocomplete="name" oninput="saveDraft()"></div>
+    </div>
+    <div class="note">The material description can be at most <b>40 characters</b> &mdash; SAP does not accept more. Please check that the material does not already have a code before asking for a new one.</div>
+    <div id="lines"></div>
+    <button class="btn ghost" style="margin-top:0" onclick="addLine()">+ Add another material</button>
+    <button class="btn" id="submitBtn" onclick="submitRequest()">Send for approval</button>
+    <div class="err" id="errForm"></div>
+    <div class="hint" id="hodHint"></div>
+  </div>
+
+  <!-- Step 2: head of department approves with an OTP -->
+  <div class="step" id="stepOtp">
+    <div class="box" id="reqBox"></div>
+    <div class="scroll"><table id="reqTable"></table></div>
+    <div class="otp-wrap">
+      <label>Approval OTP</label>
+      <div class="hint" style="margin:0 0 12px" id="otpHint"></div>
+      <div class="otp-box">
+        <input type="text" inputmode="numeric" maxlength="1" id="o0" oninput="otpInput(0)" onkeydown="otpKey(event,0)">
+        <input type="text" inputmode="numeric" maxlength="1" id="o1" oninput="otpInput(1)" onkeydown="otpKey(event,1)">
+        <input type="text" inputmode="numeric" maxlength="1" id="o2" oninput="otpInput(2)" onkeydown="otpKey(event,2)">
+        <input type="text" inputmode="numeric" maxlength="1" id="o3" oninput="otpInput(3)" onkeydown="otpKey(event,3)">
+        <input type="text" inputmode="numeric" maxlength="1" id="o4" oninput="otpInput(4)" onkeydown="otpKey(event,4)">
+        <input type="text" inputmode="numeric" maxlength="1" id="o5" oninput="otpInput(5)" onkeydown="otpKey(event,5)">
+      </div>
+      <button class="btn" id="approveBtn" onclick="approve()" disabled>Approve request</button>
+      <div class="err" id="errOtp"></div>
+      <div class="ok-msg" id="okOtp"></div>
+      <div><button class="resend" id="resendBtn" onclick="resendOTP()" disabled>Resend OTP (<span id="timer">30</span>s)</button></div>
+      <div style="margin-top:14px"><button class="linkbtn" onclick="copyLink()">Copy approval link</button></div>
+      <div class="hint">The head of department can also open the approval link on their own phone, read the request and enter the OTP there.</div>
+    </div>
+  </div>
+
+  <!-- Step 3: done -->
+  <div class="step" id="stepDone">
+    <div class="done">
+      <div class="done-tick">&#10003;</div>
+      <div style="font-size:18px;font-weight:800;margin-bottom:8px" id="doneTitle"></div>
+      <div style="font-size:13px;color:#64748b;line-height:1.6" id="doneBody"></div>
+      <button class="btn ghost" style="max-width:260px" onclick="startNew()">Raise another request</button>
+    </div>
+  </div>
+
+  <!-- Blocking message -->
+  <div class="step" id="stepMsg">
+    <div class="done">
+      <div style="font-size:16px;font-weight:800;margin-bottom:10px" id="msgTitle"></div>
+      <div style="font-size:13px;color:#64748b;line-height:1.6" id="msgBody"></div>
+      <button class="btn ghost" style="max-width:260px" onclick="startNew()">Start a new request</button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js?v=20261012"></script>
+<script src="depts.js?v=20261012"></script>
+<script>
+const WORKER = window.MATCODE_WORKER, MC = window.MATCODE;
+const OPTIONAL = [["manufacturer","Manufacturer",60],["mfrpn","Manufacturer part no.",40],["equipment","Equipment / functional location",60],["remarks","Remarks",200]];
+const FILE_MAX = 4194304;
+const FILE_TYPES = {pdf:"application/pdf",jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"};
+let live = [], dept = null, lines = [], files = {}, current = null, timerInterval;
+
+function showErr(id,msg){ const e=document.getElementById(id); e.textContent=msg; e.classList.add("show"); }
+function clearErr(id){ document.getElementById(id).classList.remove("show"); }
+function step(n){ document.querySelectorAll(".step").forEach(s=>s.classList.remove("active")); document.getElementById("step"+n).classList.add("active"); window.scrollTo(0,0); }
+function esc(s){ const d=document.createElement("div"); d.textContent = s==null?"":String(s); return d.innerHTML; }
+function msg(title, body){ document.getElementById("msgTitle").textContent=title; document.getElementById("msgBody").textContent=body; step("Msg"); }
+function store(fn){ try { return fn(); } catch(e) { return null; } }
+function deptCfg(id){ return MC.depts.find(d => d.id === id); }
+function blankLine(){ return {description:"",mtart:"",matkl:"",uom:"",plant:MC.plants[0].code,manufacturer:"",mfrpn:"",equipment:"",remarks:""}; }
+
+// A half-filled request survives a reload or an accidental back; files cannot, the browser drops them.
+function saveDraft(){ store(() => localStorage.setItem("mc_draft", JSON.stringify({dept: dept && dept.id, requester: document.getElementById("requester").value, lines}))); }
+function loadDraft(){ return store(() => JSON.parse(localStorage.getItem("mc_draft"))) || {}; }
+
+function options(pairs, value, placeholder){
+  return '<option value="">'+placeholder+'</option>' + pairs.map(p => '<option value="'+esc(p[0])+'"'+(p[0]===value?' selected':'')+'>'+esc(p[0]+" - "+p[1])+'</option>').join("");
+}
+
+function renderLines(){
+  document.getElementById("lines").innerHTML = lines.map((l,i) =>
+    '<div class="line"><div class="line-h"><b>Material '+(i+1)+'</b>'
+    + (lines.length>1 ? '<button class="linkbtn" onclick="removeLine('+i+')">Remove</button>' : '') + '</div>'
+    + '<div class="grid">'
+    + '<div class="full"><label>Material description <span class="req">*</span><span class="count" id="cnt'+i+'"></span></label>'
+    + '<input type="text" class="desc" value="'+esc(l.description)+'" oninput="setDesc('+i+',this)" placeholder="e.g. GREASE EP2"></div>'
+    + '<div><label>Material type <span class="req">*</span></label><select onchange="setField('+i+',\'mtart\',this.value)">'+options(dept.types,l.mtart,"Select type")+'</select></div>'
+    + '<div><label>Material group <span class="req">*</span></label><select onchange="setField('+i+',\'matkl\',this.value)">'+options(dept.groups,l.matkl,"Select group")+'</select></div>'
+    + '<div><label>UOM <span class="req">*</span></label><select onchange="setField('+i+',\'uom\',this.value)">'+options(MC.uoms,l.uom,"Select unit")+'</select></div>'
+    + '<div><label>Plant <span class="req">*</span></label><select onchange="setField('+i+',\'plant\',this.value)">'+options(MC.plants.map(p=>[p.code,p.name]),l.plant,"Select plant")+'</select></div>'
+    + OPTIONAL.map(f => '<div><label>'+f[1]+' <span class="opt">optional</span></label><input type="text" maxlength="'+f[2]+'" value="'+esc(l[f[0]])+'" oninput="setField('+i+',\''+f[0]+'\',this.value)"></div>').join("")
+    + '<div class="full"><label>Attachment <span class="opt">optional &middot; PDF, JPG, PNG or Excel, up to 4 MB'+(files[i]?' &middot; attached: '+esc(files[i].name):'')+'</span></label>'
+    + '<input type="file" accept=".pdf,.jpg,.jpeg,.png,.xlsx" onchange="setFile('+i+',this)"></div>'
+    + '</div></div>').join("");
+  lines.forEach((l,i) => count(i));
+}
+function count(i){
+  const n = lines[i].description.length, el = document.getElementById("cnt"+i);
+  el.textContent = n + " / " + MC.descMax; el.classList.toggle("over", n > MC.descMax);
+}
+function setDesc(i, el){ lines[i].description = el.value.toUpperCase(); count(i); clearErr("errForm"); saveDraft(); }
+function setField(i, k, v){ lines[i][k] = v; clearErr("errForm"); saveDraft(); }
+function setFile(i, el){
+  clearErr("errForm");
+  const f = el.files[0];
+  if (!f) { delete files[i]; return; }
+  const type = FILE_TYPES[f.name.split(".").pop().toLowerCase()];
+  if (!type) { el.value=""; delete files[i]; showErr("errForm","Material "+(i+1)+": attach a PDF, JPG, PNG or Excel (.xlsx) file."); return; }
+  if (f.size > FILE_MAX) { el.value=""; delete files[i]; showErr("errForm","Material "+(i+1)+": the attachment is larger than 4 MB."); return; }
+  files[i] = {file:f, name:f.name, type};
+}
+function addLine(){
+  if (lines.length >= 25) { showErr("errForm","A request can hold at most 25 materials. Send this one and raise another."); return; }
+  // The next material is usually of the same kind, so carry the dropdowns forward.
+  const last = lines[lines.length-1], l = blankLine();
+  if (last) ["mtart","matkl","uom","plant"].forEach(k => l[k] = last[k]);
+  lines.push(l); renderLines(); saveDraft();
+}
+function removeLine(i){
+  lines.splice(i,1);
+  const kept = {}; Object.keys(files).forEach(k => { k=+k; if (k<i) kept[k]=files[k]; else if (k>i) kept[k-1]=files[k]; }); files = kept;
+  renderLines(); saveDraft();
+}
+function setDept(id){
+  dept = deptCfg(id);
+  const hod = live.find(d => d.id === id);
+  document.getElementById("hodHint").textContent = hod ? "Approval is by OTP sent to " + hod.hod + ", head of " + dept.label + "." : "";
+  // Types and groups belong to a department; a line carried over from another one keeps only what is valid here.
+  lines.forEach(l => { if (!dept.types.some(t => t[0]===l.mtart)) l.mtart=""; if (!dept.groups.some(g => g[0]===l.matkl)) l.matkl=""; });
+  renderLines(); saveDraft();
+}
+
+function validate(){
+  if (!document.getElementById("requester").value.trim()) return "Please enter your name.";
+  for (let i=0;i<lines.length;i++) {
+    const l = lines[i], n = "Material "+(i+1)+": ";
+    if (!l.description.trim()) return n+"enter the material description.";
+    if (l.description.trim().length > MC.descMax) return n+"the description is "+l.description.trim().length+" characters. SAP allows "+MC.descMax+".";
+    if (!l.mtart) return n+"select the material type.";
+    if (!l.matkl) return n+"select the material group.";
+    if (!l.uom) return n+"select the UOM.";
+    if (!l.plant) return n+"select the plant.";
+  }
+  return null;
+}
+
+async function submitRequest(){
+  clearErr("errForm");
+  const bad = validate(); if (bad) { showErr("errForm", bad); return; }
+  const btn = document.getElementById("submitBtn");
+  btn.innerHTML = '<span class="loader"></span>Sending...'; btn.disabled = true;
+  const reset = () => { btn.innerHTML = "Send for approval"; btn.disabled = false; };
+  try {
+    const r = await fetch(WORKER+"/matcode/requests", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({dept: dept.id, requester: document.getElementById("requester").value, lines})});
+    const d = await r.json();
+    if (!d.ok) { showErr("errForm", d.error || "Could not send the request."); reset(); return; }
+    const failed = [];
+    for (const k of Object.keys(files)) {
+      const f = files[k], line = (+k)+1;
+      try {
+        const u = await fetch(WORKER+"/matcode/requests/"+d.request.id+"/attachments?line="+line+"&name="+encodeURIComponent(f.name), {method:"POST", headers:{"Content-Type":f.type}, body:f.file});
+        if (!(await u.json()).ok) failed.push(line);
+      } catch(e) { failed.push(line); }
+    }
+    store(() => { sessionStorage.setItem("mc_req", d.request.id); localStorage.removeItem("mc_draft"); });
+    const fresh = await (await fetch(WORKER+"/matcode/requests/"+d.request.id)).json();
+    showRequest(fresh.ok ? fresh.request : d.request);
+    if (!d.otpSent) showErr("errOtp", (d.otpError || "The OTP could not be sent.") + " Use Resend OTP.");
+    else if (failed.length) showErr("errOtp", "The attachment for material " + failed.join(", ") + " could not be uploaded. The request itself is saved; please email that file to EDP separately.");
+    startTimer();
+  } catch(e) { showErr("errForm","Network error - please try again."); }
+  reset();
+}
+
+function showRequest(q){
+  current = q;
+  if (q.status !== "pending") { done(q); return; }
+  document.getElementById("reqBox").innerHTML = 'Request <b>'+esc(q.no)+'</b> &middot; '+esc(q.deptLabel)+'<br>Raised by <b>'+esc(q.requester)+'</b> &middot; '+q.lines.length+' material'+(q.lines.length>1?'s':'')
+    + '<br>Waiting for approval by <b>'+esc(q.hod.name)+'</b>';
+  const att = {}; q.attachments.forEach(a => att[a.line] = a.name);
+  document.getElementById("reqTable").innerHTML = '<tr><th>#</th><th>Description</th><th>Type</th><th>Group</th><th>UOM</th><th>Plant</th><th>Details</th></tr>'
+    + q.lines.map((l,i) => '<tr><td>'+(i+1)+'</td><td><b>'+esc(l.description)+'</b></td><td>'+esc(l.mtart)+'</td><td>'+esc(l.matkl)+'</td><td>'+esc(l.uom)+'</td><td>'+esc(l.plant)+'</td><td class="muted">'
+      + [l.manufacturer, l.mfrpn && "Part no. "+l.mfrpn, l.equipment, l.remarks, att[i+1] && "Attached: "+att[i+1]].filter(Boolean).map(esc).join("<br>")+'</td></tr>').join("");
+  document.getElementById("otpHint").textContent = "Sent to " + q.hod.name + " (" + q.hod.mobile.replace(/X/g,"•") + "). Valid for 10 minutes.";
+  for (let i=0;i<6;i++) document.getElementById("o"+i).value = "";
+  document.getElementById("approveBtn").disabled = true;
+  clearErr("errOtp"); document.getElementById("okOtp").classList.remove("show");
+  step("Otp");
+}
+function done(q){
+  store(() => sessionStorage.removeItem("mc_req"));
+  document.getElementById("doneTitle").textContent = "Request " + q.no + " approved";
+  document.getElementById("doneBody").textContent = "Approved by " + q.hod.name + ". It has been passed to EDP, who will open the material code" + (q.lines.length>1?"s":"") + " in SAP.";
+  step("Done");
+}
+
+function otpInput(i){ const el=document.getElementById("o"+i); el.value=el.value.replace(/\D/g,""); if(el.value&&i<5)document.getElementById("o"+(i+1)).focus(); checkFilled(); }
+function otpKey(e,i){ if(e.key==="Backspace"&&!document.getElementById("o"+i).value&&i>0)document.getElementById("o"+(i-1)).focus(); }
+function readOTP(){ return Array.from({length:6},(_,i)=>document.getElementById("o"+i).value).join(""); }
+function checkFilled(){ document.getElementById("approveBtn").disabled = readOTP().length!==6; }
+
+async function approve(){
+  clearErr("errOtp");
+  const otp = readOTP(); if (otp.length !== 6) return;
+  const btn = document.getElementById("approveBtn");
+  btn.innerHTML='<span class="loader"></span>Approving...'; btn.disabled=true;
+  try {
+    const r = await fetch(WORKER+"/matcode/requests/"+current.id+"/approve", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({otp})});
+    const d = await r.json();
+    if (d.ok) { done(d.request); }
+    else if (r.status === 409) { done(current); }
+    else if (r.status === 404) { msg("Request expired", d.error); }
+    else { showErr("errOtp", d.error || "Incorrect OTP"); }
+  } catch(e) { showErr("errOtp","Network error - please try again."); }
+  btn.innerHTML="Approve request"; checkFilled();
+}
+
+function startTimer(){
+  let t = 30;
+  const btn = document.getElementById("resendBtn");
+  btn.disabled = true; btn.innerHTML = 'Resend OTP (<span id="timer">30</span>s)';
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    t--;
+    const s = document.getElementById("timer"); if (s) s.textContent = t;
+    if (t <= 0) { clearInterval(timerInterval); btn.disabled=false; btn.textContent="Resend OTP"; }
+  }, 1000);
+}
+async function resendOTP(){
+  clearErr("errOtp");
+  const btn = document.getElementById("resendBtn"); btn.disabled = true;
+  try {
+    const r = await fetch(WORKER+"/matcode/requests/"+current.id+"/resend", {method:"POST"});
+    const d = await r.json();
+    if (!d.ok) { showErr("errOtp", d.error || "Failed to resend"); btn.disabled=false; return; }
+    startTimer();
+  } catch(e) { showErr("errOtp","Network error."); btn.disabled=false; }
+}
+function approvalLink(){ return location.origin + location.pathname + "?r=" + current.id; }
+async function copyLink(){
+  const ok = document.getElementById("okOtp");
+  try { await navigator.clipboard.writeText(approvalLink()); ok.textContent = "Approval link copied. Send it to " + current.hod.name + "."; }
+  catch(e) { ok.textContent = approvalLink(); }
+  ok.classList.add("show");
+}
+
+function startNew(){
+  store(() => sessionStorage.removeItem("mc_req"));
+  if (location.search) { location.href = location.pathname; return; }
+  current = null; files = {}; lines = [blankLine()];
+  renderLines(); step("Form");
+}
+
+async function openRequest(id){
+  try {
+    const r = await fetch(WORKER+"/matcode/requests/"+id);
+    const d = await r.json();
+    if (!d.ok) { store(() => sessionStorage.removeItem("mc_req")); return false; }
+    showRequest(d.request);
+    // Opened from the link (the HOD) or after a reload: the OTP went out earlier, so Resend is available at once.
+    const btn = document.getElementById("resendBtn"); btn.disabled = false; btn.textContent = "Resend OTP";
+    return true;
+  } catch(e) { return false; }
+}
+
+(async () => {
+  const linked = new URLSearchParams(location.search).get("r");
+  if (linked) {
+    if (!/^[a-f0-9]{24}$/.test(linked) || !await openRequest(linked)) msg("Request not found", "This approval link is no longer valid. A request that is not approved within 24 hours is discarded.");
+    return;
+  }
+  const resume = store(() => sessionStorage.getItem("mc_req"));
+  try {
+    const d = await (await fetch(WORKER+"/matcode/depts")).json();
+    live = (d.depts || []).filter(x => deptCfg(x.id));
+  } catch(e) { msg("Could not load the form", "Please check your internet connection and reload the page."); return; }
+  if (!live.length) { msg("Not open yet", "No department has been set up for material code requests yet. Please contact EDP."); return; }
+  const draft = loadDraft();
+  document.getElementById("dept").innerHTML = live.map(d => '<option value="'+esc(d.id)+'">'+esc(deptCfg(d.id).label)+'</option>').join("");
+  const want = new URLSearchParams(location.search).get("dept") || draft.dept;
+  const first = live.some(d => d.id === want) ? want : live[0].id;
+  document.getElementById("dept").value = first;
+  document.getElementById("requester").value = draft.requester || "";
+  lines = Array.isArray(draft.lines) && draft.lines.length ? draft.lines.map(l => Object.assign(blankLine(), l)) : [blankLine()];
+  setDept(first);
+  if (resume && await openRequest(resume)) return;
+  step("Form");
+})();
+</script>
+</body>
+</html>
