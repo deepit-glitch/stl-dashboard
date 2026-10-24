@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>STL Employee Phone List</title>
+<title>STL Employee List</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -23,7 +23,7 @@ h1{font-size:20px;font-weight:800}
 .tab.on{background:#6366f1;border-color:#6366f1;color:#fff}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:10px}
 label{font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px}
-input[type=text],input[type=search],textarea{border:1.5px solid #cbd5e1;border-radius:8px;padding:9px 10px;font-size:14px;font-family:inherit;width:100%;background:#fff;color:#0f172a}
+input[type=text],input[type=search],input[type=date],select,textarea{border:1.5px solid #cbd5e1;border-radius:8px;padding:9px 10px;font-size:14px;font-family:inherit;width:100%;background:#fff;color:#0f172a}
 input:focus,textarea:focus{outline:none;border-color:#6366f1}
 textarea{min-height:120px;font-family:ui-monospace,Menlo,monospace;font-size:13px}
 .btn{padding:9px 16px;border-radius:8px;border:none;background:#6366f1;color:#fff;font-weight:700;font-size:13px;cursor:pointer}
@@ -57,7 +57,10 @@ const ALLOWED_ROLES = ["hr", "admin"];   // Nalagarh only: hr_noida is deliberat
 
 const state = { user:"", role:"", demo:false, employees:[], updatedAt:null, tab:"list",
                 search:"", sharedOnly:false, selected:new Set(), preview:null, delPreview:null,
-                busy:false, form:{code:"",name:"",phone:""} };
+                busy:false, deptFilter:"", departments:[], form:blankForm() };
+function blankForm(){ return {code:"",name:"",phone:"",dept:"",email:"",doj:"",dob:""}; }
+const OPTIONAL = ["dept","email","doj","dob"];
+const FIELD_LABEL = {name:"name",phone:"phone",dept:"department",email:"email",doj:"joining date",dob:"birth date"};
 
 /* ── helpers ─────────────────────────────────────────────── */
 function getToken(){ return localStorage.getItem("stl_token"); }
@@ -70,6 +73,31 @@ function normPhone(v){
   if(d.length===12&&d.startsWith("91")) d=d.slice(2); else if(d.length===11&&d.startsWith("0")) d=d.slice(1);
   return /^[6-9]\d{9}$/.test(d)?d:"";
 }
+// Misspellings found in HR's on-roll sheet, mapped to Savior's names.
+const DEPT_ALIASES = {PREPRATORY:"PREPARATORY", PREPRTORYMAINT:"PREPARATORY MAINTINENCE", PREPARATORYMAINTENANCE:"PREPARATORY MAINTINENCE",
+  PRODUCTIONPLANNINGCONT:"PRODUCTION PLANNING CONTROL", PPC:"PRODUCTION PLANNING CONTROL", HR:"HUMAN RESOURCE", IT:"INFORMATION TECHNOLOGY",
+  IMS:"I.M.S", MARKETING:"MARKETTING", WEAVINGMAINTENANCE:"WEAVING MAINTAINANCE", CARTONPACKING:"CARTOON PACKING", QA:"QUALITY ASSURANCE"};
+function deptKey(v){ return String(v||"").toUpperCase().replace(/[^A-Z]/g,""); }
+function normDept(v){
+  if(!String(v||"").trim()) return "";
+  const k=deptKey(v), hit=state.departments.find(d=>deptKey(d)===k);
+  return hit || DEPT_ALIASES[k] || null;      // null = not a department we know
+}
+function normEmail(v){ const e=String(v==null?"":v).trim().toLowerCase(); return !e?"":(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)?e:null); }
+// Dates arrive as dd/mm/yyyy text, yyyy-mm-dd from the date pickers, or Excel day numbers. Stored as yyyy-mm-dd.
+function normDate(v){
+  if(v==null||String(v).trim()==="") return "";
+  let y,m,d; const t=String(v).trim();
+  if(/^\d{4,5}(\.\d+)?$/.test(t)&&+t>10000){ const x=new Date(Date.UTC(1899,11,30)+Math.floor(+t)*86400000); y=x.getUTCFullYear(); m=x.getUTCMonth()+1; d=x.getUTCDate(); }
+  else { let r=t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/); if(r){ y=+r[1]; m=+r[2]; d=+r[3]; }
+         else { r=t.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/); if(!r) return null; d=+r[1]; m=+r[2]; y=+r[3]; if(y<100) y+= y>40?1900:2000; } }
+  const iso=`${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+  const x=new Date(iso+"T00:00:00Z");
+  if(isNaN(x)||x.toISOString().slice(0,10)!==iso) return null;
+  if(iso<"1940-01-01"||iso>new Date(Date.now()+19800000).toISOString().slice(0,10)) return null;
+  return iso;
+}
+function showDate(iso){ return iso ? iso.slice(8,10)+"/"+iso.slice(5,7)+"/"+iso.slice(0,4) : ""; }
 function toast(msg, ok){
   const t=document.createElement("div"); t.className="toast"; t.style.background=ok===false?"#dc2626":"#16a34a"; t.textContent=msg;
   document.body.appendChild(t); setTimeout(()=>t.remove(), 4000);
@@ -84,12 +112,12 @@ async function loadEmployees(){
   const r=await fetch(`${WORKER}/employees`, { headers:{"X-Session-Token":getToken()} });
   const d=await r.json();
   if(!d.ok) throw new Error(d.error||"Could not load the list");
-  state.employees=d.employees; state.updatedAt=d.updatedAt;
+  state.employees=d.employees; state.updatedAt=d.updatedAt; state.departments=d.departments||[];
 }
 async function saveChanges(upsert, del){
   if(state.demo){   // demo mode never touches the Worker
     const m=byCode(); del.forEach(c=>delete m[c]);
-    upsert.forEach(r=>m[r.code]={...r, at:new Date().toISOString(), by:"Demo"});
+    upsert.forEach(r=>{ const rec={...(m[r.code]||{}), ...r, at:new Date().toISOString(), by:"Demo"}; OPTIONAL.forEach(k=>{ if(!rec[k]) delete rec[k]; }); m[r.code]=rec; });
     state.employees=Object.values(m).sort((a,b)=>a.code<b.code?-1:1);
     return { ok:true, added:upsert.length, updated:0, deleted:del.length, unchanged:0, notFound:0 };
   }
@@ -117,26 +145,42 @@ async function apply(upsert, del, after){
 }
 
 /* ── reading pasted text / uploaded files ────────────────── */
-// Accepts a header row (CODE / EMPLOYEE or NAME / CONT NO., PHONE or MOBILE), plain 3 columns
-// (code, name, phone), or HR's 8-column on-roll sheet without its header.
+// Accepts a header row (CODE plus any of NAME / EMPLOYEE, PHONE / MOBILE / CONT NO., DEPARTMENT, EMAIL,
+// DOJ / DATE OF JOINING, DOB / DATE OF BIRTH), plain columns in the order code, name, phone, department,
+// email, date of joining, date of birth (3 to 7 of them), or HR's 8-column on-roll sheet without its header.
+// Only the columns present are changed: a sheet of code + department fills in departments alone.
+const HEADERS = {
+  code:k=>["CODE","EMPLOYEECODE","EMPCODE","PAYCODE","EMPNO","EMPLOYEENO","EMPLOYEENUMBER"].includes(k),
+  name:k=>["EMPLOYEE","NAME","EMPLOYEENAME","EMPNAME"].includes(k),
+  phone:k=>k.startsWith("CONT")||k.startsWith("PHONE")||k.startsWith("MOBILE"),
+  dept:k=>k.startsWith("DEPARTMENT")||k==="DEPT",
+  email:k=>k.startsWith("EMAIL")||k.startsWith("MAIL"),
+  doj:k=>k==="DOJ"||k.startsWith("DATEOFJOIN")||k.startsWith("JOININGDATE")||k==="JOINING",
+  dob:k=>k==="DOB"||k.startsWith("DATEOFBIRTH")||k.startsWith("BIRTHDATE")||k==="BIRTHDAY",
+};
+const ORDER = ["code","name","phone","dept","email","doj","dob"];
 function rowsToRecords(rows){
   const out=[]; let cols=null;
   rows.forEach(cells=>{
     cells=cells.map(c=>c==null?"":String(c).trim());
     if(!cells.some(Boolean)) return;
     const keys=cells.map(c=>c.toUpperCase().replace(/[^A-Z]/g,""));
-    const ci=keys.findIndex(k=>k==="CODE"||k==="EMPLOYEECODE"||k==="EMPCODE"||k==="PAYCODE");
-    if(ci>=0){
-      const ni=keys.findIndex(k=>k==="EMPLOYEE"||k==="NAME"||k==="EMPLOYEENAME"||k==="EMPNAME");
-      const pi=keys.findIndex(k=>k.startsWith("CONT")||k.startsWith("PHONE")||k.startsWith("MOBILE"));
-      cols = (ni>=0&&pi>=0) ? {code:ci,name:ni,phone:pi} : null;
+    if(keys.some(HEADERS.code)){
+      cols={};
+      Object.keys(HEADERS).forEach(f=>{ const i=keys.findIndex(HEADERS[f]); if(i>=0) cols[f]=i; });
+      if(cols.name===undefined&&cols.phone===undefined&&Object.keys(cols).length<2) cols=null;
       return;
     }
     let c=cols;
-    if(!c){ if(cells.length===3) c={code:0,name:1,phone:2}; else if(cells.length>=7) c={code:1,name:3,phone:6}; }
-    if(!c){ out.push({raw:cells.join(" | "), error:"Expected 3 columns: code, name, phone"}); return; }
-    if(/^\d*$/.test(cells[c.name]||"")) return;   // title rows and the column-number row have no name
-    out.push({code:cells[c.code], name:cells[c.name], phone:cells[c.phone]});
+    if(!c){
+      if(cells.length>=3&&cells.length<=7){ c={}; ORDER.slice(0,cells.length).forEach((f,i)=>c[f]=i); }
+      else if(cells.length>=8) c={code:1,name:3,dept:4,phone:6,doj:7};
+    }
+    if(!c){ out.push({raw:cells.join(" | "), error:"Expected columns: code, name, phone (then department, email, joining date, birth date)"}); return; }
+    if(c.name!==undefined&&/^\d*$/.test(cells[c.name]||"")) return;   // title rows and the column-number row have no name
+    const rec={};
+    Object.keys(c).forEach(f=>{ const v=cells[c[f]]; if(f==="code"||(v!==undefined&&v!=="")) rec[f]=v; });
+    out.push(rec);
   });
   return out;
 }
@@ -147,19 +191,33 @@ function parseText(text){
 function buildPreview(records){
   const cur=byCode(); const seen={}; const rows=[];
   records.forEach(r=>{
-    if(r.error){ rows.push({status:"bad", reason:r.error, code:"", name:r.raw||"", phone:""}); return; }
-    const code=normCode(r.code), name=normName(r.name), phone=normPhone(r.phone);
-    const row={code:code||String(r.code||""), name, phone:phone||String(r.phone||"")};
-    if(!code) row.status="bad", row.reason="Invalid employee code";
-    else if(seen[code]) row.status="bad", row.reason="Code appears twice in this upload";
-    else if(!name) row.status="bad", row.reason="Name is missing";
-    else if(!phone) row.status="bad", row.reason="Not a 10-digit mobile number";
+    if(r.error){ rows.push({status:"bad", reason:r.error, code:"", name:r.raw||"", phone:"", f:{}}); return; }
+    const code=normCode(r.code); const c=code&&cur[code]; const f={}; let reason="";
+    if(r.name!==undefined) f.name=normName(r.name);
+    if(r.phone!==undefined) f.phone=normPhone(r.phone);
+    if(r.dept!==undefined) f.dept=normDept(r.dept);
+    if(r.email!==undefined) f.email=normEmail(r.email);
+    if(r.doj!==undefined) f.doj=normDate(r.doj);
+    if(r.dob!==undefined) f.dob=normDate(r.dob);
+    if(!code) reason="Invalid employee code";
+    else if(seen[code]) reason="Code appears twice in this upload";
+    else if((r.name!==undefined||!c)&&!f.name) reason="Name is missing";
+    else if((r.phone!==undefined||!c)&&!f.phone) reason="Not a 10-digit mobile number";
+    else if(f.dept===null) reason="Unknown department: "+r.dept;
+    else if(f.email===null) reason="Invalid email address";
+    else if(f.doj===null) reason="Joining date not understood: "+r.doj;
+    else if(f.dob===null) reason="Birth date not understood: "+r.dob;
+    else { const dob=f.dob!==undefined?f.dob:c&&c.dob, doj=f.doj!==undefined?f.doj:c&&c.doj;
+           if(dob&&doj&&dob>=doj) reason="Birth date is not before the joining date"; }
+    const row={code:code||String(r.code||""), f,
+               name:f.name!==undefined?f.name:(c?c.name:""), phone:f.phone||String(r.phone||(c?c.phone:""))};
+    if(reason){ row.status="bad"; row.reason=reason; }
     else {
       seen[code]=true;
-      const c=cur[code];
+      const changed=Object.keys(f).filter(k=>(c?(c[k]||""):"")!==(f[k]||""));
       if(!c) row.status="new";
-      else if(c.name===name&&c.phone===phone) row.status="same";
-      else { row.status="chg"; row.was=(c.phone!==phone?c.phone:"")+(c.name!==name?" "+c.name:""); }
+      else if(!changed.length) row.status="same";
+      else { row.status="chg"; row.was=changed.map(k=>`${FIELD_LABEL[k]} was ${k==="doj"||k==="dob"?showDate(c[k])||"blank":c[k]||"blank"}`).join("; "); }
     }
     rows.push(row);
   });
@@ -191,20 +249,21 @@ function previewFile(input){
   reader.readAsArrayBuffer(file);
 }
 function applyPreview(){
-  const rows=state.preview.filter(r=>r.status==="new"||r.status==="chg").map(r=>({code:r.code,name:r.name,phone:r.phone}));
+  const rows=state.preview.filter(r=>r.status==="new"||r.status==="chg").map(r=>({code:r.code,...r.f}));
   apply(rows, [], ()=>{ state.preview=null; state.tab="list"; });
 }
 function saveForm(){
-  const f={ code:document.getElementById("f-code").value, name:document.getElementById("f-name").value, phone:document.getElementById("f-phone").value };
+  const g=id=>document.getElementById(id).value;
+  const f={ code:g("f-code"), name:g("f-name"), phone:g("f-phone"), dept:g("f-dept"), email:g("f-email"), doj:g("f-doj"), dob:g("f-dob") };
   state.form=f;
-  const row=buildPreview([f])[0];
+  const row=buildPreview([f])[0];   // the form sends every field, so a blank field clears it
   if(row.status==="bad"){ toast(row.reason, false); return; }
   if(row.status==="same"){ toast("Nothing changed"); return; }
-  apply([{code:row.code,name:row.name,phone:row.phone}], [], ()=>{ state.form={code:"",name:"",phone:""}; });
+  apply([{code:row.code,...row.f}], [], ()=>{ state.form=blankForm(); });
 }
 function editRow(code){
   const e=byCode()[code]; if(!e) return;
-  state.form={code:e.code,name:e.name,phone:e.phone}; state.tab="list"; render();
+  state.form={...blankForm(), ...e}; state.tab="list"; render();
   document.getElementById("f-phone").focus(); window.scrollTo({top:0,behavior:"smooth"});
 }
 function toggleSel(code, on){ on?state.selected.add(code):state.selected.delete(code); renderSelBar(); }
@@ -226,13 +285,17 @@ function applyDelete(){
   apply([], codes, ()=>{ state.delPreview=null; state.tab="list"; });
 }
 function exportCsv(){
-  const lines=["Code,Name,Phone"].concat(state.employees.map(e=>`${e.code},"${e.name.replace(/"/g,'""')}",${e.phone}`));
+  const q=v=>`"${String(v||"").replace(/"/g,'""')}"`;
+  const lines=["Code,Name,Phone,Department,Email,Date of joining,Date of birth"].concat(state.employees.map(e=>
+    [e.code,q(e.name),e.phone,q(e.dept),q(e.email),showDate(e.doj),showDate(e.dob)].join(",")));
   const a=document.createElement("a");
   a.href=URL.createObjectURL(new Blob([lines.join("\n")], {type:"text/csv"})); a.download="stl_employee_phones.csv"; a.click();
 }
 function visible(){
   const q=state.search.trim().toUpperCase(); const shared=sharedPhones();
-  return state.employees.filter(e=>(!q||e.code.includes(q)||e.name.toUpperCase().includes(q)||e.phone.includes(q))&&(!state.sharedOnly||shared[e.phone]>1));
+  return state.employees.filter(e=>(!q||e.code.includes(q)||e.name.toUpperCase().includes(q)||e.phone.includes(q)||(e.email||"").toUpperCase().includes(q))
+    &&(!state.sharedOnly||shared[e.phone]>1)
+    &&(!state.deptFilter||(state.deptFilter==="-"?!e.dept:e.dept===state.deptFilter)));
 }
 function onSearch(v){ state.search=v; renderTable(); }
 
@@ -250,8 +313,10 @@ function renderTable(){
       <td><input type="checkbox" ${state.selected.has(e.code)?"checked":""} onchange="toggleSel('${esc(e.code)}',this.checked)"></td>
       <td class="mono">${esc(e.code)}</td><td>${esc(e.name)}</td>
       <td class="mono">${esc(e.phone)} ${shared[e.phone]>1?'<span class="pill p-shared">shared</span>':""}</td>
+      <td>${esc(e.dept||"")}</td><td>${esc(e.email||"")}</td>
+      <td class="mono">${showDate(e.doj)}</td><td class="mono">${showDate(e.dob)}</td>
       <td><button class="link" onclick="editRow('${esc(e.code)}')">Edit</button></td></tr>`).join("")
-    : `<tr><td colspan="5" style="text-align:center;color:#64748b;padding:24px">${state.employees.length?"No match":"No employees yet. Use Bulk add / update to upload the list."}</td></tr>`;
+    : `<tr><td colspan="9" style="text-align:center;color:#64748b;padding:24px">${state.employees.length?"No match":"No employees yet. Use Bulk add / update to upload the list."}</td></tr>`;
 }
 function pill(s){ return {new:'<span class="pill p-new">New</span>',chg:'<span class="pill p-chg">Changed</span>',same:'<span class="pill p-same">No change</span>',bad:'<span class="pill p-bad">Invalid</span>'}[s]; }
 
@@ -265,27 +330,34 @@ function render(){
     body=`
     <div class="card">
       <h2>Add or change one employee</h2>
-      <div class="hint">Enter an existing code to change that employee's name or number.</div>
+      <div class="hint">Enter an existing code to change that employee's details. Code, name and phone are required; a blank optional field is cleared.</div>
       <div class="row">
         <div style="width:130px"><label>Employee code</label><input type="text" id="f-code" value="${esc(state.form.code)}" autocomplete="off"></div>
         <div class="grow"><label>Employee name</label><input type="text" id="f-name" value="${esc(state.form.name)}" autocomplete="off"></div>
         <div style="width:170px"><label>Phone number</label><input type="text" id="f-phone" value="${esc(state.form.phone)}" inputmode="numeric" autocomplete="off"></div>
+      </div>
+      <div class="row">
+        <div style="width:240px"><label>Department</label><select id="f-dept"><option value="">Not set</option>${state.departments.map(d=>`<option ${state.form.dept===d?"selected":""}>${esc(d)}</option>`).join("")}</select></div>
+        <div class="grow"><label>Email</label><input type="text" id="f-email" value="${esc(state.form.email||"")}" inputmode="email" autocomplete="off"></div>
+        <div style="width:160px"><label>Date of joining</label><input type="date" id="f-doj" value="${esc(state.form.doj||"")}"></div>
+        <div style="width:160px"><label>Date of birth</label><input type="date" id="f-dob" value="${esc(state.form.dob||"")}"></div>
         <button class="btn" onclick="saveForm()" ${dis}>Save</button>
       </div>
     </div>
     <div class="card">
       <div class="row" style="margin-top:0">
-        <div class="grow"><input type="search" placeholder="Search code, name or number" value="${esc(state.search)}" oninput="onSearch(this.value)"></div>
+        <div class="grow"><input type="search" placeholder="Search code, name, number or email" value="${esc(state.search)}" oninput="onSearch(this.value)"></div>
+        <select style="width:220px" onchange="state.deptFilter=this.value;renderTable()"><option value="">All departments</option><option value="-" ${state.deptFilter==="-"?"selected":""}>No department set</option>${state.departments.map(d=>`<option ${state.deptFilter===d?"selected":""}>${esc(d)}</option>`).join("")}</select>
         <label style="margin:0;text-transform:none;font-size:13px;font-weight:600;display:flex;gap:6px;align-items:center">
           <input type="checkbox" ${state.sharedOnly?"checked":""} onchange="state.sharedOnly=this.checked;renderTable()"> Shared numbers only (${nShared})</label>
         <span id="selbar"></span>
         <button class="btn sec" onclick="exportCsv()">Download list</button>
       </div>
       <div class="hint" style="margin-top:8px"><span id="shown"></span>. A number marked "shared" belongs to more than one employee; absence messages are not sent to shared numbers.</div>
-      <table>
-        <thead><tr><th style="width:34px"><input type="checkbox" onchange="toggleAll(this.checked)" title="Select all shown"></th><th>Code</th><th>Name</th><th>Phone</th><th></th></tr></thead>
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th style="width:34px"><input type="checkbox" onchange="toggleAll(this.checked)" title="Select all shown"></th><th>Code</th><th>Name</th><th>Phone</th><th>Department</th><th>Email</th><th>Joined</th><th>Born</th><th></th></tr></thead>
         <tbody id="tbl"></tbody>
-      </table>
+      </table></div>
     </div>`;
   }
 
@@ -298,18 +370,22 @@ function render(){
         <div class="hint">${nNew} new, ${nChg} changed, ${nSame} with no change, ${nBad} invalid. Invalid rows are skipped; nothing is saved until you press the button.</div>
         <div class="row"><button class="btn" onclick="applyPreview()" ${(nNew+nChg)&&!state.busy?"":"disabled"}>Save ${nNew+nChg} record${nNew+nChg===1?"":"s"}</button>
           <button class="btn sec" onclick="state.preview=null;render()">Cancel</button></div>
-        <div class="scroll"><table><thead><tr><th>Result</th><th>Code</th><th>Name</th><th>Phone</th><th>Note</th></tr></thead><tbody>
-        ${p.filter(r=>r.status!=="same").slice(0,1500).map(r=>`<tr><td>${pill(r.status)}</td><td class="mono">${esc(r.code)}</td><td>${esc(r.name)}</td><td class="mono">${esc(r.phone)}</td><td class="hint">${esc(r.reason||(r.was?"was "+r.was.trim():""))}</td></tr>`).join("")}
+        <div class="scroll"><table><thead><tr><th>Result</th><th>Code</th><th>Name</th><th>Phone</th><th>Department</th><th>Email</th><th>Joined</th><th>Born</th><th>Note</th></tr></thead><tbody>
+        ${p.filter(r=>r.status!=="same").slice(0,1500).map(r=>`<tr><td>${pill(r.status)}</td><td class="mono">${esc(r.code)}</td><td>${esc(r.name)}</td><td class="mono">${esc(r.phone)}</td>
+          <td>${esc(r.f.dept||"")}</td><td>${esc(r.f.email||"")}</td><td class="mono">${showDate(r.f.doj)}</td><td class="mono">${showDate(r.f.dob)}</td>
+          <td class="hint">${esc(r.reason||r.was||"")}</td></tr>`).join("")}
         </tbody></table></div></div>`;
     }
     body=`
     <div class="card">
       <h2>Bulk add / update</h2>
-      <div class="hint">Upload the on-roll contact list (Excel or CSV), or paste rows copied from Excel with three columns: code, name, phone.
-        Codes already in the list are updated; new codes are added. Nobody is deleted by an upload.</div>
+      <div class="hint">Upload an Excel or CSV file with a header row, or paste rows copied from Excel in this column order:
+        code, name, phone, department, email, date of joining, date of birth (you can stop after phone, or after any later column).
+        Columns that are not in the file are left as they are, so a sheet with only CODE and DEPARTMENT fills in departments without touching anything else.
+        Dates can be dd/mm/yyyy. Codes already in the list are updated; new codes are added. Nobody is deleted by an upload.</div>
       <div class="row"><div><label>Upload a file</label><input type="file" accept=".xlsx,.xls,.csv" onchange="previewFile(this)"></div></div>
       <div style="margin-top:14px"><label>Or paste rows</label>
-        <textarea id="paste" placeholder="17431&#9;PUSHPA GAUNIYA&#9;98XXXXXXXX"></textarea></div>
+        <textarea id="paste" placeholder="17431&#9;PUSHPA GAUNIYA&#9;98XXXXXXXX&#9;BATHROBE&#9;&#9;12/03/2024&#9;05/08/1996"></textarea></div>
       <div class="row"><button class="btn" onclick="previewPaste()">Check pasted rows</button></div>
     </div>${prev}`;
   }
@@ -340,8 +416,8 @@ function render(){
     <div class="hdr"><div class="brand">STL DASHBOARDS</div>
       <div class="hdr-r">${esc(state.user)}<a class="hbtn" href="manpower.html">Manpower</a><button class="hbtn" onclick="logout()">Logout</button></div></div>
     <div class="wrap">
-      <h1>Employee phone list</h1>
-      <div class="sub">Nalagarh. ${state.employees.length} employees${state.updatedAt?" · last changed "+new Date(state.updatedAt).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):""}. Used to send absence messages on WhatsApp.</div>
+      <h1>Employee list</h1>
+      <div class="sub">Nalagarh. ${state.employees.length} employees, ${state.employees.filter(e=>e.dept).length} with a department${state.updatedAt?" · last changed "+new Date(state.updatedAt).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):""}. Used to send absence messages on WhatsApp.</div>
       <div class="tabs">
         <button class="tab ${state.tab==="list"?"on":""}" onclick="setTab('list')">List</button>
         <button class="tab ${state.tab==="bulk"?"on":""}" onclick="setTab('bulk')">Bulk add / update</button>
@@ -358,7 +434,10 @@ const DEMO_EMPLOYEES = [
   ["D1001","ASHA DEVI","9000000101"],["D1002","RAKESH KUMAR","9000000102"],["D1003","SUNITA RANI","9000000103"],
   ["D1004","MOHAN LAL","9000000104"],["D1005","POOJA SHARMA","9000000105"],["D1006","VIJAY SINGH","9000000106"],
   ["D1007","KIRAN BALA","9000000107"],["D1008","SURESH CHAND","9000000107"],["D1009","NEHA THAKUR","9000000109"],
-  ["D1010","AMIT VERMA","9000000110"]].map(r=>({code:r[0],name:r[1],phone:r[2]}));
+  ["D1010","AMIT VERMA","9000000110"]].map((r,i)=>({code:r[0],name:r[1],phone:r[2],
+    ...(i%3!==2?{dept:["WEAVING","FINISHING","QUALITY ASSURANCE"][i%3], doj:`20${15+i}-0${1+i%9}-1${i%9}`, dob:`19${80+i}-0${1+(i*2)%9}-2${i%8}`}:{}),
+    ...(i===4?{email:"pooja.sharma@example.com"}:{})}));
+const DEMO_DEPTS = ["ADMINISTRATION","BATHROBE","ENGINEERING","FINISHING","QUALITY ASSURANCE","WEAVING"];
 
 async function init(){
   // Demo mode bypass — skip the Worker entirely (parity with the other pages). On localhost,
@@ -367,7 +446,7 @@ async function init(){
   const urlDemo = local && new URLSearchParams(location.search).get("demo")==="1";
   if(urlDemo || (localStorage.getItem("stl_demo")==="true" && getToken()==="demo")){
     state.demo=true; state.user=urlDemo?"Demo HR":(localStorage.getItem("stl_name")||"Demo User"); state.role="hr";
-    state.employees=DEMO_EMPLOYEES.slice();
+    state.employees=DEMO_EMPLOYEES.slice(); state.departments=DEMO_DEPTS;
     render(); return;
   }
   const token=getToken();

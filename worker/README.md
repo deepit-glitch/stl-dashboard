@@ -56,7 +56,7 @@ One KV namespace, `STL_AUTH`, bound as `AUTH_KV`. Everything is prefix-keyed:
 | `openvisit:{mobile}` | visit id with an open survey — TTL 72h |
 | `response:{visitId}` | `{ratings, comment, result, qv, submittedAt}` |
 | `visitidx:{YYYY-MM}` | list of visit ids in a month (report reads one key) |
-| `employees:nalagarh` | `{updatedAt, list:{code:{name, phone, at, by}}}` — the whole phone directory in one value |
+| `employees:nalagarh` | `{updatedAt, list:{code:{name, phone, dept?, email?, doj?, dob?, at, by}}}` — the whole employee list in one value; dates `YYYY-MM-DD`, `dept` one of `EMP_DEPTS` (Savior TOS spellings) |
 | `empbak:{ISO time}` | previous `employees:nalagarh`, written before every change — TTL 30 days |
 
 OTP keys are namespaced by flow: staff use `otp:{mobile}`, inspectors `otp:i:{mobile}` (same for
@@ -172,9 +172,9 @@ HANA) and emails EDP the request as Excel with the duplicates as an advisory.
 | Endpoint | Who |
 |---|---|
 | `GET /employees` | hr, admin — or `X-Service-Token` matching the `EMPLOYEES_READ_TOKEN` secret |
-| `POST /employees/bulk` `{upsert:[{code,name,phone}], delete:[code]}` | hr, admin |
+| `POST /employees/bulk` `{upsert:[{code,name,phone,dept,email,doj,dob}], delete:[code]}` | hr, admin |
 
-Nalagarh only, so `hr_noida` is deliberately excluded. The service token is read-only and exists
+Nalagarh only, so `hr_noida` is deliberately excluded. In an upsert row only the fields present are changed (`""` clears an optional one); `name` and `phone` are required only for a new code. `GET` also returns `departments`, the list the page offers. The service token is read-only and exists
 for the absence-alert job on the Mac mini (`~/stl-absence-alerts`), which has no OTP session.
 To undo a bad bulk change, copy the newest `empbak:` value back over `employees:nalagarh`.
 

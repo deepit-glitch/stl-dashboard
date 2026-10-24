@@ -12,6 +12,12 @@ const EMP_KEY = "employees:nalagarh";
 const EMP_ROLES = ["hr","admin"];
 const EMP_MAX_BATCH = 5000;
 const EMP_BACKUP_TTL = 2592000;
+const EMP_OPTIONAL = ["dept","email","doj","dob"];
+// Department names exactly as Savior TOS spells them, so a record lines up with the attendance report.
+const EMP_DEPTS = ["ADMINISTRATION","BATHROBE","CARTOON PACKING","COMMERCIAL","DESIGNING","ENGINEERING","FABRIC DYEING",
+  "FINISHING","GODOWN","GREIGH FOLDING","HUMAN RESOURCE","I.M.S","INFORMATION TECHNOLOGY","KNITTING","LAB","MACHINE LINE",
+  "MARKETTING","NEW PRODUCT DEVELOPMENT QI","OPERATION","PREPARATORY","PREPARATORY MAINTINENCE","PRODUCTION PLANNING CONTROL",
+  "QUALITY ASSURANCE","STORE","WEAVING","WEAVING MAINTAINANCE","WINDING","YARN DYEING"];
 const CORS = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"GET,POST,DELETE,OPTIONS","Access-Control-Allow-Headers":"Content-Type,X-Session-Token"};
 const ROLE_DEPT = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality",rsb:"RSB",hr:"HR",hr_noida:"Noida Finishing"};
 const DIR_LISTS_KEY = "comms:lists";
@@ -172,31 +178,46 @@ if(path==="/employees"&&request.method==="GET"){
   const allowed=(svc&&env.EMPLOYEES_READ_TOKEN&&svc===env.EMPLOYEES_READ_TOKEN)||await requireStaff(request,env,EMP_ROLES);
   if(!allowed)return json({ok:false,error:"Unauthorized"},401);
   const raw=await env.AUTH_KV.get(EMP_KEY);const dir=raw?JSON.parse(raw):{updatedAt:null,list:{}};
-  return json({ok:true,updatedAt:dir.updatedAt,employees:Object.keys(dir.list).sort().map(c=>({code:c,...dir.list[c]}))});}
+  return json({ok:true,updatedAt:dir.updatedAt,departments:EMP_DEPTS,employees:Object.keys(dir.list).sort().map(c=>({code:c,...dir.list[c]}))});}
 // Add, modify and delete in one call. Any invalid row rejects the whole batch, so a half-applied upload cannot happen.
 if(path==="/employees/bulk"&&request.method==="POST"){
   const sess=await requireStaff(request,env,EMP_ROLES);if(!sess)return json({ok:false,error:"Unauthorized"},401);
   const b=await request.json();const upsert=Array.isArray(b.upsert)?b.upsert:[];const del=Array.isArray(b.delete)?b.delete:[];
   if(!upsert.length&&!del.length)return json({ok:false,error:"Nothing to save."},400);
   if(upsert.length+del.length>EMP_MAX_BATCH)return json({ok:false,error:"Too many rows in one request."},400);
-  const errors=[];const rows=[];const seen={};
-  upsert.forEach((r,i)=>{const code=empCode(r&&r.code);const name=String((r&&r.name)||"").replace(/\s+/g," ").trim();const phone=String((r&&r.phone)||"").trim();
-    if(!code)errors.push({row:i+1,error:"Invalid employee code"});
-    else if(seen[code])errors.push({row:i+1,code,error:"Employee code appears twice"});
-    else if(!name||name.length>80)errors.push({row:i+1,code,error:"Name is missing or too long"});
-    else if(!/^[6-9]\d{9}$/.test(phone))errors.push({row:i+1,code,error:"Phone must be a 10-digit mobile number"});
-    else{seen[code]=true;rows.push({code,name,phone});}});
+  // name and phone are required for a new employee; every other field, and name/phone on an existing one,
+  // is only changed when the row carries it ("" clears an optional field). So a sheet of code + department
+  // fills in departments without touching anyone's phone.
+  const raw=await env.AUTH_KV.get(EMP_KEY);const dir=raw?JSON.parse(raw):{updatedAt:null,list:{}};
+  const errors=[];const rows=[];const seen={};const today=istDate();
+  upsert.forEach((r,i)=>{r=r||{};const code=empCode(r.code);const has=k=>r[k]!==undefined&&r[k]!==null;const str=k=>String(r[k]).replace(/\s+/g," ").trim();
+    const err=e=>errors.push({row:i+1,code:code||undefined,error:e});
+    if(!code)return err("Invalid employee code");
+    if(seen[code])return err("Employee code appears twice");
+    const cur=dir.list[code];const f={};
+    if(has("name")||!cur){const v=has("name")?str("name"):"";if(!v||v.length>80)return err("Name is missing or too long");f.name=v;}
+    if(has("phone")||!cur){const v=has("phone")?str("phone"):"";if(!/^[6-9]\d{9}$/.test(v))return err("Phone must be a 10-digit mobile number");f.phone=v;}
+    if(has("dept")){const v=str("dept").toUpperCase();if(v&&EMP_DEPTS.indexOf(v)===-1)return err("Unknown department: "+v);f.dept=v;}
+    if(has("email")){const v=str("email").toLowerCase();if(v&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v))return err("Invalid email address");f.email=v;}
+    for(const k of ["doj","dob"]){if(!has(k))continue;const v=str(k);
+      if(v&&!(/^\d{4}-\d{2}-\d{2}$/.test(v)&&!isNaN(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v))return err((k==="doj"?"Date of joining":"Date of birth")+" must be a real date");
+      if(v&&(v>today||v<"1940-01-01"))return err((k==="doj"?"Date of joining":"Date of birth")+" is out of range");f[k]=v;}
+    const dob=f.dob!==undefined?f.dob:cur&&cur.dob;const doj=f.doj!==undefined?f.doj:cur&&cur.doj;
+    if(dob&&doj&&dob>=doj)return err("Date of birth must be before the date of joining");
+    seen[code]=true;rows.push({code,f});});
   const delCodes=del.map(empCode);if(delCodes.some(c=>!c))errors.push({error:"Invalid employee code in delete list"});
   if(errors.length)return json({ok:false,error:"Some rows are invalid. Nothing was saved.",errors:errors.slice(0,50)},400);
-  const raw=await env.AUTH_KV.get(EMP_KEY);const dir=raw?JSON.parse(raw):{updatedAt:null,list:{}};const now=new Date().toISOString();
+  const now=new Date().toISOString();
   // Keep the previous version for 30 days: a mistaken bulk delete is otherwise unrecoverable.
   if(raw)await env.AUTH_KV.put("empbak:"+now,raw,{expirationTtl:EMP_BACKUP_TTL});
   const out={added:0,updated:0,unchanged:0,deleted:0,notFound:0};
   for(const c of delCodes){if(dir.list[c]){delete dir.list[c];out.deleted++;}else out.notFound++;}
   for(const r of rows){const cur=dir.list[r.code];
-    if(cur&&cur.name===r.name&&cur.phone===r.phone){out.unchanged++;continue;}
+    if(cur&&Object.keys(r.f).every(k=>(cur[k]||"")===r.f[k])){out.unchanged++;continue;}
     if(cur)out.updated++;else out.added++;
-    dir.list[r.code]={name:r.name,phone:r.phone,at:now,by:sess.name||sess.mobile};}
+    const rec={...(cur||{}),...r.f,at:now,by:sess.name||sess.mobile};
+    for(const k of EMP_OPTIONAL)if(!rec[k])delete rec[k];
+    dir.list[r.code]=rec;}
   dir.updatedAt=now;await env.AUTH_KV.put(EMP_KEY,JSON.stringify(dir));
   return json({ok:true,...out,total:Object.keys(dir.list).length});}
 
