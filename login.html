@@ -151,7 +151,8 @@ async function verifyOTP() {
     localStorage.setItem("stl_dept", data.dept || "");
     clearInterval(timerInterval);
     // Redirect based on role
-    if (data.role === "admin") { window.location.href = "admin.html"; }
+    if (data.role === "web_range" || data.role === "web_shows") { window.location.href = "https://saratextiles.com/admin"; }
+    else if (data.role === "admin") { window.location.href = "admin.html"; }
     else if (data.role === "management") { window.location.href = "daily.html"; }
     else if (data.role === "hr" || data.role === "hr_noida") { window.location.href = "manpower.html"; }
     else { window.location.href = "entry.html"; }
@@ -215,7 +216,8 @@ function clearTestData() {
       if (resp.ok) {
         const d = await resp.json();
         if (d.ok) {
-          if (d.role === "admin") window.location.href = "admin.html";
+          if (d.role === "web_range" || d.role === "web_shows") window.location.href = "https://saratextiles.com/admin";
+          else if (d.role === "admin") window.location.href = "admin.html";
           else if (d.role === "management") window.location.href = "daily.html";
           else if (d.role === "hr" || d.role === "hr_noida") window.location.href = "manpower.html";
           else window.location.href = "entry.html";

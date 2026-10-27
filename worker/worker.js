@@ -32,7 +32,11 @@ const MC_MAX_LINES = 25;
 const MC_HOD_MAX_PER_HOUR = 15;
 // One line of a request. Mirrors the columns of the department's Excel format; the lengths are SAP's.
 const MC_FIELDS = [{k:"description",label:"Material description",max:40,req:true},{k:"mtart",label:"Material type",max:4,req:true,re:/^[A-Z0-9]+$/},{k:"matkl",label:"Material group",max:9,req:true,re:/^[A-Z0-9]+$/},{k:"uom",label:"UOM",max:3,req:true,re:/^[A-Z0-9]+$/},{k:"plant",label:"Plant",max:4,req:true,re:/^\d{4}$/},{k:"manufacturer",label:"Manufacturer",max:60},{k:"mfrpn",label:"Manufacturer part no.",max:40},{k:"equipment",label:"Equipment / functional location",max:60},{k:"remarks",label:"Remarks",max:200}];
-const LOGIN_ROLES = ["admin","management"].concat(Object.keys(ROLE_DEPT));
+// Website admin app roles (saratextiles.com/admin, 27 Oct 2026). They log in here like any dashboard
+// user but have no department, so no KPI or manpower write is theirs; the website's own Worker checks
+// the role on every change it makes.
+const WEB_ROLES = ["web_range","web_shows"];
+const LOGIN_ROLES = ["admin","management"].concat(Object.keys(ROLE_DEPT)).concat(WEB_ROLES);
 function json(data, status=200){return new Response(JSON.stringify(data),{status,headers:{"Content-Type":"application/json",...CORS}});}
 function rand6(){const a=new Uint32Array(1);crypto.getRandomValues(a);return String(100000+(a[0]%900000));}
 function randToken(){const arr=new Uint8Array(32);crypto.getRandomValues(arr);return Array.from(arr).map(b=>b.toString(16).padStart(2,"0")).join("");}
