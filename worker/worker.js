@@ -35,7 +35,7 @@ const MC_FIELDS = [{k:"description",label:"Material description",max:40,req:true
 // Website admin app roles (saratextiles.com/admin, 27 Oct 2026). They log in here like any dashboard
 // user but have no department, so no KPI or manpower write is theirs; the website's own Worker checks
 // the role on every change it makes.
-const WEB_ROLES = ["web_range","web_shows"];
+const WEB_ROLES = ["web_range","web_shows","web_all"];
 const LOGIN_ROLES = ["admin","management"].concat(Object.keys(ROLE_DEPT)).concat(WEB_ROLES);
 function json(data, status=200){return new Response(JSON.stringify(data),{status,headers:{"Content-Type":"application/json",...CORS}});}
 function rand6(){const a=new Uint32Array(1);crypto.getRandomValues(a);return String(100000+(a[0]%900000));}

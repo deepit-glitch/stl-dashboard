@@ -158,7 +158,7 @@ tr:last-child td{border-bottom:none}
 const IS_LOCAL = location.hostname === "localhost" || location.hostname === "127.0.0.1";
 const WORKER = (IS_LOCAL && localStorage.getItem("stl_worker")) || "https://square-flower-57b5.deepit.workers.dev";
 const ROLE_DEPT = {weaving:"Weaving",dyeing:"Dyeing",finishing:"Finishing",prep:"Prep",gm_tech:"UB",ppc:"PPC",bathrobe:"Bathrobe",quality:"Quality",rsb:"RSB",hr:"HR",hr_noida:"Noida Finishing"};
-const ROLE_LABELS = [["","No dashboard login (messages only)"],["management","Management (all dashboards)"],["weaving","Weaving"],["dyeing","Dyeing"],["finishing","Finishing"],["prep","Preparatory"],["gm_tech","GM (Tech)"],["ppc","PPC"],["bathrobe","Bathrobe"],["quality","Quality"],["rsb","Sr. GM Operations (RSB)"],["hr","HR (Manpower Entry — Nalagarh)"],["hr_noida","HR (Manpower Entry — Noida)"],["web_range","Website — Range (design team)"],["web_shows","Website — Exhibitions (marketing)"],["admin","Admin"]];
+const ROLE_LABELS = [["","No dashboard login (messages only)"],["management","Management (all dashboards)"],["weaving","Weaving"],["dyeing","Dyeing"],["finishing","Finishing"],["prep","Preparatory"],["gm_tech","GM (Tech)"],["ppc","PPC"],["bathrobe","Bathrobe"],["quality","Quality"],["rsb","Sr. GM Operations (RSB)"],["hr","HR (Manpower Entry — Nalagarh)"],["hr_noida","HR (Manpower Entry — Noida)"],["web_range","Website — Range (design team)"],["web_shows","Website — Exhibitions (marketing)"],["web_all","Website — Range and Exhibitions"],["admin","Admin"]];
 const ROLE_COLORS = {admin:"r-admin",management:"r-management"};
 const CHANNELS = [["whatsapp","WhatsApp"],["email","Email"]];
 const state = { users:[], lists:{}, log:[], me:"", demo:false, tab:"active", editing:null };
